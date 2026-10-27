@@ -29,6 +29,7 @@ api/ia.js             función del servidor para "Explicar con IA" (la clave nun
 supabase/01-esquema.sql         tablas, reglas de seguridad, fotos e historial
 supabase/02-datos-ejemplo.sql   145 denuncias y 10 obras de ejemplo para el jurado
 supabase/03-borrar-ejemplos.sql para sacar los ejemplos cuando pase a uso real
+supabase/04-quitar-voto.sql     solo si creaste la base antes de esta función: permite deshacer un voto
 scripts/generar-ejemplos.mjs    regenera los datos de ejemplo (opcional)
 ```
 
@@ -147,7 +148,7 @@ En el mapa, activá *Mapa de riesgo*, tocá una zona naranja o roja y vas a ver 
 
 - Cualquiera puede **ver** las denuncias, obras, precios e historial: es un mapa de transparencia.
 - Un vecino solo puede **crear** denuncias: la base fuerza que nazcan como "Recibida", sin votos ni marcas, con un tope de 10 por hora por persona.
-- "Yo también lo vi" y "Parece falsa" valen **uno por persona**, aunque se borre el navegador.
+- "Yo también lo vi" y "Parece falsa" valen **uno por persona**, aunque se borre el navegador. Tocando de nuevo el botón se deshace.
 - Las fotos: la **copia liviana** es pública; el **original** queda en un almacén privado que solo abre la moderación con un enlace que vence en 10 minutos. Solo el autor de la denuncia puede subir su foto, y una sola vez.
 - Las denuncias marcadas como **falsas** desaparecen para el público, pero la moderación las sigue viendo.
 - El **historial** lo escribe la base sola (estados, moderación, obras, precios), con huella SHA-256 encadenada. Desde la página nadie puede editarlo ni borrarlo, y el botón **Verificar integridad** comprueba toda la cadena.

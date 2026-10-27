@@ -163,6 +163,12 @@ function supabaseStore(cfg, on){
     if (error) throw nice(error);
     return data;
   };
+  S.unvote = async (id, kind) => {
+    await ensureSession();
+    const {data, error} = await sb.rpc("quitar_voto", {p_denuncia:id, p_tipo:kind});
+    if (error) throw nice(error);
+    return data;
+  };
   S.photoUrl = (r, alt) => `${base}/storage/v1/object/public/fotos/${encodeURIComponent(r.id)}.${alt ? "jpg" : "webp"}`;
   S.originalUrl = async r => {
     const {data, error} = await sb.storage.from("originales").list("", {search:r.id, limit:5});
@@ -253,6 +259,10 @@ function localStore(cfg, on){
   S.vote = async (id, kind) => {
     if (voted.has(id + kind)) return null; voted.add(id + kind);
     const r = reports.get(id); if (kind === "confirma") return ++r.votes; return ++r.flags;
+  };
+  S.unvote = async (id, kind) => {
+    if (!voted.delete(id + kind)) return null;
+    const r = reports.get(id); if (kind === "confirma") return r.votes = Math.max(0, r.votes - 1); return r.flags = Math.max(0, r.flags - 1);
   };
   S.photoUrl = r => r.photo || "";
   S.originalUrl = async () => { throw new Error("En el modo de prueba no se guardan originales."); };

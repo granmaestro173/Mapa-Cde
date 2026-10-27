@@ -72,7 +72,9 @@ const allReports = () => rawReportsAll().filter(r => r.mod !== "falsa");
 const hasPhoto = r => !!(r.photo || r.hasPhoto);
 const MINE_KEY = "cde-mis-votos";
 let mine = {}; try { mine = JSON.parse(localStorage.getItem(MINE_KEY) || "{}"); } catch(e) {}
-const markMine = (id, k) => { mine[id+":"+k] = 1; try { localStorage.setItem(MINE_KEY, JSON.stringify(mine)); } catch(e) {} };
+const saveMine = () => { try { localStorage.setItem(MINE_KEY, JSON.stringify(mine)); } catch(e) {} };
+const markMine = (id, k) => { mine[id+":"+k] = 1; saveMine(); };
+const unmarkMine = (id, k) => { delete mine[id+":"+k]; saveMine(); };
 const findReport = id => live.get(id);
 const inPeriod = (r, per=state.period, now=Date.now()) => r.t > now - PERIODS[per].ms && r.t <= now;
 
@@ -401,10 +403,11 @@ async function patchReport(r, patch){
   catch(err){ toast("No se pudo guardar: " + (err.message || err)); return false; }
 }
 // "Yo también lo vi" y "Parece falsa": uno por persona; la base lo controla aunque se borre el navegador.
+// Tocar de nuevo el mismo botón deshace el voto, por si se presionó por error.
 async function vote(id, kind){
   const r = findReport(id); if (!r) return;
   const k = kind === "confirma" ? "v" : "f";
-  if (mine[id+":"+k]) { toast(kind === "confirma" ? "Ya confirmaste esta denuncia." : "Ya avisaste que esta denuncia parece falsa."); return; }
+  if (mine[id+":"+k]) return unvote(r, kind, k);
   try {
     const total = await Store.vote(id, kind);
     markMine(id, k);
@@ -413,6 +416,15 @@ async function vote(id, kind){
     toast(kind === "confirma" ? "Gracias. Tu confirmación sube la prioridad." : "Gracias. La moderación la va a revisar.");
     refresh(); openDetail(id);
   } catch(err){ toast(err.message || "No se pudo registrar."); if (err.needLogin) openLogin(); }
+}
+async function unvote(r, kind, k){
+  try {
+    const total = await Store.unvote(r.id, kind);
+    unmarkMine(r.id, k);
+    if (total != null){ if (kind === "confirma") r.votes = total; else r.flags = total; }
+    toast(kind === "confirma" ? "Quitaste tu confirmación." : "Quitaste tu aviso de denuncia falsa.");
+    refresh(); openDetail(r.id);
+  } catch(err){ toast(err.message || "No se pudo quitar."); if (err.needLogin) openLogin(); }
 }
 
 /* ---------- Cajón: nueva denuncia ---------- */
@@ -661,7 +673,7 @@ async function submitReport(e){
   if (!$("#fCat").value && !formState.ai) analyze();
   const cat = $("#fCat").value || formState.ai?.categoria || "bache";
   if (formState.dup && !formState.ignoreDup){
-    const r = formState.dup; clearPick(); openDetail(r.id); await vote(r.id, "confirma"); return;
+    const r = formState.dup; clearPick(); openDetail(r.id); if (!mine[r.id+":v"]) await vote(r.id, "confirma"); return;
   }
   const ai = formState.ai || classify(desc);
   const rec = {cat, lat:+pickLatLng[0].toFixed(5), lng:+pickLatLng[1].toFixed(5), desc:desc.slice(0,500), barrio:nearestBarrio(pickLatLng),
