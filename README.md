@@ -242,3 +242,12 @@ La versión anterior a este cambio quedó guardada en la rama `respaldo-antes-ma
 ## Demo: zonas inundables
 
 `demo-inundacion.html` muestra las zonas bajas cerca de arroyos que se podrían inundar con lluvias fuertes, con tres escenarios (fuerte, muy fuerte y extrema), el pronóstico de lluvia de 7 días (Open-Meteo, se elige el escenario solo), el estado de El Niño y los barrios más expuestos. Las zonas salen del relieve (Copernicus DEM de 30 m) con el método HAND: cuántos metros está cada punto por encima del arroyo al que drena. Se calculan con `scripts/inundacion/calcular.py` y quedan en `inundacion/`. Es una estimación: no conoce los desagües pluviales ni reemplaza un estudio hidrológico.
+
+En el mapa principal la misma medición está integrada:
+
+- **Botón de capas → "Zonas inundables"**: muestra las zonas bajas según el escenario de lluvia (que se elige solo con el pronóstico) y la crecida del Paraná con un nivel ajustable (104–127 m; por defecto 118 m, como en octubre de 2026).
+- **Explorar → "Lluvia y río"**: lluvia de los próximos 7 días (Open-Meteo), caudal del Paraná pronosticado por GloFAS y el estado de El Niño.
+- **Aviso rojo sobre el mapa** cuando se esperan 30 mm o más en un día. El pronóstico se vuelve a pedir cada hora.
+- **Denuncias de calle inundada**: la ficha dice si el punto cae en una zona de riesgo del modelo.
+
+El modelo usa FABDEM (relieve sin árboles ni edificios) calculado con la acción `calcular-inundacion` de GitHub.

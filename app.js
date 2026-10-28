@@ -354,6 +354,121 @@ $("#cats").addEventListener("click", e => {
 $("#feed").addEventListener("click", e => { const b = e.target.closest("[data-id]"); if (b) { const r=findReport(b.dataset.id); if (r){ setSide(false); map.flyTo([r.lat,r.lng], 16, {duration:.6}); openDetail(r.id); } } });
 $("#tgHeat").addEventListener("change", e => { state.heat = e.target.checked; if (state.heat){ heatLayer.addTo(map); renderHeat(); } else { map.removeLayer(heatLayer); map.closePopup(); } $("#heatLegend").hidden = !state.heat; $("#heatSlotRow").hidden = !state.heat; });
 $("#heatSlot").addEventListener("change", e => { state.heatSlot = e.target.value; map.closePopup(); if (state.heat) renderHeat(); });
+
+/* ---------- Zonas inundables, lluvia y crecida del Paraná ---------- */
+// Las zonas salen del relieve (scripts/inundacion/calcular.py): cuántos metros está cada punto por encima del arroyo
+// al que drena. Con más lluvia se muestran más niveles. La crecida del Paraná se simula llenando desde el río todo lo
+// conectado que quede por debajo del nivel elegido. El pronóstico (Open-Meteo, gratis) se actualiza cada hora.
+const INUND_NIV = ["muy_alta", "alta", "media"];
+const INUND_TXT = { muy_alta: "muy alta", alta: "alta", media: "media" };
+const inund = {on:false, esc:2, datos:null, capas:{}, cota:null, parana:null, escManual:false};
+const cargarInundDatos = () => inund.datos ? Promise.resolve(inund.datos)
+  : fetch("inundacion/datos.json").then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => inund.datos = d);
+const leerPng = src => new Promise((ok, mal) => {
+  const im = new Image();
+  im.onload = () => { const cv = document.createElement("canvas"); cv.width = im.width; cv.height = im.height;
+    const cx = cv.getContext("2d", {willReadFrequently:true}); cx.drawImage(im, 0, 0);
+    ok({w:im.width, h:im.height, px:cx.getImageData(0, 0, im.width, im.height).data}); };
+  im.onerror = mal; im.src = src;
+});
+function verInundEsc(n){
+  inund.esc = n;
+  INUND_NIV.forEach((k, i) => { const c = inund.capas[k]; if (!c) return; if (inund.on && i < n) c.addTo(map); else map.removeLayer(c); });
+  for (const b of $("#inundEsc").children) b.setAttribute("aria-pressed", +b.dataset.n === n);
+}
+function crecida(){
+  const nivel = +$("#inundNivel").value, on = inund.on && $("#tgParana").checked;
+  $("#inundNivelTxt").textContent = String(nivel).replace(".", ",") + " m";
+  if (!on || !inund.cota){ if (inund.parana) map.removeLayer(inund.parana); $("#inundNota").textContent = ""; return; }
+  const {w, h, px} = inund.cota, tope = Math.round((nivel - inund.datos.cota_base) * 4);
+  const lleno = new Uint8Array(w * h), cola = new Int32Array(w * h); let ini = 0, fin = 0, n = 0;
+  for (let i = 0; i < w * h; i++) if (px[i * 4 + 1] > 127){ lleno[i] = 1; cola[fin++] = i; }
+  while (ini < fin){
+    const i = cola[ini++], x = i % w;
+    for (const j of [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, i - w, i + w]){
+      if (j < 0 || j >= w * h || lleno[j] || px[j * 4] > tope || px[j * 4] === 255) continue;
+      lleno[j] = 1; cola[fin++] = j;
+    }
+  }
+  const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+  const cx = cv.getContext("2d"), img = cx.createImageData(w, h);
+  for (let i = 0; i < w * h; i++) if (lleno[i] && px[i * 4 + 1] < 128 && px[i * 4 + 2] < 128){ img.data.set([123, 63, 196, 190], i * 4); n++; }
+  cx.putImageData(img, 0, 0);
+  if (inund.parana) inund.parana.setUrl(cv.toDataURL()); else inund.parana = L.imageOverlay(cv.toDataURL(), inund.datos.zona, {opacity:.8});
+  inund.parana.addTo(map);
+  $("#inundNota").textContent = n ? `Con el río a ${String(nivel).replace(".", ",")} m quedarían bajo el agua unos ${(n * .00084).toFixed(1).replace(".", ",")} km² junto al Paraná y sus arroyos.` : "A este nivel el río no sale de su cauce.";
+}
+async function setInund(on){
+  inund.on = on; $("#tgInund").checked = on;
+  if (on) $("#lluviaBanner").hidden = true;
+  $("#inundOpts").hidden = !on; $("#inundLegend").hidden = !on;
+  if (on){
+    try {
+      const d = await cargarInundDatos();
+      if (!inund.capas.muy_alta) for (const k of INUND_NIV) inund.capas[k] = L.imageOverlay(`inundacion/riesgo-${k}.png`, d.zona, {opacity:.85});
+      if (!inund.cota) inund.cota = await leerPng("inundacion/cota.png");
+    } catch(e){ toast("No se pudieron cargar las zonas inundables."); }
+  }
+  verInundEsc(inund.esc); crecida();
+}
+$("#tgInund").addEventListener("change", e => setInund(e.target.checked));
+$("#inundEsc").addEventListener("click", e => { const b = e.target.closest("[data-n]"); if (b){ inund.escManual = true; verInundEsc(+b.dataset.n); } });
+$("#inundNivel").addEventListener("input", crecida);
+$("#tgParana").addEventListener("change", crecida);
+const mostrarInund = () => { setSide(false); setInund(true); map.flyTo(MOBILE.matches ? [-25.51,-54.625] : [-25.512,-54.638], MOBILE.matches ? 13 : 13.5, {duration:.6}); };
+$("#btnVerInund").addEventListener("click", mostrarInund);
+$("#lluviaVer").addEventListener("click", () => { $("#lluviaBanner").hidden = true; mostrarInund(); });
+$("#lluviaX").addEventListener("click", () => { $("#lluviaBanner").hidden = true; try { sessionStorage.setItem("cde-lluvia-visto", $("#lluviaTxt").textContent); } catch(e) {} });
+
+// Pronóstico de lluvia (Open-Meteo) y caudal del Paraná (GloFAS vía Open-Meteo). Se piden al abrir y cada hora.
+const DIAS_C = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
+const diaC = s => { const f = new Date(s + "T12:00:00"); return DIAS_C[f.getDay()] + " " + f.getDate(); };
+async function clima(){
+  try {
+    const r = await fetch("https://api.open-meteo.com/v1/forecast?latitude=-25.515&longitude=-54.62&daily=precipitation_sum,precipitation_probability_max&timezone=America%2FAsuncion&forecast_days=7");
+    if (!r.ok) throw 0;
+    const p = await r.json(), mm = p.daily.precipitation_sum.map(v => v || 0), prob = p.daily.precipitation_probability_max || [];
+    const max = Math.max(...mm), iMax = mm.indexOf(max), tope = Math.max(60, max);
+    $("#climaDias").innerHTML = mm.map((v, i) => `<div class="dia ${v >= 100 ? "x" : v >= 30 ? "f" : ""}" title="${diaC(p.daily.time[i])}: ${v.toFixed(1)} mm${prob[i] != null ? ", " + prob[i] + "% de probabilidad" : ""}"><b>${Math.round(v)}</b><i style="height:${Math.max(2, v / tope * 40)}px"></i>${diaC(p.daily.time[i]).split(" ")[0]}</div>`).join("");
+    const n = max >= 100 ? 3 : max >= 60 ? 2 : max >= 30 ? 1 : 0;
+    $("#clima").className = "clima n" + n;
+    $("#climaT").textContent = n ? `${["", "Lluvia fuerte", "Lluvia muy fuerte", "Lluvia extrema"][n]}: ${Math.round(max)} mm el ${diaC(p.daily.time[iMax])}` : "Sin lluvias fuertes previstas";
+    if (n && !inund.escManual) verInundEsc(n);
+    const txt = `${["", "Atención", "Alerta", "Alerta"][n]}: se esperan ${Math.round(max)} mm de lluvia el ${diaC(p.daily.time[iMax])}`;
+    let visto = ""; try { visto = sessionStorage.getItem("cde-lluvia-visto") || ""; } catch(e) {}
+    $("#lluviaTxt").textContent = txt;
+    $("#lluviaBanner").hidden = !n || visto === txt;
+  } catch(e){
+    $("#climaT").textContent = "No se pudo cargar el pronóstico";
+  }
+  try {
+    const r = await fetch("https://flood-api.open-meteo.com/v1/flood?latitude=-25.53&longitude=-54.597&daily=river_discharge&past_days=3&forecast_days=10");
+    if (!r.ok) throw 0;
+    const q = (await r.json()).daily, v = q.river_discharge, hoy = q.time.indexOf(new Date().toLocaleDateString("sv", {timeZone:"America/Asuncion"}));
+    const iH = hoy >= 0 ? hoy : 3, futuro = v.slice(iH), maxF = Math.max(...futuro), iM = iH + futuro.indexOf(maxF);
+    // Si el punto no cae sobre el Paraná el caudal sale chico: entonces no se muestra.
+    if (!(v[iH] > 3000)) throw 0;
+    const fmt = x => Math.round(x).toLocaleString("es-PY");
+    const tend = maxF > v[iH] * 1.1 ? `sube hasta ${fmt(maxF)} m³/s el ${diaC(q.time[iM])}` : v[Math.min(iH + 3, v.length - 1)] < v[iH] * .9 ? "en baja" : "estable";
+    $("#climaRio").innerHTML = `<b>Paraná:</b> ${fmt(v[iH])} m³/s hoy, ${tend} (pronóstico GloFAS).`;
+    $("#climaRio").hidden = false;
+  } catch(e){ $("#climaRio").hidden = true; }
+}
+clima();
+setInterval(() => { if (!document.hidden) clima(); }, 60 * 60 * 1000);
+
+// Riesgo de inundación en un punto (para las denuncias de calle inundada): se lee de las imágenes de cada nivel.
+const riesgoImgs = {};
+async function riesgoEn(lat, lng){
+  const d = await cargarInundDatos(), [[s, o], [n, e]] = d.zona;
+  if (lat < s || lat > n || lng < o || lng > e) return null;
+  for (const k of INUND_NIV){
+    const im = riesgoImgs[k] || (riesgoImgs[k] = await leerPng(`inundacion/riesgo-${k}.png`));
+    const x = Math.floor((lng - o) / (e - o) * im.w), y = Math.floor((n - lat) / (n - s) * im.h);
+    if (im.px[(y * im.w + x) * 4 + 3] > 50) return k;
+  }
+  return "";
+}
 $("#tgRes").addEventListener("change", e => { state.showRes = e.target.checked; refresh(); });
 $("#tgHidden").addEventListener("change", e => { state.showHidden = e.target.checked; refresh(); });
 $("#tgPhoto").addEventListener("change", e => { state.onlyPhoto = e.target.checked; refresh(); });
@@ -400,7 +515,7 @@ function openDetail(id){
       <button class="x" type="button" aria-label="Cerrar" data-close>×</button>
     </div>
     <div class="drawer-body">
-      <div class="rowbtns"><span class="chip c" style="--c:${cvar(r.cat)}">${esc(r.barrio)}</span><span class="chip">${ago(r.t)}</span>${state.near.c ? `<span class="chip">a ${fmtDist(distM(state.near.c,[r.lat,r.lng]))} de vos</span>` : ""}${src}${modChip(r)}${iaChip(r)}</div>
+      <div class="rowbtns" id="rdChips"><span class="chip c" style="--c:${cvar(r.cat)}">${esc(r.barrio)}</span><span class="chip">${ago(r.t)}</span>${state.near.c ? `<span class="chip">a ${fmtDist(distM(state.near.c,[r.lat,r.lng]))} de vos</span>` : ""}${src}${modChip(r)}${iaChip(r)}</div>
       ${iaNote(r)}
       ${resNote(r)}
       ${ahorro ? fotoAhorro(r) : photoBlock(r) + iaDesc(r)}
@@ -419,6 +534,13 @@ function openDetail(id){
       ${muniBtns}
       <div class="note mono">${r.lat.toFixed(5)}, ${r.lng.toFixed(5)} · ${new Date(r.t).toLocaleString("es-PY")}</div>
     </div>`);
+  // En las calles inundadas se agrega el riesgo del terreno según el modelo (si la denuncia sigue abierta).
+  if (r.cat === "inundacion") riesgoEn(r.lat, r.lng).then(k => {
+    if (k === null || state.sel !== id || !$("#rdChips")) return;
+    $("#rdChips").insertAdjacentHTML("beforeend", k
+      ? `<span class="chip agua" title="Según el relieve del terreno (FABDEM)">Zona de riesgo ${esc(INUND_TXT[k] || k)} de inundación</span>`
+      : `<span class="chip" title="Según el relieve del terreno (FABDEM)">Fuera de las zonas de riesgo del modelo</span>`);
+  }).catch(() => {});
 }
 /* ---------- Suspensión de usuarios (moderación) ---------- */
 // Un usuario suspendido no puede denunciar ni votar: lo bloquea la base (07-suspensiones.sql). Todo queda en el historial.

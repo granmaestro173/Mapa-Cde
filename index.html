@@ -153,6 +153,24 @@ main{flex:1;min-height:0;display:flex;flex-direction:column}
 .susp-row small{display:block;color:var(--muted);margin-top:2px}
 .susp-row .apel,.susp-box .apel{display:block;color:var(--ink);margin-top:4px;font-style:italic}
 .susp-row.apela{background:color-mix(in srgb,var(--warn) 9%,transparent);border-radius:8px;padding:8px}
+.inund-opts{display:flex;flex-direction:column;gap:8px;padding:8px 10px;border-radius:10px;background:var(--panel-2)}
+.inund-opts .seg button{font-size:12px;line-height:1.15;padding:6px 4px}.inund-opts .seg small{display:block;font-size:10.5px;opacity:.8}
+.inund-opts input[type=range]{width:100%;accent-color:#7b3fc4}
+.inundkey{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:4px}.inundkey span{display:flex;align-items:center;gap:4px}.inundkey i{width:10px;height:10px;border-radius:3px}
+#legend>div+div{margin-top:8px}
+.layers{max-height:calc(100% - 100px);overflow-y:auto}
+.clima{border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.clima.n1{border-color:var(--warn)}.clima.n2,.clima.n3{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 6%,var(--panel))}
+.clima .btn{align-self:flex-start}
+.clima .dias{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;align-items:end;height:64px}
+.clima .dia{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;height:100%;font-size:10px;color:var(--muted)}
+.clima .dia i{display:block;width:70%;min-height:2px;border-radius:3px 3px 0 0;background:#64b5f6}
+.clima .dia.f i{background:#1e88e5}.clima .dia.x i{background:#0d47a1}
+.clima .dia b{color:var(--ink);font-size:10.5px;font-weight:600}
+.banner.lluvia{background:var(--bad);color:#fff}
+.banner.lluvia .btn{color:#fff;background:transparent;border:0;font-weight:600}
+#nearBanner:not([hidden])~#lluviaBanner,#pickBanner:not([hidden])~#lluviaBanner{display:none}
+.chip.agua{background:color-mix(in srgb,#1e88e5 14%,transparent);color:#1565c0}
 .ahorro-tg{border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:4px}
 /* Selector de vista del mapa */
 .vista-sec{display:flex;flex-direction:column;gap:6px;margin:4px 0 8px}
@@ -443,7 +461,7 @@ main{height:100%;display:block}
 .layers{position:absolute;z-index:1040;right:64px;top:calc(76px + env(safe-area-inset-top,0px));width:300px;max-width:calc(100% - 80px);background:var(--panel);border-radius:12px;box-shadow:var(--shadow);padding:12px 16px}
 .layers h3{font-size:15px;margin-bottom:6px}
 .legend{left:auto;right:16px;bottom:24px;transform:translateY(-70px);border:0;border-radius:8px;box-shadow:var(--shadow);background:var(--panel)}
-.legend:has(#heatLegend[hidden]){display:none}
+.legend:has(#heatLegend[hidden]):has(#inundLegend[hidden]){display:none}
 @media (min-width:761px){.legend{right:72px}}
 .banner{background:#323232;color:#fff;border-radius:8px;top:calc(76px + env(safe-area-inset-top,0px));padding:8px 8px 8px 16px;font-weight:400;font-size:14px}
 .banner .btn{background:transparent;border:0;color:#8ab4f8;font-weight:500}
@@ -569,6 +587,7 @@ main{height:100%;display:block}
   .side-toggle{display:grid;left:calc(max(8px,env(safe-area-inset-left,0px)) + min(340px,calc(100% - 64px)));top:calc(130px + env(safe-area-inset-top,0px))}
   #view-mapa.side-collapsed .side-toggle{left:max(8px,env(safe-area-inset-left,0px))}
   .fab-ext{bottom:calc(24px + env(safe-area-inset-bottom,0px))}
+  #lluviaBanner{bottom:calc(92px + env(safe-area-inset-bottom,0px))}
   .legend{bottom:calc(24px + env(safe-area-inset-bottom,0px))}
   .leaflet-bottom{bottom:0}
 }
@@ -599,9 +618,11 @@ main{height:100%;display:block}
       <div id="map" aria-label="Mapa de Ciudad del Este"></div>
       <div class="banner" id="nearBanner" hidden><span>Tocá el mapa donde estás</span><button class="btn small" id="nearBannerX" type="button">CANCELAR</button></div>
       <div class="banner" id="pickBanner" hidden><span>Tocá el mapa donde está el problema</span><button class="btn small" id="btnPickDone" type="button">LISTO</button></div>
+      <div class="banner lluvia" id="lluviaBanner" role="status" hidden><span id="lluviaTxt"></span><button class="btn small" id="lluviaVer" type="button">VER ZONAS</button><button class="btn small" id="lluviaX" type="button" aria-label="Cerrar aviso">✕</button></div>
       <div class="legend" id="legend">
         <span hidden><b id="legendCount">0</b></span>
         <div id="heatLegend" hidden><div class="eyebrow">Mapa de riesgo</div><div class="heatkey">bajo <span></span> alto</div></div>
+        <div id="inundLegend" hidden><div class="eyebrow">Zonas inundables</div><div class="inundkey"><span><i style="background:#0d47a1"></i>muy alta</span><span><i style="background:#1e88e5"></i>alta</span><span><i style="background:#64b5f6"></i>media</span><span><i style="background:#7b3fc4"></i>crecida del río</span></div></div>
       </div>
     </div>
 
@@ -672,6 +693,15 @@ main{height:100%;display:block}
       <div class="toggles">
         <label class="tg"><span>Mapa de riesgo<small>Zonas con más probabilidad de nuevas denuncias. Tocá una zona para ver por qué.</small></span><input type="checkbox" class="switch" id="tgHeat"></label>
         <label class="tg" id="heatSlotRow" hidden><span>Franja horaria<small>Riesgo según la hora del día</small></span><select class="inp" id="heatSlot" style="width:auto;padding:5px 8px"><option value="">Todo el día</option><option value="m">Mañana (6 a 12)</option><option value="t">Tarde (12 a 18)</option><option value="n">Noche (18 a 24)</option><option value="d">Madrugada (0 a 6)</option></select></label>
+        <label class="tg"><span>Zonas inundables<small>Zonas bajas junto a arroyos y crecida del Paraná. Es una estimación a partir del relieve.</small></span><input type="checkbox" class="switch" id="tgInund"></label>
+        <div class="inund-opts" id="inundOpts" hidden>
+          <div class="seg" id="inundEsc" role="group" aria-label="Escenario de lluvia" style="grid-template-columns:repeat(3,1fr)">
+            <button type="button" data-n="1" aria-pressed="false">Fuerte<small>30–60 mm</small></button><button type="button" data-n="2" aria-pressed="true">Muy fuerte<small>60–100 mm</small></button><button type="button" data-n="3" aria-pressed="false">Extrema<small>+100 mm</small></button>
+          </div>
+          <label class="tg"><span>Crecida del Paraná · <b id="inundNivelTxt">118 m</b><small>En octubre de 2026 llegó a unos 118 m en la zona baja de San Rafael</small></span><input type="checkbox" class="switch" id="tgParana" checked></label>
+          <input type="range" id="inundNivel" min="104" max="127" step="0.5" value="118" aria-label="Nivel del río Paraná en metros">
+          <div class="note" id="inundNota"></div>
+        </div>
         <label class="tg"><span>Datos de ejemplo<small>Denuncias de muestra para la presentación</small></span><input type="checkbox" class="switch" id="tgDemo" checked></label>
       </div>
     </div>
@@ -690,6 +720,14 @@ main{height:100%;display:block}
         </div>
         <svg class="spark" id="asaltoSpark" viewBox="0 0 300 46" preserveAspectRatio="none" aria-hidden="true"></svg>
         <div class="note" id="asaltoNote"></div>
+      </div>
+      <div class="clima" id="clima">
+        <div class="eyebrow">Lluvia y río · próximos 7 días</div>
+        <b id="climaT">Cargando pronóstico…</b>
+        <div class="dias" id="climaDias" aria-hidden="true"></div>
+        <div class="note" id="climaRio" hidden></div>
+        <div class="note"><b>El Niño muy fuerte en curso</b> (IRI, 19/10/2026): suele traer más lluvias y crecidas del Paraná en primavera y verano.</div>
+        <button class="btn small" id="btnVerInund" type="button">Ver zonas inundables</button>
       </div>
       <div>
         <div class="eyebrow" style="margin-bottom:2px" id="feedTitle">Últimas denuncias</div>
@@ -801,6 +839,6 @@ main{height:100%;display:block}
 <script src="vendor/supabase.js"></script>
 <script src="config.js?v=3"></script>
 <script src="store.js?v=6"></script>
-<script src="app.js?v=15"></script>
+<script src="app.js?v=16"></script>
 </body>
 </html>
