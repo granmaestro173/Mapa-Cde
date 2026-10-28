@@ -59,7 +59,7 @@ const C = oscuro
 const ancho = (z13, z16, z19, extra = [0, 0, 0]) => ["interpolate", ["exponential", 1.6], ["zoom"], 13, z13 + extra[0], 16, z16 + extra[1], 19, z19 + extra[2]];
 const tipo = (...c) => ["match", ["get", "class"], c, true, false];
 const CALLES = [
-  {id:"menor", f:tipo("minor", "service", "track", "path", "pedestrian"), w:[.6, 4, 16], c:C.calle, b:C.calleBorde, min:13.5},
+  {id:"menor", f:tipo("minor", "service", "track", "path", "pedestrian"), w:[.6, 4, 16], c:C.calle, b:C.calleBorde, min:14.5},
   {id:"terciaria", f:tipo("tertiary"), w:[1.2, 6, 20], c:C.calle, b:C.calleBorde, min:12},
   {id:"avenida", f:tipo("primary", "secondary"), w:[2.2, 8, 26], c:C.av, b:C.avBorde, min:10},
   {id:"ruta", f:tipo("trunk", "motorway"), w:[3, 10, 30], c:C.ruta, b:C.rutaBorde, min:8}
@@ -79,7 +79,6 @@ const style = {
     {id:"fondo", type:"background", paint:{"background-color":C.tierra}},
     ...((window.CDE_CONFIG || {}).esriKey ? [{id:"satelite", type:"raster", source:"sat", layout:{visibility:"none"}}] : []),
     {id:"parques", type:"fill", source:"osm", "source-layer":"park", paint:{"fill-color":C.parque}},
-    {id:"verde", type:"fill", source:"osm", "source-layer":"landcover", filter:tipo("grass", "wood"), paint:{"fill-color":C.parque, "fill-opacity":.6}},
     {id:"agua", type:"fill", source:"osm", "source-layer":"water", paint:{"fill-color":C.agua}},
     {id:"arroyos", type:"line", source:"osm", "source-layer":"waterway", paint:{"line-color":C.agua, "line-width":ancho(1, 2, 5)}},
     // Primero todos los bordes y después los rellenos, así los cruces quedan limpios.
@@ -87,12 +86,10 @@ const style = {
       layout:{"line-cap":"round", "line-join":"round"}, paint:{"line-color":k.b, "line-width":ancho(...k.w, [.9, 1.6, 3])}})),
     ...CALLES.map(k => ({id:k.id, type:"line", source:"osm", "source-layer":"transportation", minzoom:k.min, filter:k.f,
       layout:{"line-cap":"round", "line-join":"round"}, paint:{"line-color":k.c, "line-width":ancho(...k.w)}})),
-    {id:"puente-frontera", type:"line", source:"osm", "source-layer":"boundary", filter:["==", ["get", "admin_level"], 2],
-      paint:{"line-color":C.barrio, "line-width":1.2, "line-dasharray":[3, 2], "line-opacity":.6}},
     {id:"nombres-agua", type:"symbol", source:"osm", "source-layer":"water_name",
       layout:{"text-field":["get", "name"], "text-font":fuente, "text-size":13, "text-letter-spacing":.2},
       paint:{"text-color":C.aguaTxt, "text-halo-color":C.halo, "text-halo-width":1}},
-    {id:"nombres-calles", type:"symbol", source:"osm", "source-layer":"transportation_name", minzoom:14,
+    {id:"nombres-calles", type:"symbol", source:"osm", "source-layer":"transportation_name", minzoom:15,
       layout:{"symbol-placement":"line", "text-field":["get", "name"], "text-size":["interpolate", ["linear"], ["zoom"], 14, 10, 18, 13],
         "text-font":["match", ["get", "class"], ["trunk", "primary", "secondary", "motorway"], ["literal", negrita], ["literal", fuente]], "text-max-angle":30, "symbol-spacing":300},
       paint:{"text-color":C.txt, "text-halo-color":C.halo, "text-halo-width":1.6}},
@@ -105,7 +102,7 @@ const style = {
   ]
 };
 
-const map = new maplibregl.Map({container:"map", style, fadeDuration:0, renderWorldCopies:false, pixelRatio:Math.min(devicePixelRatio || 1, 2), maxPitch:0, center:[-54.6135, -25.5095], zoom:15, minZoom:12, maxZoom:19,
+const map = new maplibregl.Map({container:"map", style, fadeDuration:0, renderWorldCopies:false, pixelRatio:Math.min(devicePixelRatio || 1, matchMedia("(pointer: coarse)").matches ? 1.5 : 2), maxTileCacheSize:80, maxPitch:0, center:[-54.6135, -25.5095], zoom:15, minZoom:13, maxZoom:19,
   maxBounds:[[-54.75, -25.62], [-54.55, -25.43]], attributionControl:{compact:true}, dragRotate:false, pitchWithRotate:false});
 map.touchZoomRotate.disableRotation();
 map.addControl(new maplibregl.NavigationControl({showCompass:false}), "bottom-right");
@@ -170,7 +167,7 @@ Promise.all([fetch("datos-ejemplo.json").then(r => r.json()), new Promise(ok => 
 
 // Tres vistas: Calles (nuestro mapa), Satélite (solo la imagen de Esri) y Superponer
 // (nuestras calles encima del satélite, al estilo de las rutas de Esri, para comprobar que coinciden).
-const SUPERFICIES = ["parques", "verde", "agua", "arroyos"];
+const SUPERFICIES = ["parques", "agua", "arroyos"];
 const NOMBRES = ["nombres-agua", "nombres-calles", "barrios", "ciudades"];
 const HIBRIDO = {menor:"#ffffff", terciaria:"#ffffff", avenida:"#ffe08a", ruta:"#ffb35c"};
 let vista = "calles";
@@ -194,7 +191,6 @@ function pintar(){
     map.setPaintProperty(id, "text-color", sup ? "#ffffff" : id === "nombres-agua" ? C.aguaTxt : id === "barrios" ? C.barrio : C.txt);
     map.setPaintProperty(id, "text-halo-color", sup ? "rgba(0,0,0,.75)" : C.halo);
   }
-  ver("puente-frontera", !sat);
   // Íconos simples sobre el mapa de calles; los completos (con categoría, foto y votos) sobre el satélite.
   if (map.getLayer("denuncias")) map.setLayoutProperty("denuncias", "icon-image", imagenPin());
   document.getElementById("opac").hidden = !sup;
