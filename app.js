@@ -369,11 +369,12 @@ function openDetail(id){
       <div class="note mono">${r.lat.toFixed(5)}, ${r.lng.toFixed(5)} · ${new Date(r.t).toLocaleString("es-PY")}</div>
     </div>`);
 }
-// Resultado de la revisión automática con IA. El público ve solo "Verificado con IA"; las dudas las ve la moderación.
+// Resultado de la revisión automática con IA. El público ve "Verificado con IA" o "No verificado"; las dudas las ve la moderación.
 function iaChip(r){
   if (r.iaCheck === "verificada") return `<span class="chip ia" title="${esc(r.iaWhy)}">✦ Verificado con IA</span>`;
   if (state.staff && r.iaCheck === "dudosa") return '<span class="chip warn">✦ IA: dudosa</span>';
-  return "";
+  if (r.mod === "verificada") return "";
+  return `<span class="chip" title="${r.iaCheck ? "La IA no pudo confirmar la foto." : "Todavía no la revisó la IA."}">No verificado</span>`;
 }
 const iaNote = r => state.staff && r.iaWhy && r.iaCheck !== "sin_foto" ? `<div class="note">✦ Revisión con IA: ${esc(r.iaWhy)}</div>` : "";
 function modChip(r){
