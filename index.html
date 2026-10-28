@@ -145,6 +145,7 @@ main{flex:1;min-height:0;display:flex;flex-direction:column}
 .cam{position:absolute;right:-7px;top:-7px;width:15px;height:15px;border-radius:50%;background:var(--panel);color:var(--ink);display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.4)}
 .cam svg{width:9px;height:9px}
 .pin.fake{opacity:.35;filter:grayscale(1)}
+.pin.oculta{opacity:.5;outline:2px dashed var(--muted);outline-offset:2px}
 .ph{position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:var(--panel-2)}
 .ph img{display:block;width:100%;max-height:260px;object-fit:cover;cursor:zoom-in}
 .ph .ph-load{display:grid;place-items:center;height:160px;color:var(--muted);font-size:13px}
@@ -603,6 +604,7 @@ main{height:100%;display:block}
           <div class="toggles">
             <label class="tg"><span>Solo con foto<small>Más fáciles de verificar</small></span><input type="checkbox" class="switch" id="tgPhoto"></label>
             <label class="tg"><span>Mostrar resueltas<small>Las de las últimas 2 semanas</small></span><input type="checkbox" class="switch" id="tgRes"></label>
+            <label class="tg"><span>Ver las denuncias que oculté<small id="hiddenNote">Todavía no ocultaste ninguna</small></span><input type="checkbox" class="switch" id="tgHidden"></label>
           </div>
         </section>
       </div>
@@ -744,6 +746,6 @@ main{height:100%;display:block}
 <script src="vendor/supabase.js"></script>
 <script src="config.js?v=2"></script>
 <script src="store.js?v=2"></script>
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

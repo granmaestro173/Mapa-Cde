@@ -59,7 +59,7 @@ const nearestBarrio = p => BARRIOS.reduce((best,b)=>{const d=distM(p,b.c);return
 
 /* ---------- Estado ---------- */
 const PERIODS = {dia:{n:"Día", label:"últimas 24 h", ms:DAY}, semana:{n:"Semana", label:"últimos 7 días", ms:7*DAY}, mes:{n:"Mes", label:"últimos 30 días", ms:30*DAY}, anio:{n:"Año", label:"últimos 12 meses", ms:365*DAY}};
-const state = {period:"mes", cats:new Set(CAT_KEYS), showRes:false, showDemo:true, onlyPhoto:false, near:{on:false, c:null, r:1000, src:null}, heat:false, heatSlot:"", sel:null, muni:false, staff:false};
+const state = {period:"mes", cats:new Set(CAT_KEYS), showRes:false, showHidden:false, showDemo:true, onlyPhoto:false, near:{on:false, c:null, r:1000, src:null}, heat:false, heatSlot:"", sel:null, muni:false, staff:false};
 try { const p = localStorage.getItem("cde-period"); if (p && PERIODS[p]) state.period = p; } catch(e) {}
 const live = new Map();      // denuncias de la base (Supabase) o del modo de prueba
 const obrasLive = new Map();
@@ -72,6 +72,11 @@ const allReports = () => rawReportsAll().filter(r => r.mod !== "falsa");
 const hasPhoto = r => !!(r.photo || r.hasPhoto);
 const MINE_KEY = "cde-mis-votos";
 let mine = {}; try { mine = JSON.parse(localStorage.getItem(MINE_KEY) || "{}"); } catch(e) {}
+// Denuncias que cada persona escondió de su mapa. Se guarda solo en este dispositivo; no cambia nada para los demás.
+const HIDDEN_KEY = "cde-ocultas";
+let ocultas = new Set(); try { ocultas = new Set(JSON.parse(localStorage.getItem(HIDDEN_KEY) || "[]")); } catch(e) {}
+const saveOcultas = () => { try { localStorage.setItem(HIDDEN_KEY, JSON.stringify([...ocultas])); } catch(e) {} };
+const verOculta = r => state.showHidden || !ocultas.has(r.id);
 const saveMine = () => { try { localStorage.setItem(MINE_KEY, JSON.stringify(mine)); } catch(e) {} };
 const markMine = (id, k) => { mine[id+":"+k] = 1; saveMine(); };
 const unmarkMine = (id, k) => { delete mine[id+":"+k]; saveMine(); };
@@ -113,7 +118,7 @@ const CAM = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 4h6l1.5 2H
 function iconFor(r, sel){
   const hot = r.votes >= 8 && r.status !== "resuelta";
   return L.divIcon({className:"", iconSize:[26,26], iconAnchor:sel?[17,34]:[13,26],
-    html:`<div class="pinw"><div class="pin ${r.status==="resuelta"?"res":""} ${hot?"hot":""} ${sel?"sel":""} ${r.mod==="falsa"?"fake":""}" style="--c:${cvar(r.cat)}">${ICONS[r.cat]}</div>${hasPhoto(r) ? `<span class="cam" title="Con foto">${CAM}</span>` : ""}</div>`});
+    html:`<div class="pinw"><div class="pin ${r.status==="resuelta"?"res":""} ${hot?"hot":""} ${sel?"sel":""} ${r.mod==="falsa"?"fake":""} ${ocultas.has(r.id)?"oculta":""}" style="--c:${cvar(r.cat)}">${ICONS[r.cat]}</div>${hasPhoto(r) ? `<span class="cam" title="Con foto">${CAM}</span>` : ""}</div>`});
 }
 // Una denuncia resuelta sigue 10 minutos en el mapa, por si se marcó por error y hay que cancelarlo; después sale del mapa.
 const RES_GRACIA = 10*60*1000;
@@ -121,7 +126,7 @@ const resReciente = r => r.status === "resuelta" && !!r.resolvedAt && Date.now()
 // "Mostrar resueltas" muestra las de las últimas 2 semanas; las más viejas se borran solas (06-limpiar-resueltas.sql).
 const enMapa = r => r.status !== "resuelta" || resReciente(r) || state.showRes && Date.now() - (r.resolvedAt || r.t) < 14*DAY;
 function visibleReports(){
-  return allReports().filter(r => state.cats.has(r.cat) && inPeriod(r) && enMapa(r) && (!state.onlyPhoto || hasPhoto(r)) && nearOK(r));
+  return allReports().filter(r => state.cats.has(r.cat) && inPeriod(r) && enMapa(r) && verOculta(r) && (!state.onlyPhoto || hasPhoto(r)) && nearOK(r));
 }
 const nearActive = () => state.near.on && !!state.near.c;
 const nearOK = r => !nearActive() || distM(state.near.c, [r.lat, r.lng]) <= state.near.r;
@@ -131,7 +136,7 @@ function renderPins(){
   const ids = new Set(vis.map(r => r.id));
   for (const [id,m] of markers) if (!ids.has(id)) { pinLayer.removeLayer(m); markers.delete(id); }
   for (const r of vis){
-    const key = r.status + r.votes + (state.sel===r.id) + hasPhoto(r) + (r.mod||"");
+    const key = r.status + r.votes + (state.sel===r.id) + hasPhoto(r) + (r.mod||"") + ocultas.has(r.id);
     let m = markers.get(r.id);
     if (!m){
       m = L.marker([r.lat, r.lng], {icon:iconFor(r, state.sel===r.id), title:CATS[r.cat].one + " · " + r.barrio, riseOnHover:true});
@@ -297,7 +302,7 @@ function renderSide(){
 
   const latest = nearActive()
     ? visibleReports().map(r => (r._d = distM(state.near.c, [r.lat, r.lng]), r)).sort((a,b) => a._d-b._d).slice(0,10)
-    : rs.slice().sort((a,b)=>b.t-a.t).slice(0,7);
+    : rs.filter(verOculta).sort((a,b)=>b.t-a.t).slice(0,7);
   $("#feedTitle").textContent = nearActive() ? `Más cercanas · a menos de ${fmtDist(state.near.r)}` : "Últimas denuncias";
   const feed = $("#feed"), prevIds = new Set($$("button", feed).map(b=>b.dataset.id));
   feed.innerHTML = latest.map(r => `<button type="button" data-id="${esc(r.id)}" class="${prevIds.size && !prevIds.has(r.id) ? "new":""}"><span class="sw" style="--c:${cvar(r.cat)}"></span><span class="d"><b>${CATS[r.cat].one}</b> · ${esc(r.barrio)}</span><span class="t">${r.iaCheck === "verificada" ? '<span class="iav" title="Verificado con IA">✦</span> ' : ""}${nearActive() ? `<span class="dist">${fmtDist(r._d)}</span> · ` : ""}${ago(r.t)}</span></button>`).join("") || `<div class="empty">${nearActive() ? "No hay denuncias en esta zona con los filtros elegidos." : "Todavía no hay denuncias."}</div>`;
@@ -313,6 +318,7 @@ $("#feed").addEventListener("click", e => { const b = e.target.closest("[data-id
 $("#tgHeat").addEventListener("change", e => { state.heat = e.target.checked; if (state.heat){ heatLayer.addTo(map); renderHeat(); } else { map.removeLayer(heatLayer); map.closePopup(); } $("#heatLegend").hidden = !state.heat; $("#heatSlotRow").hidden = !state.heat; });
 $("#heatSlot").addEventListener("change", e => { state.heatSlot = e.target.value; map.closePopup(); if (state.heat) renderHeat(); });
 $("#tgRes").addEventListener("change", e => { state.showRes = e.target.checked; refresh(); });
+$("#tgHidden").addEventListener("change", e => { state.showHidden = e.target.checked; refresh(); });
 $("#tgPhoto").addEventListener("change", e => { state.onlyPhoto = e.target.checked; refresh(); });
 $("#tgDemo").addEventListener("change", e => { state.showDemo = e.target.checked; refresh(); });
 
@@ -370,6 +376,7 @@ function openDetail(id){
         <button class="btn" type="button" data-vote="${esc(r.id)}" aria-pressed="${!!mine[r.id+":v"]}">👁 Yo también lo vi · ${r.votes||0}</button>
         <button class="btn flag-btn" type="button" data-flag="${esc(r.id)}" aria-pressed="${!!mine[r.id+":f"]}">⚑ Parece falsa${r.flags ? " · " + r.flags : ""}</button>
       </div>
+      <button class="lnk note" type="button" data-hide="${esc(r.id)}" style="align-self:flex-start">${ocultas.has(r.id) ? "Volver a mostrar en mi mapa" : "Ocultar de mi mapa"}</button>
       ${obraHtml}
       ${muniBtns}
       <div class="note mono">${r.lat.toFixed(5)}, ${r.lng.toFixed(5)} · ${new Date(r.t).toLocaleString("es-PY")}</div>
@@ -418,6 +425,13 @@ drawer.addEventListener("click", async e => {
   const z = e.target.closest("[data-zoom]"); if (z) return openLightbox(z.src);
   const og = e.target.closest("[data-orig]");
   if (og){ og.disabled = true; try { window.open(await Store.originalUrl(findReport(og.dataset.orig)), "_blank", "noopener"); } catch(err){ toast(err.message || "No se pudo abrir el original."); } og.disabled = false; return; }
+  const h = e.target.closest("[data-hide]");
+  if (h){
+    const id = h.dataset.hide;
+    if (ocultas.has(id)){ ocultas.delete(id); saveOcultas(); toast("Listo, vuelve a aparecer en tu mapa."); refresh(); return openDetail(id); }
+    ocultas.add(id); saveOcultas(); closeDrawer(); refresh();
+    return toast("Denuncia oculta. Para verla de nuevo: Filtros → «Ver las denuncias que oculté».");
+  }
   const v = e.target.closest("[data-vote]");
   if (v) return vote(v.dataset.vote, "confirma");
   const f = e.target.closest("[data-flag]");
@@ -557,11 +571,12 @@ $("#btnFilters").addEventListener("click", () => setFilters(fpanel.hidden));
 $("#fClose").addEventListener("click", () => setFilters(false));
 $("#fApply").addEventListener("click", () => { setFilters(false); if (nearActive()) fitNear(); });
 function renderFilterUI(){
-  const n = (CAT_KEYS.length - state.cats.size ? 1 : 0) + (nearActive() ? 1 : 0) + (state.onlyPhoto ? 1 : 0) + (state.showRes ? 1 : 0);
+  const n = (CAT_KEYS.length - state.cats.size ? 1 : 0) + (nearActive() ? 1 : 0) + (state.onlyPhoto ? 1 : 0) + (state.showRes ? 1 : 0) + (state.showHidden ? 1 : 0);
   $("#fBadge").hidden = !n; $("#fBadge").textContent = n;
   const nc = $("#nearChip"); nc.hidden = !nearActive();
   if (nearActive()) nc.innerHTML = `A menos de ${fmtDist(state.near.r)} <span class="xx" aria-hidden="true">×</span>`, nc.setAttribute("aria-label", `Quitar filtro de cercanía de ${fmtDist(state.near.r)}`);
   if (fpanel.hidden) return;
+  $("#hiddenNote").textContent = ocultas.size ? `Tenés ${ocultas.size} oculta${ocultas.size===1?"":"s"} en este dispositivo` : "Todavía no ocultaste ninguna";
   const inP = allReports().filter(r => inPeriod(r) && nearOK(r));
   $("#ftypes").innerHTML = CAT_KEYS.map(k => `<label class="ftype"><span class="dot" style="--c:${cvar(k)}">${ICONS[k]}</span><span>${CATS[k].n}</span><span class="n">${inP.filter(r=>r.cat===k).length}</span><input type="checkbox" data-ft="${k}" ${state.cats.has(k)?"checked":""}></label>`).join("");
   $$("#presets [data-preset]").forEach(b => { const ks = PRESETS[b.dataset.preset]; b.setAttribute("aria-pressed", state.cats.size === ks.length && ks.every(k => state.cats.has(k))); });
@@ -573,7 +588,7 @@ $("#presets").addEventListener("click", e => { const b = e.target.closest("[data
 $("#fAll").addEventListener("click", () => { state.cats = new Set(CAT_KEYS); refresh(); });
 $("#fNone").addEventListener("click", () => { state.cats = new Set(); refresh(); });
 $("#fReset").addEventListener("click", () => {
-  state.cats = new Set(CAT_KEYS); state.onlyPhoto = false; state.showRes = false; $("#tgPhoto").checked = false; $("#tgRes").checked = false;
+  state.cats = new Set(CAT_KEYS); state.onlyPhoto = false; state.showRes = false; state.showHidden = false; $("#tgPhoto").checked = false; $("#tgRes").checked = false; $("#tgHidden").checked = false;
   setNearOn(false); refresh();
 });
 function nearStatus(text, cls=""){ const el = $("#nearStatus"); el.textContent = text; el.className = "near-status " + cls; }
