@@ -238,3 +238,7 @@ Las calles son imágenes dibujadas de antemano en `calles/` con el estilo de `sc
 **Ahorro de datos** (en el mismo botón de capas): fuerza el mapa de calles simple y en cada denuncia muestra solo la descripción; la foto se carga solo si se toca "Ver foto". Arranca prendido en los celulares que tienen activado el ahorro de datos del sistema.
 
 La versión anterior a este cambio quedó guardada en la rama `respaldo-antes-mapa-calles`.
+
+## Demo: zonas inundables
+
+`demo-inundacion.html` muestra las zonas bajas cerca de arroyos que se podrían inundar con lluvias fuertes, con tres escenarios (fuerte, muy fuerte y extrema), el pronóstico de lluvia de 7 días (Open-Meteo, se elige el escenario solo), el estado de El Niño y los barrios más expuestos. Las zonas salen del relieve (Copernicus DEM de 30 m) con el método HAND: cuántos metros está cada punto por encima del arroyo al que drena. Se calculan con `scripts/inundacion/calcular.py` y quedan en `inundacion/`. Es una estimación: no conoce los desagües pluviales ni reemplaza un estudio hidrológico.

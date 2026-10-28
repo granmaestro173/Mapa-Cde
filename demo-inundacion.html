@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Zonas inundables · demo</title>
+<meta name="robots" content="noindex">
+<style> .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane > svg,.leaflet-pane > canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0;}.leaflet-container{overflow:hidden;}.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow{-webkit-user-select:none;-moz-user-select:none;user-select:none;-webkit-user-drag:none;}.leaflet-tile::selection{background:transparent;}.leaflet-safari .leaflet-tile{image-rendering:-webkit-optimize-contrast;}.leaflet-safari .leaflet-tile-container{width:1600px;height:1600px;-webkit-transform-origin:0 0;}.leaflet-marker-icon,.leaflet-marker-shadow{display:block;}.leaflet-container .leaflet-overlay-pane svg{max-width:none !important;max-height:none !important;}.leaflet-container .leaflet-marker-pane img,.leaflet-container .leaflet-shadow-pane img,.leaflet-container .leaflet-tile-pane img,.leaflet-container img.leaflet-image-layer,.leaflet-container .leaflet-tile{max-width:none !important;max-height:none !important;width:auto;padding:0;}.leaflet-container img.leaflet-tile{mix-blend-mode:plus-lighter;}.leaflet-container.leaflet-touch-zoom{-ms-touch-action:pan-x pan-y;touch-action:pan-x pan-y;}.leaflet-container.leaflet-touch-drag{-ms-touch-action:pinch-zoom;touch-action:none;touch-action:pinch-zoom;}.leaflet-container.leaflet-touch-drag.leaflet-touch-zoom{-ms-touch-action:none;touch-action:none;}.leaflet-container{-webkit-tap-highlight-color:transparent;}.leaflet-container a{-webkit-tap-highlight-color:rgba(51,181,229,0.4);}.leaflet-tile{filter:inherit;visibility:hidden;}.leaflet-tile-loaded{visibility:inherit;}.leaflet-zoom-box{width:0;height:0;-moz-box-sizing:border-box;box-sizing:border-box;z-index:800;}.leaflet-overlay-pane svg{-moz-user-select:none;}.leaflet-pane{z-index:400;}.leaflet-tile-pane{z-index:200;}.leaflet-overlay-pane{z-index:400;}.leaflet-shadow-pane{z-index:500;}.leaflet-marker-pane{z-index:600;}.leaflet-tooltip-pane{z-index:650;}.leaflet-popup-pane{z-index:700;}.leaflet-map-pane canvas{z-index:100;}.leaflet-map-pane svg{z-index:200;}.leaflet-vml-shape{width:1px;height:1px;}.lvml{behavior:url(#default#VML);display:inline-block;position:absolute;}.leaflet-control{position:relative;z-index:800;pointer-events:visiblePainted;pointer-events:auto;}.leaflet-top,.leaflet-bottom{position:absolute;z-index:1000;pointer-events:none;}.leaflet-top{top:0;}.leaflet-right{right:0;}.leaflet-bottom{bottom:0;}.leaflet-left{left:0;}.leaflet-control{float:left;clear:both;}.leaflet-right .leaflet-control{float:right;}.leaflet-top .leaflet-control{margin-top:10px;}.leaflet-bottom .leaflet-control{margin-bottom:10px;}.leaflet-left .leaflet-control{margin-left:10px;}.leaflet-right .leaflet-control{margin-right:10px;}.leaflet-fade-anim .leaflet-popup{opacity:0;-webkit-transition:opacity 0.2s linear;-moz-transition:opacity 0.2s linear;transition:opacity 0.2s linear;}.leaflet-fade-anim .leaflet-map-pane .leaflet-popup{opacity:1;}.leaflet-zoom-animated{-webkit-transform-origin:0 0;-ms-transform-origin:0 0;transform-origin:0 0;}svg.leaflet-zoom-animated{will-change:transform;}.leaflet-zoom-anim .leaflet-zoom-animated{-webkit-transition:-webkit-transform 0.25s cubic-bezier(0,0,0.25,1);-moz-transition:-moz-transform 0.25s cubic-bezier(0,0,0.25,1);transition:transform 0.25s cubic-bezier(0,0,0.25,1);}.leaflet-zoom-anim .leaflet-tile,.leaflet-pan-anim .leaflet-tile{-webkit-transition:none;-moz-transition:none;transition:none;}.leaflet-zoom-anim .leaflet-zoom-hide{visibility:hidden;}.leaflet-interactive{cursor:pointer;}.leaflet-grab{cursor:-webkit-grab;cursor:-moz-grab;cursor:grab;}.leaflet-crosshair,.leaflet-crosshair .leaflet-interactive{cursor:crosshair;}.leaflet-popup-pane,.leaflet-control{cursor:auto;}.leaflet-dragging .leaflet-grab,.leaflet-dragging .leaflet-grab .leaflet-interactive,.leaflet-dragging .leaflet-marker-draggable{cursor:move;cursor:-webkit-grabbing;cursor:-moz-grabbing;cursor:grabbing;}.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-image-layer,.leaflet-pane > svg path,.leaflet-tile-container{pointer-events:none;}.leaflet-marker-icon.leaflet-interactive,.leaflet-image-layer.leaflet-interactive,.leaflet-pane > svg path.leaflet-interactive,svg.leaflet-image-layer.leaflet-interactive path{pointer-events:visiblePainted;pointer-events:auto;}.leaflet-container{background:#ddd;outline-offset:1px;}.leaflet-container a{color:#0078A8;}.leaflet-zoom-box{border:2px dotted #38f;background:rgba(255,255,255,0.5);}.leaflet-container{font-family:"Helvetica Neue",Arial,Helvetica,sans-serif;font-size:12px;font-size:0.75rem;line-height:1.5;}.leaflet-bar{box-shadow:0 1px 5px rgba(0,0,0,0.65);border-radius:4px;}.leaflet-bar a{background-color:#fff;border-bottom:1px solid #ccc;width:26px;height:26px;line-height:26px;display:block;text-align:center;text-decoration:none;color:black;}.leaflet-bar a,.leaflet-control-layers-toggle{background-position:50% 50%;background-repeat:no-repeat;display:block;}.leaflet-bar a:hover,.leaflet-bar a:focus{background-color:#f4f4f4;}.leaflet-bar a:first-child{border-top-left-radius:4px;border-top-right-radius:4px;}.leaflet-bar a:last-child{border-bottom-left-radius:4px;border-bottom-right-radius:4px;border-bottom:none;}.leaflet-bar a.leaflet-disabled{cursor:default;background-color:#f4f4f4;color:#bbb;}.leaflet-touch .leaflet-bar a{width:30px;height:30px;line-height:30px;}.leaflet-touch .leaflet-bar a:first-child{border-top-left-radius:2px;border-top-right-radius:2px;}.leaflet-touch .leaflet-bar a:last-child{border-bottom-left-radius:2px;border-bottom-right-radius:2px;}.leaflet-control-zoom-in,.leaflet-control-zoom-out{font:bold 18px 'Lucida Console',Monaco,monospace;text-indent:1px;}.leaflet-touch .leaflet-control-zoom-in,.leaflet-touch .leaflet-control-zoom-out{font-size:22px;}.leaflet-control-layers{box-shadow:0 1px 5px rgba(0,0,0,0.4);background:#fff;border-radius:5px;}.leaflet-control-layers-toggle{background-image:url(images/layers.png);width:36px;height:36px;}.leaflet-retina .leaflet-control-layers-toggle{background-image:url(images/layers-2x.png);background-size:26px 26px;}.leaflet-touch .leaflet-control-layers-toggle{width:44px;height:44px;}.leaflet-control-layers .leaflet-control-layers-list,.leaflet-control-layers-expanded .leaflet-control-layers-toggle{display:none;}.leaflet-control-layers-expanded .leaflet-control-layers-list{display:block;position:relative;}.leaflet-control-layers-expanded{padding:6px 10px 6px 6px;color:#333;background:#fff;}.leaflet-control-layers-scrollbar{overflow-y:scroll;overflow-x:hidden;padding-right:5px;}.leaflet-control-layers-selector{margin-top:2px;position:relative;top:1px;}.leaflet-control-layers label{display:block;font-size:13px;font-size:1.08333em;}.leaflet-control-layers-separator{height:0;border-top:1px solid #ddd;margin:5px -10px 5px -6px;}.leaflet-default-icon-path{background-image:url(images/marker-icon.png);}.leaflet-container .leaflet-control-attribution{background:#fff;background:rgba(255,255,255,0.8);margin:0;}.leaflet-control-attribution,.leaflet-control-scale-line{padding:0 5px;color:#333;line-height:1.4;}.leaflet-control-attribution a{text-decoration:none;}.leaflet-control-attribution a:hover,.leaflet-control-attribution a:focus{text-decoration:underline;}.leaflet-attribution-flag{display:inline !important;vertical-align:baseline !important;width:1em;height:0.6669em;}.leaflet-left .leaflet-control-scale{margin-left:5px;}.leaflet-bottom .leaflet-control-scale{margin-bottom:5px;}.leaflet-control-scale-line{border:2px solid #777;border-top:none;line-height:1.1;padding:2px 5px 1px;white-space:nowrap;-moz-box-sizing:border-box;box-sizing:border-box;background:rgba(255,255,255,0.8);text-shadow:1px 1px #fff;}.leaflet-control-scale-line:not(:first-child){border-top:2px solid #777;border-bottom:none;margin-top:-2px;}.leaflet-control-scale-line:not(:first-child):not(:last-child){border-bottom:2px solid #777;}.leaflet-touch .leaflet-control-attribution,.leaflet-touch .leaflet-control-layers,.leaflet-touch .leaflet-bar{box-shadow:none;}.leaflet-touch .leaflet-control-layers,.leaflet-touch .leaflet-bar{border:2px solid rgba(0,0,0,0.2);background-clip:padding-box;}.leaflet-popup{position:absolute;text-align:center;margin-bottom:20px;}.leaflet-popup-content-wrapper{padding:1px;text-align:left;border-radius:12px;}.leaflet-popup-content{margin:13px 24px 13px 20px;line-height:1.3;font-size:13px;font-size:1.08333em;min-height:1px;}.leaflet-popup-content p{margin:17px 0;margin:1.3em 0;}.leaflet-popup-tip-container{width:40px;height:20px;position:absolute;left:50%;margin-top:-1px;margin-left:-20px;overflow:hidden;pointer-events:none;}.leaflet-popup-tip{width:17px;height:17px;padding:1px;margin:-10px auto 0;pointer-events:auto;-webkit-transform:rotate(45deg);-moz-transform:rotate(45deg);-ms-transform:rotate(45deg);transform:rotate(45deg);}.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:white;color:#333;box-shadow:0 3px 14px rgba(0,0,0,0.4);}.leaflet-container a.leaflet-popup-close-button{position:absolute;top:0;right:0;border:none;text-align:center;width:24px;height:24px;font:16px/24px Tahoma,Verdana,sans-serif;color:#757575;text-decoration:none;background:transparent;}.leaflet-container a.leaflet-popup-close-button:hover,.leaflet-container a.leaflet-popup-close-button:focus{color:#585858;}.leaflet-popup-scrolled{overflow:auto;}.leaflet-oldie .leaflet-popup-content-wrapper{-ms-zoom:1;}.leaflet-oldie .leaflet-popup-tip{width:24px;margin:0 auto;-ms-filter:"progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678,M12=0.70710678,M21=-0.70710678,M22=0.70710678)";filter:progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678,M12=0.70710678,M21=-0.70710678,M22=0.70710678);}.leaflet-oldie .leaflet-control-zoom,.leaflet-oldie .leaflet-control-layers,.leaflet-oldie .leaflet-popup-content-wrapper,.leaflet-oldie .leaflet-popup-tip{border:1px solid #999;}.leaflet-div-icon{background:#fff;border:1px solid #666;}.leaflet-tooltip{position:absolute;padding:6px;background-color:#fff;border:1px solid #fff;border-radius:3px;color:#222;white-space:nowrap;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;pointer-events:none;box-shadow:0 1px 3px rgba(0,0,0,0.4);}.leaflet-tooltip.leaflet-interactive{cursor:pointer;pointer-events:auto;}.leaflet-tooltip-top:before,.leaflet-tooltip-bottom:before,.leaflet-tooltip-left:before,.leaflet-tooltip-right:before{position:absolute;pointer-events:none;border:6px solid transparent;background:transparent;content:"";}.leaflet-tooltip-bottom{margin-top:6px;}.leaflet-tooltip-top{margin-top:-6px;}.leaflet-tooltip-bottom:before,.leaflet-tooltip-top:before{left:50%;margin-left:-6px;}.leaflet-tooltip-top:before{bottom:0;margin-bottom:-12px;border-top-color:#fff;}.leaflet-tooltip-bottom:before{top:0;margin-top:-12px;margin-left:-6px;border-bottom-color:#fff;}.leaflet-tooltip-left{margin-left:-6px;}.leaflet-tooltip-right{margin-left:6px;}.leaflet-tooltip-left:before,.leaflet-tooltip-right:before{top:50%;margin-top:-6px;}.leaflet-tooltip-left:before{right:0;margin-right:-12px;border-left-color:#fff;}.leaflet-tooltip-right:before{left:0;margin-left:-12px;border-right-color:#fff;}@media print{.leaflet-control{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style>
+<style>
+:root{--bg:#f6f4ef;--panel:#ffffff;--panel-2:#f1f3f4;--ink:#202124;--muted:#5f6368;--line:#dadce0;--accent:#1a73e8;
+  --r1:#0d47a1;--r2:#1e88e5;--r3:#64b5f6;--ok:#188038;--warn:#b06000;--bad:#c5221f;--land:#f2efe9;
+  --shadow:0 1px 2px rgba(60,64,67,.3),0 2px 6px 2px rgba(60,64,67,.15)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#202124;--panel:#2d2e31;--panel-2:#3c4043;--ink:#e8eaed;--muted:#9aa0a6;--line:#3c4043;--accent:#8ab4f8;--ok:#81c995;--warn:#fdd663;--bad:#f28b82;--r1:#5e97f6;--r2:#8ab4f8;--r3:#c6dafc}}
+:root[data-theme="dark"]{--bg:#202124;--panel:#2d2e31;--panel-2:#3c4043;--ink:#e8eaed;--muted:#9aa0a6;--line:#3c4043;--accent:#8ab4f8;--ok:#81c995;--warn:#fdd663;--bad:#f28b82}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:"Roboto",system-ui,-apple-system,"Segoe UI",sans-serif}
+#map{position:fixed;top:0;bottom:0;left:0;right:380px}
+.leaflet-container{font-family:inherit;background:var(--land)}
+.leaflet-container .leaflet-control-attribution{background:color-mix(in srgb,var(--panel) 85%,transparent);color:var(--muted);font-size:10.5px}
+.leaflet-control-zoom{border:0!important;box-shadow:var(--shadow)!important;border-radius:8px!important;overflow:hidden}
+.leaflet-bar a{width:40px!important;height:40px!important;line-height:40px!important;background:var(--panel);color:var(--ink);border-color:var(--line)!important}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--panel);color:var(--ink)}
+.top{position:fixed;top:12px;left:12px;right:392px;z-index:5;display:flex;gap:8px;align-items:center;pointer-events:none}
+.titulo{pointer-events:auto;background:var(--panel);border-radius:24px;box-shadow:var(--shadow);padding:10px 16px;font-size:14px;display:flex;gap:8px;align-items:center;min-width:0}
+.titulo span{color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seg{display:flex;background:var(--panel-2);border-radius:20px;padding:3px;gap:2px}
+.top .seg{pointer-events:auto;margin-left:auto;background:var(--panel);box-shadow:var(--shadow)}
+.seg button{flex:1;border:0;background:none;color:var(--muted);font:500 13px/1.1 inherit;font-family:inherit;padding:9px 12px;border-radius:17px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .seg button[aria-pressed="true"]{color:#202124}}
+.panel{position:fixed;top:0;right:0;bottom:0;width:380px;background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding:18px 18px 28px;display:flex;flex-direction:column;gap:16px;z-index:6}
+.panel h1{font-size:19px;margin:0;line-height:1.25}
+.panel h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-weight:600}
+.panel p{margin:0;font-size:13.5px;line-height:1.45}
+.nota{color:var(--muted);font-size:12.5px!important}
+.caja{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.alerta{border-width:1.5px}
+.alerta.n0{border-color:var(--line)}.alerta.n1{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 8%,var(--panel))}
+.alerta.n2,.alerta.n3{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 8%,var(--panel))}
+.alerta b.t{font-size:15px}
+.dias{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;align-items:end;height:92px}
+.dia{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;color:var(--muted);height:100%;justify-content:flex-end}
+.dia i{display:block;width:70%;min-height:2px;border-radius:3px 3px 0 0;background:var(--r3)}
+.dia.f i{background:var(--r2)}.dia.x i{background:var(--r1)}
+.dia b{color:var(--ink);font-size:11px;font-weight:600}
+.leyenda{display:flex;flex-direction:column;gap:6px;font-size:13px}
+.leyenda span{display:flex;gap:8px;align-items:center}
+.leyenda i{width:16px;height:16px;border-radius:4px;flex:none}
+.barrios{display:flex;flex-direction:column}
+.barrios button{all:unset;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:9px 4px;border-bottom:1px solid var(--line);font-size:13.5px}
+.barrios button:hover,.barrios button:focus-visible{background:var(--panel-2)}
+.barrios small{color:var(--muted);font-size:12px;grid-column:1/-1}
+.barra{grid-column:1/-1;display:flex;height:7px;border-radius:4px;overflow:hidden;background:var(--panel-2)}
+.barra i{display:block;height:100%}
+.chip{font-size:11.5px;font-weight:600;border-radius:10px;padding:2px 8px;align-self:center}
+.chip.a{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
+.chip.m{background:color-mix(in srgb,var(--warn) 15%,transparent);color:var(--warn)}
+.chip.b{background:var(--panel-2);color:var(--muted)}
+.fuentes{font-size:11.5px;color:var(--muted);line-height:1.5}
+.fuentes a{color:var(--accent)}
+.tg{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13.5px}
+.tg input[type=range]{width:120px;accent-color:var(--accent)}
+.pin{width:20px;height:20px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);background:#2a7fd4;border:2px solid var(--panel);box-shadow:0 1px 3px rgba(0,0,0,.45);display:grid;place-items:center}
+.pin i{width:6px;height:6px;border-radius:50%;background:#fff}
+.grab{display:none}
+@media (max-width:760px){
+  #map{right:0;bottom:42vh}
+  .top{right:12px}
+  .titulo span{display:none}
+  .panel{top:auto;left:0;width:auto;height:44vh;border-left:0;border-top:1px solid var(--line);border-radius:16px 16px 0 0;box-shadow:0 -2px 10px rgba(0,0,0,.15);padding-top:6px;transition:height .25s}
+  .panel.abierto{height:86vh}
+  .grab{display:block;all:unset;cursor:pointer;align-self:center;padding:8px 30px}
+  .grab span{display:block;width:40px;height:4px;border-radius:2px;background:var(--line)}
+}
+@media (max-width:420px){.titulo{display:none}}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="top">
+  <div class="titulo"><b>Zonas inundables</b><span>Demo · Ciudad del Este</span></div>
+  <div class="seg" role="group" aria-label="Tipo de mapa"><button id="bCalles" aria-pressed="true">Calles</button><button id="bSat" aria-pressed="false">Satélite</button></div>
+</div>
+<aside class="panel" id="panel" aria-label="Riesgo de inundación">
+  <button class="grab" id="grab" type="button" aria-label="Agrandar o achicar el panel"><span></span></button>
+  <div>
+    <h1>¿Dónde se puede inundar Ciudad del Este?</h1>
+    <p class="nota" style="margin-top:6px">Zonas bajas cerca de arroyos, calculadas a partir del relieve. Elegí la intensidad de la lluvia para ver hasta dónde podría llegar el agua.</p>
+  </div>
+
+  <section class="caja alerta n0" id="alerta" aria-live="polite">
+    <h2 style="margin:0">Pronóstico de lluvia · 7 días</h2>
+    <b class="t" id="alertaT">Cargando pronóstico…</b>
+    <p id="alertaP" class="nota"></p>
+    <div class="dias" id="dias" aria-hidden="true"></div>
+  </section>
+
+  <section>
+    <h2>Escenario de lluvia</h2>
+    <div class="seg" id="escenario" role="group" aria-label="Escenario de lluvia">
+      <button type="button" data-n="1" aria-pressed="false">Fuerte<br><small>30–60 mm</small></button>
+      <button type="button" data-n="2" aria-pressed="true">Muy fuerte<br><small>60–100 mm</small></button>
+      <button type="button" data-n="3" aria-pressed="false">Extrema<br><small>+100 mm</small></button>
+    </div>
+    <p class="nota" id="escTxt" style="margin-top:8px"></p>
+  </section>
+
+  <section class="leyenda" aria-label="Leyenda">
+    <span><i style="background:var(--r1)"></i>Muy alta: hasta 1,5 m sobre el arroyo</span>
+    <span><i style="background:var(--r2)"></i>Alta: de 1,5 a 4 m sobre el arroyo</span>
+    <span><i style="background:var(--r3)"></i>Media: de 4 a 8 m sobre el arroyo</span>
+    <span><i style="background:none;border-top:2.5px solid var(--r2);height:0;border-radius:0"></i>Arroyos y cauces</span>
+    <span><span class="pin" style="width:16px;height:16px"><i></i></span>Denuncias de calles inundadas</span>
+    <label class="tg">Transparencia de las zonas <input type="range" id="op" min="20" max="100" value="85"></label>
+  </section>
+
+  <section class="caja" id="nino">
+    <h2 style="margin:0">El Niño 2026–2027</h2>
+    <p><b>Hay un El Niño muy fuerte en curso.</b> A mediados de octubre la temperatura del Pacífico central estaba unos 3,3 °C por encima de lo normal, y se espera que siga hasta fines del otoño de 2027.</p>
+    <p class="nota">En el este de Paraguay y el sur de Brasil, El Niño suele traer lluvias por encima de lo normal en primavera y verano, y crecidas del Paraná, como en 2015–2016 y 2023–2024. Por eso conviene mirar el escenario "Muy fuerte" o "Extrema".</p>
+  </section>
+
+  <section>
+    <h2>Barrios más expuestos</h2>
+    <div class="barrios" id="barrios"></div>
+    <p class="nota" style="margin-top:8px">Porcentaje de la superficie de cada barrio en cada nivel. Tocá un barrio para verlo en el mapa.</p>
+  </section>
+
+  <section class="fuentes">
+    <b>Cómo se calculó.</b> Con el modelo de elevación Copernicus DEM de 30 m se calculó hacia dónde corre el agua y dónde se junta (arroyos). Para cada punto se midió cuántos metros está por encima del arroyo al que drena (método HAND). Los ríos y lagos se excluyen.<br><br>
+    <b>Es una estimación.</b> El modelo incluye techos y árboles, y no conoce los desagües pluviales. No reemplaza un estudio hidrológico ni el mapa oficial de riesgo; para eso hacen falta el plano de desagües de la municipalidad y registros de inundaciones reales.<br><br>
+    Fuentes: <a href="https://spacedata.copernicus.eu/collections/copernicus-digital-elevation-model" target="_blank" rel="noopener">Copernicus DEM GLO-30</a> (© DLR, © Airbus, programa Copernicus de la UE y la ESA) ·
+    pronóstico de <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> ·
+    El Niño según <a href="https://iri.columbia.edu/?p=31794" target="_blank" rel="noopener">IRI (19/10/2026)</a> y <a href="https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso_advisory/ensodisc.shtml" target="_blank" rel="noopener">NOAA CPC</a> ·
+    calles © colaboradores de OpenStreetMap.
+  </section>
+</aside>
+<script src="vendor/leaflet.js"></script>
+<script src="config.js"></script>
+<script>
+// Demo: zonas con posibilidad de inundación (calculadas con scripts/inundacion/calcular.py).
+// Escenarios: con lluvia fuerte se llenan las zonas más bajas junto a los arroyos; con lluvia extrema, también las de nivel medio.
+const $ = s => document.querySelector(s);
+const esc = t => String(t ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ZONA = [[-25.591994, -54.722900], [-25.453195, -54.580078]];
+const MOVIL = matchMedia("(max-width:760px)").matches;
+const map = L.map("map", {zoomControl:false, minZoom:13, maxZoom:19, maxBounds:[[-25.62, -54.75], [-25.43, -54.55]], maxBoundsViscosity:.8})
+  .setView([-25.515, -54.635], MOVIL ? 13 : 13.5);
+L.control.zoom({position:"bottomright"}).addTo(map);
+map.attributionControl.setPrefix(false);
+const calles = L.tileLayer("calles/{z}/{x}/{y}.webp", {minNativeZoom:13, maxNativeZoom:17, maxZoom:19, bounds:ZONA,
+  attribution:"© colaboradores de OpenStreetMap · OpenFreeMap"}).addTo(map);
+const KEY = (window.CDE_CONFIG || {}).esriKey;
+const sat = KEY ? L.tileLayer("https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=" + encodeURIComponent(KEY),
+  {maxNativeZoom:18, maxZoom:19, bounds:ZONA, attribution:"Powered by Esri · Imágenes © Esri, Maxar, Earthstar Geographics"}) : null;
+if (!sat) $("#bSat").parentElement.hidden = true;
+function vistaMapa(v){
+  if (v === "satelite"){ sat.addTo(map); map.removeLayer(calles); } else { calles.addTo(map); if (sat) map.removeLayer(sat); }
+  $("#bCalles").setAttribute("aria-pressed", v === "calles"); $("#bSat").setAttribute("aria-pressed", v === "satelite");
+}
+$("#bCalles").onclick = () => vistaMapa("calles");
+$("#bSat").onclick = () => vistaMapa("satelite");
+
+// Capas de riesgo: una imagen por nivel. El escenario decide cuántas se ven.
+const NIVELES = ["muy_alta", "alta", "media"];
+const NOMBRE = {muy_alta:"muy alta", alta:"alta", media:"media"};
+const capas = {}, cauces = L.layerGroup().addTo(map), barriosCapa = L.layerGroup().addTo(map);
+let datos = null, escenario = 2;
+const ESC_TXT = {
+  1:"Lluvia fuerte (30 a 60 mm en un día): se anegan las zonas más bajas junto a los arroyos.",
+  2:"Lluvia muy fuerte (60 a 100 mm): los arroyos desbordan y el agua llega a las zonas de riesgo alto.",
+  3:"Lluvia extrema (más de 100 mm, típica de los años de El Niño fuerte): el agua puede alcanzar también las zonas de riesgo medio."
+};
+function verEscenario(n){
+  escenario = n;
+  NIVELES.forEach((k, i) => { if (!capas[k]) return; if (i < n) capas[k].addTo(map); else map.removeLayer(capas[k]); });
+  for (const b of $("#escenario").children) b.setAttribute("aria-pressed", +b.dataset.n === n);
+  $("#escTxt").textContent = ESC_TXT[n];
+  cauces.eachLayer(l => l.bringToFront && l.bringToFront());
+}
+$("#escenario").addEventListener("click", e => { const b = e.target.closest("[data-n]"); if (b) verEscenario(+b.dataset.n); });
+$("#op").addEventListener("input", e => NIVELES.forEach(k => capas[k]?.setOpacity(e.target.value / 100)));
+
+const COLOR = k => getComputedStyle(document.documentElement).getPropertyValue({muy_alta:"--r1", alta:"--r2", media:"--r3"}[k]).trim();
+const nivelBarrio = b => b.indice >= 20 ? ["a", "Alta"] : b.indice >= 10 ? ["m", "Media"] : ["b", "Baja"];
+fetch("inundacion/datos.json").then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => {
+  datos = d;
+  for (const k of NIVELES) capas[k] = L.imageOverlay(`inundacion/riesgo-${k}.png`, d.zona, {opacity:.85, className:"riesgo"});
+  const cv = L.canvas({padding:.3});
+  for (const linea of d.cauces) L.polyline(linea, {renderer:cv, color:"#1e88e5", weight:1.6, opacity:.85, interactive:false}).addTo(cauces);
+  verEscenario(escenario);
+  $("#barrios").innerHTML = d.barrios.map((b, i) => {
+    const [cls, txt] = nivelBarrio(b);
+    return `<button type="button" data-i="${i}"><b>${esc(b.n)}</b><span class="chip ${cls}">Exposición ${txt.toLowerCase()}</span>
+      <span class="barra" aria-hidden="true">${NIVELES.map(k => `<i style="width:${b.pct[k]}%;background:var(${({muy_alta:"--r1", alta:"--r2", media:"--r3"})[k]})"></i>`).join("")}</span>
+      <small>${NIVELES.map(k => `${String(b.pct[k]).replace(".", ",")}% ${NOMBRE[k]}`).join(" · ")} · cota media ${b.cota} m</small></button>`;
+  }).join("");
+}).catch(() => { $("#barrios").innerHTML = `<p class="nota">No se pudieron cargar las zonas de riesgo.</p>`; });
+$("#barrios").addEventListener("click", e => {
+  const b = e.target.closest("[data-i]"); if (!b || !datos) return;
+  const x = datos.barrios[+b.dataset.i], [, txt] = nivelBarrio(x);
+  barriosCapa.clearLayers();
+  L.circle(x.c, {radius:Math.max(x.r, .003) * 111000, color:"#202124", weight:2, dashArray:"6 5", fill:false, interactive:false}).addTo(barriosCapa);
+  L.popup({autoPan:false}).setLatLng(x.c).setContent(`<b>${esc(x.n)}</b><br>Exposición ${txt.toLowerCase()} · ${String(x.pct.muy_alta).replace(".", ",")}% en riesgo muy alto`).openOn(map);
+  map.flyTo(x.c, 15.5, {duration:.6});
+  if (MOVIL) $("#panel").classList.remove("abierto");
+});
+
+// Denuncias de inundación (datos de ejemplo): sirven para comparar el modelo con lo que reportan los vecinos.
+fetch("datos-ejemplo.json").then(r => r.json()).then(d => {
+  const ic = L.divIcon({className:"", iconSize:[20, 20], iconAnchor:[10, 20], html:'<div class="pin"><i></i></div>'});
+  for (const r of d.denuncias.filter(r => r.cat === "inundacion"))
+    L.marker([r.lat, r.lng], {icon:ic, title:r.desc, zIndexOffset:500}).bindPopup(`<b>Calle inundada</b><br>${esc(r.desc)}<br><small>${esc(r.barrio)} · dato de ejemplo</small>`).addTo(map);
+}).catch(() => {});
+
+// Pronóstico de lluvia de Open-Meteo (gratis, sin clave). El día más lluvioso sugiere el escenario.
+const DIAS = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
+fetch("https://api.open-meteo.com/v1/forecast?latitude=-25.515&longitude=-54.62&daily=precipitation_sum,precipitation_probability_max&timezone=America%2FAsuncion&forecast_days=7")
+  .then(r => { if (!r.ok) throw 0; return r.json(); }).then(p => {
+    const mm = p.daily.precipitation_sum.map(v => v || 0), prob = p.daily.precipitation_probability_max || [];
+    const max = Math.max(...mm), iMax = mm.indexOf(max), tope = Math.max(60, max);
+    const dia = s => { const f = new Date(s + "T12:00:00"); return DIAS[f.getDay()] + " " + f.getDate(); };
+    $("#dias").innerHTML = mm.map((v, i) => `<div class="dia ${v >= 100 ? "x" : v >= 30 ? "f" : ""}" title="${dia(p.daily.time[i])}: ${v.toFixed(1)} mm${prob[i] != null ? ", " + prob[i] + "% de probabilidad" : ""}"><b>${Math.round(v)}</b><i style="height:${Math.max(2, v / tope * 60)}px"></i>${dia(p.daily.time[i]).split(" ")[0]}</div>`).join("");
+    const n = max >= 100 ? 3 : max >= 60 ? 2 : max >= 30 ? 1 : 0;
+    $("#alerta").className = "caja alerta n" + n;
+    $("#alertaT").textContent = ["Sin lluvias fuertes previstas", "Atención: lluvia fuerte prevista", "Alerta: lluvia muy fuerte prevista", "Alerta: lluvia extrema prevista"][n];
+    $("#alertaP").textContent = n
+      ? `Se esperan ${Math.round(max)} mm el ${dia(p.daily.time[iMax])}. El mapa muestra el escenario que corresponde.`
+      : `El día más lluvioso tendría ${max.toFixed(1).replace(".", ",")} mm. Podés elegir un escenario para ver qué pasaría con lluvia fuerte.`;
+    if (n) verEscenario(n);
+  }).catch(() => {
+    $("#alertaT").textContent = "No se pudo cargar el pronóstico";
+    $("#alertaP").textContent = "Probá recargar la página. Igual podés elegir un escenario de lluvia.";
+  });
+
+$("#grab").addEventListener("click", () => $("#panel").classList.toggle("abierto"));
+</script>
+</body>
+</html>
