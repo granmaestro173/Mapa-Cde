@@ -398,31 +398,53 @@ function crecida(){
   inund.parana.addTo(map);
   $("#inundNota").textContent = n ? `Con el río a ${String(nivel).replace(".", ",")} m quedarían bajo el agua unos ${(n * .00084).toFixed(1).replace(".", ",")} km² junto al Paraná y sus arroyos.` : "A este nivel el río no sale de su cauce.";
 }
-// Inundaciones denunciadas: cada denuncia de inundación (no falsa, de los últimos 2 años) pinta un círculo de ~150 m
-// en un lienzo propio; las cercanas se juntan en una sola mancha. Se rehace cuando cambian las denuncias.
+// Inundaciones denunciadas: cada denuncia real de inundación (no falsa ni dudosa para la IA, de los últimos 2 años)
+// pinta un círculo de ~150 m; las que se tocan forman una zona. Cada zona toma un nivel, el mayor entre:
+//   por cantidad de denuncias: 1-2 leve, 3-5 moderada, 6 o más alta;
+//   por la foto: el nivel de agua que vio la IA (10-nivel-inundacion.sql).
+// Se pinta con los mismos azules de las zonas inundables, con un borde blanco para distinguirla. Se rehace cuando cambian las denuncias.
 const INUND_R = 150, INUND_PLAZO = 730 * 864e5;
+const NIV_DEN = ["", "leve", "moderada", "alta"], COL_DEN = ["", "#64b5f6", "#1e88e5", "#0d47a1"];
+const nivelCant = n => n >= 6 ? 3 : n >= 3 ? 2 : 1;
+function zonasDenunciadas(rs){
+  const p = rs.map((_, i) => i), raiz = i => p[i] === i ? i : (p[i] = raiz(p[i]));
+  for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++)
+    if (distM([rs[i].lat, rs[i].lng], [rs[j].lat, rs[j].lng]) < 2 * INUND_R) p[raiz(i)] = raiz(j);
+  const g = new Map();
+  rs.forEach((r, i) => { const k = raiz(i); if (!g.has(k)) g.set(k, []); g.get(k).push(r); });
+  return [...g.values()].map(rs => {
+    const foto = Math.max(0, ...rs.map(r => NIV_DEN.indexOf(r.iaNivel || "")));
+    return {rs, foto, cant:nivelCant(rs.length), nivel:Math.max(foto, nivelCant(rs.length))};
+  });
+}
 function denunciadas(){
-  const rs = inund.on ? allReports().filter(r => r.cat === "inundacion" && Date.now() - r.t < INUND_PLAZO) : [];
-  const clave = rs.map(r => r.id + r.lat + r.lng).join();
-  if (!rs.length){ if (inund.denun) map.removeLayer(inund.denun); inund.denunK = clave; $("#inundDenunTxt").textContent = ""; return; }
+  const rs = inund.on ? allReports().filter(r => r.cat === "inundacion" && r.iaCheck !== "dudosa" && Date.now() - r.t < INUND_PLAZO) : [];
+  const clave = rs.map(r => r.id + r.lat + r.lng + (r.iaNivel || "")).join();
+  if (!rs.length){ if (inund.denun) map.removeLayer(inund.denun); inund.denunK = clave; inund.zonas = []; $("#inundDenunTxt").textContent = ""; return; }
   if (clave !== inund.denunK){
     inund.denunK = clave;
-    const dLat = INUND_R / 111320 * 1.5, dLng = dLat / Math.cos(-25.5 * Math.PI / 180);
+    const zonas = inund.zonas = zonasDenunciadas(rs).sort((a, b) => a.nivel - b.nivel);
+    const cos = Math.cos(-25.5 * Math.PI / 180), dLat = INUND_R / 111320 * 1.5, dLng = dLat / cos;
     const s = Math.min(...rs.map(r => r.lat)) - dLat, n = Math.max(...rs.map(r => r.lat)) + dLat;
     const o = Math.min(...rs.map(r => r.lng)) - dLng, e = Math.max(...rs.map(r => r.lng)) + dLng;
     const k = 0.25, cv = document.createElement("canvas");   // ~4 m por píxel
-    const px = lng => (lng - o) * 111320 * Math.cos(-25.5 * Math.PI / 180) * k, py = lat => (n - lat) * 111320 * k;
+    const px = lng => (lng - o) * 111320 * cos * k, py = lat => (n - lat) * 111320 * k;
     cv.width = Math.min(4000, Math.ceil(px(e))); cv.height = Math.min(4000, Math.ceil(py(s)));
     const cx = cv.getContext("2d"), fx = cv.width / px(e), fy = cv.height / py(s);
-    cx.fillStyle = "#1e88e5";
-    for (const r of rs){ cx.beginPath(); cx.ellipse(px(r.lng) * fx, py(r.lat) * fy, INUND_R * k * fx, INUND_R * k * fy, 0, 0, 2 * Math.PI); cx.fill(); }
+    const circulo = (r, m) => { cx.beginPath(); cx.ellipse(px(r.lng) * fx, py(r.lat) * fy, m * k * fx, m * k * fy, 0, 0, 2 * Math.PI); cx.fill(); };
+    cx.fillStyle = "#fff";
+    for (const r of rs) circulo(r, INUND_R + 16);
+    for (const z of zonas){ cx.fillStyle = COL_DEN[z.nivel]; for (const r of z.rs) circulo(r, INUND_R); }
     const b = [[s, o], [n, e]];
     if (inund.denun){ inund.denun.setUrl(cv.toDataURL()); inund.denun.setBounds(L.latLngBounds(b)); }
     else inund.denun = L.imageOverlay(cv.toDataURL(), b, {opacity:.85, className:"inund-denun"});
   }
   inund.denun.addTo(map);
-  $("#inundDenunTxt").textContent = `${rs.length} denuncia${rs.length > 1 ? "s" : ""} de inundación en los últimos 2 años.`;
+  const cuenta = [3, 2, 1].map(v => [v, inund.zonas.filter(z => z.nivel === v).length]).filter(x => x[1]);
+  $("#inundDenunTxt").textContent = `Denunciadas: ${cuenta.map(([v, c]) => c + (c > 1 ? " zonas" : " zona") + " con inundación " + NIV_DEN[v]).join(", ")} · ${rs.length} denuncia${rs.length > 1 ? "s" : ""} en 2 años.`;
 }
+// Nivel de la zona denunciada en la que cae un punto (para la ficha de la denuncia).
+const zonaDenunciadaDe = r => (inund.zonas || []).find(z => z.rs.includes(r)) || zonasDenunciadas(allReports().filter(x => x.cat === "inundacion" && x.iaCheck !== "dudosa" && Date.now() - x.t < INUND_PLAZO)).find(z => z.rs.some(x => x.id === r.id));
 
 async function setInund(on){
   inund.on = on; $("#tgInund").checked = on;
@@ -566,6 +588,11 @@ function openDetail(id){
       <div class="note mono">${r.lat.toFixed(5)}, ${r.lng.toFixed(5)} · ${new Date(r.t).toLocaleString("es-PY")}</div>
     </div>`);
   // En las calles inundadas se agrega el riesgo del terreno según el modelo (si la denuncia sigue abierta).
+  if (r.cat === "inundacion"){
+    const z = zonaDenunciadaDe(r);
+    if (z) $("#rdChips").insertAdjacentHTML("beforeend", `<span class="chip agua" title="${z.rs.length} denuncia${z.rs.length > 1 ? "s" : ""} en la zona${z.foto ? "; en la foto se ve una inundación " + NIV_DEN[z.foto] : ""}">Inundación ${NIV_DEN[z.nivel]} · ${z.rs.length} denuncia${z.rs.length > 1 ? "s" : ""}</span>`);
+    if (r.iaNivel) $("#rdChips").insertAdjacentHTML("beforeend", `<span class="chip" title="Lo que vio la IA en la foto">Agua en la foto: ${esc(r.iaNivel)}</span>`);
+  }
   if (r.cat === "inundacion") riesgoEn(r.lat, r.lng).then(k => {
     if (k === null || state.sel !== id || !$("#rdChips")) return;
     $("#rdChips").insertAdjacentHTML("beforeend", k

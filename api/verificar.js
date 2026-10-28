@@ -40,6 +40,10 @@ Recibís la foto que subió el vecino, la categoría y su descripción. Decidí 
 - "resumen": lo que se ve en la foto, como lo anotaría un inspector: máximo 12 palabras, sin opiniones ni repetir la categoría si no suma.
   Ejemplos: "Pozo de 1 m aprox. con agua, ocupa medio carril", "Bolsas de basura acumuladas en la vereda junto a un poste".
   Si la foto no muestra el problema, describí brevemente qué muestra.
+- "nivel_agua": solo en "calle inundada o desagüe tapado", cuánta agua se ve en la foto:
+  "leve" = charcos o agua en el cordón, se puede pasar caminando; "moderada" = la calle cubierta, agua a la altura del tobillo
+  a la rodilla o de las ruedas, los autos pasan con dificultad; "alta" = agua que entra a casas o comercios, autos tapados
+  hasta las puertas, correntada que arrastra cosas. "no_aplica" en las demás categorías o si la foto no muestra agua.
 Respondé en español; "motivo" es una frase corta para la moderación.
 ${ABUSO}`;
 
@@ -49,9 +53,10 @@ const ESQUEMA = {
     coincide: {type: "boolean"},
     confianza: {type: "string", enum: ["alta", "media", "baja"]},
     motivo: {type: "string"},
-    resumen: {type: "string"}
+    resumen: {type: "string"},
+    nivel_agua: {type: "string", enum: ["no_aplica", "leve", "moderada", "alta"]}
   },
-  required: ["coincide", "confianza", "motivo", "resumen"],
+  required: ["coincide", "confianza", "motivo", "resumen", "nivel_agua"],
   additionalProperties: false
 };
 const CAMPOS_ABUSO = {
@@ -99,7 +104,8 @@ async function revisar(client, d){
   });
   if (msg.stop_reason === "refusal") return {estado: "dudosa", motivo: "La IA no quiso analizar esta foto; revisala a mano."};
   const v = JSON.parse(msg.content.filter(b => b.type === "text").map(b => b.text).join(""));
-  return {estado: v.coincide && v.confianza !== "baja" ? "verificada" : "dudosa", motivo: String(v.motivo || "").slice(0, 300), resumen: String(v.resumen || "").slice(0, 140), ...abuso(v)};
+  return {estado: v.coincide && v.confianza !== "baja" ? "verificada" : "dudosa", motivo: String(v.motivo || "").slice(0, 300), resumen: String(v.resumen || "").slice(0, 140),
+    nivel: d.categoria === "inundacion" && v.coincide && ["leve", "moderada", "alta"].includes(v.nivel_agua) ? v.nivel_agua : null, ...abuso(v)};
 }
 
 async function revisarTexto(client, d){
@@ -144,6 +150,8 @@ export default async function handler(req, res){
       delete args.p_abuso; delete args.p_abuso_confianza; delete args.p_abuso_motivo;
       return rpc("ia_guardar", args);
     });
+    // Nivel de agua de las inundaciones (10-nivel-inundacion.sql). Si la base todavía no lo tiene, se omite.
+    if (r.nivel) await rpc("ia_nivel_guardar", {p_clave:clave, p_id:d.id, p_nivel:r.nivel}).catch(err => { if (!/PGRST202|404/.test(err.message)) throw err; });
     if (accion === "cola") resumen.a_moderacion++;
     else if (accion === "oculta") resumen.ocultadas++;
     else if (accion === "oculta_y_suspendida"){ resumen.ocultadas++; resumen.suspendidas++; }
