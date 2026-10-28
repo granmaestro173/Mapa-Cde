@@ -147,6 +147,7 @@ main{flex:1;min-height:0;display:flex;flex-direction:column}
 .pin.fake{opacity:.35;filter:grayscale(1)}
 .pin.oculta{opacity:.5;outline:2px dashed var(--muted);outline-offset:2px}
 .pin i{width:7px;height:7px;border-radius:50%;background:#fff}
+.captcha-caja{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:3000;background:var(--panel);color:var(--ink);border-radius:12px;box-shadow:var(--shadow);padding:10px 14px;display:flex;flex-direction:column;align-items:center;gap:8px;font-size:13px;max-width:calc(100% - 24px)}
 .cancel-box{display:flex;flex-direction:column;gap:6px;align-items:flex-start;border:1.5px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;background:var(--panel-2)}
 .susp-box{display:flex;flex-direction:column;gap:4px;align-items:flex-start;border:1.5px solid var(--bad);border-radius:8px;padding:8px 10px;font-size:13px;background:color-mix(in srgb,var(--bad) 7%,var(--panel))}
 .susp-box span{color:var(--muted)}
@@ -840,8 +841,8 @@ main{height:100%;display:block}
 <div class="lightbox" id="lightbox" hidden role="dialog" aria-label="Foto de la denuncia"><img alt="Foto de la denuncia ampliada"><button type="button" aria-label="Cerrar foto">×</button></div>
 <script src="vendor/leaflet.js"></script>
 <script src="vendor/supabase.js"></script>
-<script src="config.js?v=3"></script>
-<script src="store.js?v=7"></script>
+<script src="config.js?v=4"></script>
+<script src="store.js?v=8"></script>
 <script src="app.js?v=18"></script>
 </body>
 </html>

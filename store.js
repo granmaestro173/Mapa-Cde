@@ -90,11 +90,40 @@ function supabaseStore(cfg, on){
   function poll(){ clearInterval(pollT); pollT = setInterval(() => { if (!document.hidden) loadReports().catch(() => {}); }, 120000); }
   document.addEventListener("visibilitychange", () => { if (!document.hidden) loadReports().catch(() => {}); });
 
+  // Captcha (Cloudflare Turnstile) para entrar: frena a los bots que crean cuentas en masa. Supabase lo exige cuando está
+  // activado en Authentication → Attack Protection. Casi siempre se resuelve solo; si Cloudflare duda, pide un clic.
+  // Cada código sirve una sola vez, así que se pide uno nuevo en cada ingreso.
+  let turnstileJs = null;
+  function captcha(){
+    if (!cfg.turnstile) return Promise.resolve(undefined);
+    turnstileJs = turnstileJs || new Promise((ok, mal) => {
+      const sc = document.createElement("script");
+      sc.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"; sc.async = true;
+      sc.onload = () => ok(); sc.onerror = () => { turnstileJs = null; mal(new Error("No se pudo cargar la verificación anti-robots. Revisá la conexión.")); };
+      document.head.appendChild(sc);
+    });
+    return turnstileJs.then(() => new Promise((ok, mal) => {
+      const caja = document.createElement("div");
+      caja.className = "captcha-caja"; caja.setAttribute("role", "dialog"); caja.setAttribute("aria-label", "Verificación anti-robots");
+      caja.innerHTML = '<span>Verificando que no sos un robot…</span><div></div>';
+      document.body.appendChild(caja);
+      let id = null;
+      const fin = (f, v) => { clearTimeout(t); try { if (id !== null) window.turnstile.remove(id); } catch(e) {} caja.remove(); f(v); };
+      const t = setTimeout(() => fin(mal, new Error("La verificación anti-robots tardó demasiado. Probá de nuevo.")), 120000);
+      id = window.turnstile.render(caja.lastChild, {
+        sitekey:cfg.turnstile, language:"es", appearance:"interaction-only",
+        callback:tok => fin(ok, tok),
+        "error-callback":() => fin(mal, new Error("No se pudo completar la verificación anti-robots. Probá de nuevo.")),
+        "before-interactive-callback":() => caja.classList.add("pide"),
+      });
+    }));
+  }
+
   // Sesión para escribir: los vecinos entran como anónimos sin hacer nada; si eso está apagado, se pide ingresar.
   async function ensureSession(){
     const {data:{session}} = await sb.auth.getSession();
     if (session) return session;
-    const {data, error} = await sb.auth.signInAnonymously();
+    const {data, error} = await sb.auth.signInAnonymously({options:{captchaToken:await captcha()}});
     if (error){ const e = new Error("Para participar, ingresá con tu email."); e.needLogin = true; throw e; }
     return data.session;
   }
@@ -111,11 +140,11 @@ function supabaseStore(cfg, on){
   S.recargar = () => loadAll();
   S.accessToken = async () => { try { return (await ensureSession()).access_token; } catch(e){ return null; } };
   S.signInEmail = async email => {
-    const {error} = await sb.auth.signInWithOtp({email, options:{emailRedirectTo:location.origin + location.pathname, shouldCreateUser:true}});
+    const {error} = await sb.auth.signInWithOtp({email, options:{emailRedirectTo:location.origin + location.pathname, shouldCreateUser:true, captchaToken:await captcha()}});
     if (error) throw nice(error);
   };
   S.signInPassword = async (email, password) => {
-    const {error} = await sb.auth.signInWithPassword({email, password});
+    const {error} = await sb.auth.signInWithPassword({email, password, options:{captchaToken:await captcha()}});
     if (error) throw new Error(/invalid/i.test(error.message) ? "Email o contraseña incorrectos." : nice(error).message);
   };
   S.signInGoogle = async () => {
