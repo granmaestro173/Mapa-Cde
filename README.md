@@ -216,3 +216,11 @@ select cron.alter_job(jobid, command := replace(command, 'https://mapa-cde-zspd.
 **El enlace del email no llega.** Mirá en spam y revisá el paso 3, opción B. Para el equipo municipal usá la opción A, con contraseña.
 
 **Quiero otro nombre de dirección.** Vercel → *Settings → Domains*: podés cambiar el `.vercel.app` gratis o conectar un dominio propio.
+
+## Mapa de calles propio y vistas del mapa
+
+El mapa tiene tres vistas, que se eligen en el botón de capas: **Calles** (nuestro mapa, gratis y liviano), **Satélite** (Esri) y **Superponer** (las calles semitransparentes sobre el satélite). En "Ajustes de vista" cada persona elige con qué vista abre la página y cuáles aparecen en el selector; se guarda en su navegador.
+
+Las calles son imágenes dibujadas de antemano en `calles/` con el estilo de `scripts/calles/estilo.js` y datos de OpenStreetMap (vía OpenFreeMap). Para actualizarlas: GitHub > Actions > "Dibujar mapa de calles" > Run workflow (también corre solo cuando cambia el estilo).
+
+La versión anterior a este cambio quedó guardada en la rama `respaldo-antes-mapa-calles`.

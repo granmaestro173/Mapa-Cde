@@ -146,6 +146,21 @@ main{flex:1;min-height:0;display:flex;flex-direction:column}
 .cam svg{width:9px;height:9px}
 .pin.fake{opacity:.35;filter:grayscale(1)}
 .pin.oculta{opacity:.5;outline:2px dashed var(--muted);outline-offset:2px}
+.pin i{width:7px;height:7px;border-radius:50%;background:#fff}
+/* Selector de vista del mapa */
+.vista-sec{display:flex;flex-direction:column;gap:6px;margin:4px 0 8px}
+.vista-sec .seg{grid-template-columns:repeat(3,1fr)}
+.vista-sec input[type=range]{width:120px;accent-color:var(--accent)}
+.vista-aj{margin:0 0 8px;border-bottom:1px solid var(--line);padding-bottom:8px}
+.vista-aj summary{cursor:pointer;color:var(--muted);font-size:13px;padding:2px 0}
+.vista-aj[open] summary{margin-bottom:6px}
+.vista-vis{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px;margin-top:6px}
+.vista-vis span{width:100%;color:var(--ink)}
+.vista-vis label{display:flex;gap:5px;align-items:center;color:var(--muted)}
+.vista-vis input{accent-color:var(--accent)}
+/* El mapa de calles es claro: en modo oscuro se oscurece (no sobre el satélite, donde va semitransparente) */
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) #map:not([data-vista="superponer"]) .tiles-calles{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9)}}
+:root[data-theme="dark"] #map:not([data-vista="superponer"]) .tiles-calles{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9)}
 .ph{position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:var(--panel-2)}
 .ph img{display:block;width:100%;max-height:260px;object-fit:cover;cursor:zoom-in}
 .ph .ph-load{display:grid;place-items:center;height:160px;color:var(--muted);font-size:13px}
@@ -633,6 +648,19 @@ main{height:100%;display:block}
     </div>
     <div class="layers" id="layersPop" hidden>
       <h3>Capas y filtros</h3>
+      <div class="vista-sec" id="vistaSec">
+        <div class="seg" id="vistaSeg" role="group" aria-label="Tipo de mapa"></div>
+        <label class="tg" id="vistaOpRow" hidden><span>Transparencia de las calles<small>Para comparar con el satélite</small></span><input type="range" id="vistaOp" min="0" max="100" aria-label="Transparencia de las calles"></label>
+      </div>
+      <details class="vista-aj" id="vistaAjustes">
+        <summary>Ajustes de vista</summary>
+        <label class="tg"><span>Al abrir la página<small>Vista con la que empieza el mapa</small></span><select class="inp" id="vistaInicio" style="width:auto;padding:5px 8px"><option value="calles">Calles</option><option value="satelite">Satélite</option><option value="superponer">Superponer</option><option value="ultima">La última que usé</option></select></label>
+        <div class="vista-vis"><span>Mostrar en el selector</span>
+          <label><input type="checkbox" data-vista-visible="calles"> Calles</label>
+          <label><input type="checkbox" data-vista-visible="satelite"> Satélite</label>
+          <label><input type="checkbox" data-vista-visible="superponer"> Superponer</label>
+        </div>
+      </details>
       <div class="toggles">
         <label class="tg"><span>Mapa de riesgo<small>Zonas con más probabilidad de nuevas denuncias. Tocá una zona para ver por qué.</small></span><input type="checkbox" class="switch" id="tgHeat"></label>
         <label class="tg" id="heatSlotRow" hidden><span>Franja horaria<small>Riesgo según la hora del día</small></span><select class="inp" id="heatSlot" style="width:auto;padding:5px 8px"><option value="">Todo el día</option><option value="m">Mañana (6 a 12)</option><option value="t">Tarde (12 a 18)</option><option value="n">Noche (18 a 24)</option><option value="d">Madrugada (0 a 6)</option></select></label>
@@ -762,6 +790,6 @@ main{height:100%;display:block}
 <script src="vendor/supabase.js"></script>
 <script src="config.js?v=3"></script>
 <script src="store.js?v=4"></script>
-<script src="app.js?v=11"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>

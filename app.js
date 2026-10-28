@@ -97,18 +97,45 @@ const SAT_BOUNDS = [[-25.591994,-54.722900],[-25.453195,-54.580078]];
 const map = L.map("map", {attributionControl:true, minZoom:13, maxZoom:19, zoomSnap:.5, preferCanvas:LITE, zoomControl:false, maxBounds:SAT_BOUNDS, maxBoundsViscosity:1}).setView(MOBILE.matches ? [-25.51,-54.625] : [-25.512,-54.638], MOBILE.matches ? 13 : 13.5);
 if (!MOBILE.matches) L.control.zoom({position:"bottomright"}).addTo(map);
 map.attributionControl.setPrefix(false);
-const CALLES = () => L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19, attribution:"© colaboradores de OpenStreetMap"});
-let tileErrors = 0, streetLayer = null;
+// Tres vistas del mapa:
+// - Calles: nuestro mapa de calles, dibujado de antemano como imágenes (calles/, ver scripts/dibujar-calles.mjs).
+//   Es gratis, liviano y no gasta teselas de Esri. Datos © colaboradores de OpenStreetMap (ODbL), vía OpenFreeMap.
+// - Satélite: imágenes de Esri.
+// - Superponer: nuestras calles semitransparentes sobre el satélite.
+// Cada persona elige con qué vista abre la página y cuáles aparecen en el selector (se guarda en su navegador).
+const VISTAS = {calles:"Calles", satelite:"Satélite", superponer:"Superponer"};
 const ESRI_KEY = (window.CDE_CONFIG || {}).esriKey;
-const tiles = ESRI_KEY
+const callesLayer = L.tileLayer("calles/{z}/{x}/{y}.webp", {minNativeZoom:13, maxNativeZoom:17, maxZoom:19, bounds:SAT_BOUNDS,
+  className:"tiles-calles", attribution:"© colaboradores de OpenStreetMap · OpenFreeMap"});
+const satLayer = ESRI_KEY
   ? L.tileLayer("https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=" + encodeURIComponent(ESRI_KEY),
-      {maxNativeZoom:18, maxZoom:19, bounds:SAT_BOUNDS, crossOrigin:true, attribution:"Powered by Esri · Imágenes © Esri, Maxar, Earthstar Geographics"}).addTo(map)
+      {maxNativeZoom:18, maxZoom:19, bounds:SAT_BOUNDS, crossOrigin:true, attribution:"Powered by Esri · Imágenes © Esri, Maxar, Earthstar Geographics"})
   : null;
-if (tiles) tiles.on("tileerror", () => { if (++tileErrors === 6 && !streetLayer) useStreetMap(); });
-else useStreetMap();
-function useStreetMap(){
-  if (tiles) map.removeLayer(tiles);
-  streetLayer = CALLES().addTo(map);
+const leer = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch(e) { return d; } };
+const guardar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} };
+const mapaPref = {
+  inicio: leer("cde-vista-inicio", "calles"),                       // una vista, o "ultima" para abrir con la última usada
+  visibles: leer("cde-vistas-visibles", Object.keys(VISTAS)).filter(v => VISTAS[v]),
+  opacidad: leer("cde-vista-opacidad", 60)
+};
+if (!mapaPref.visibles.length) mapaPref.visibles = ["calles"];
+let tileErrors = 0, sinSatelite = !satLayer;
+let vista = mapaPref.inicio === "ultima" ? leer("cde-vista", "calles") : mapaPref.inicio;
+if (!VISTAS[vista] || (sinSatelite && vista !== "calles")) vista = "calles";
+if (satLayer) satLayer.on("tileerror", () => {
+  // Si el satélite no responde (clave vencida o sin cuota), se pasa a las calles propias.
+  if (++tileErrors === 6 && !sinSatelite){ sinSatelite = true; setVista("calles", false); toast("Las imágenes satelitales no están disponibles; se muestra el mapa de calles."); }
+});
+function setVista(v, recordar = true){
+  if (sinSatelite) v = "calles";
+  vista = v;
+  if (recordar) guardar("cde-vista", v);
+  if (satLayer){ if (v === "calles") map.removeLayer(satLayer); else satLayer.addTo(map); }
+  if (v === "satelite") map.removeLayer(callesLayer); else { callesLayer.addTo(map); callesLayer.bringToFront(); }
+  callesLayer.setOpacity(v === "superponer" ? mapaPref.opacidad / 100 : 1);
+  map.getContainer().dataset.vista = v;
+  if (typeof renderVistaUI === "function") renderVistaUI();
+  if (typeof renderPins === "function" && markers.size) renderPins();
 }
 L.marker(DEPOT, {keyboard:false, title:"Depósito municipal de obras (referencia para el traslado)", icon:L.divIcon({className:"", html:'<div class="depot"></div>', iconSize:[14,14], iconAnchor:[7,7]})}).addTo(map)
   .bindTooltip("Depósito municipal de obras (referencia)");
@@ -122,7 +149,10 @@ const CAM = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 4h6l1.5 2H
 function iconFor(r, sel){
   const hot = r.votes >= 8 && r.status !== "resuelta";
   return L.divIcon({className:"", iconSize:[26,26], iconAnchor:sel?[17,34]:[13,26],
-    html:`<div class="pinw"><div class="pin ${r.status==="resuelta"?"res":""} ${hot?"hot":""} ${sel?"sel":""} ${r.mod==="falsa"?"fake":""} ${ocultas.has(r.id)?"oculta":""}" style="--c:${cvar(r.cat)}">${ICONS[r.cat]}</div>${hasPhoto(r) ? `<span class="cam" title="Con foto">${CAM}</span>` : ""}</div>`});
+    // Sobre el mapa de calles el marcador es simple (color y un punto); sobre el satélite, completo.
+    html:vista === "calles"
+      ? `<div class="pinw"><div class="pin simple ${r.status==="resuelta"?"res":""} ${sel?"sel":""} ${r.mod==="falsa"?"fake":""} ${ocultas.has(r.id)?"oculta":""}" style="--c:${cvar(r.cat)}"><i></i></div></div>`
+      : `<div class="pinw"><div class="pin ${r.status==="resuelta"?"res":""} ${hot?"hot":""} ${sel?"sel":""} ${r.mod==="falsa"?"fake":""} ${ocultas.has(r.id)?"oculta":""}" style="--c:${cvar(r.cat)}">${ICONS[r.cat]}</div>${hasPhoto(r) ? `<span class="cam" title="Con foto">${CAM}</span>` : ""}</div>`});
 }
 // Una denuncia resuelta sigue 10 minutos en el mapa, por si se marcó por error y hay que cancelarlo; después sale del mapa.
 const RES_GRACIA = 10*60*1000;
@@ -140,7 +170,7 @@ function renderPins(){
   const ids = new Set(vis.map(r => r.id));
   for (const [id,m] of markers) if (!ids.has(id)) { pinLayer.removeLayer(m); markers.delete(id); }
   for (const r of vis){
-    const key = r.status + r.votes + (state.sel===r.id) + hasPhoto(r) + (r.mod||"") + ocultas.has(r.id);
+    const key = r.status + r.votes + (state.sel===r.id) + hasPhoto(r) + (r.mod||"") + ocultas.has(r.id) + vista;
     let m = markers.get(r.id);
     if (!m){
       m = L.marker([r.lat, r.lng], {icon:iconFor(r, state.sel===r.id), title:CATS[r.cat].one + " · " + r.barrio, riseOnHover:true});
@@ -653,6 +683,39 @@ menu.addEventListener("click", e => { if (e.target.closest("a,button")) setMenu(
 const layersPop = $("#layersPop");
 function setLayers(open){ layersPop.hidden = !open; $("#btnLayers").setAttribute("aria-expanded", open); }
 $("#btnLayers").addEventListener("click", e => { e.stopPropagation(); setLayers(layersPop.hidden); });
+// Selector de vista del mapa y sus ajustes (vista al abrir y qué vistas aparecen en el selector).
+function renderVistaUI(){
+  const disponibles = mapaPref.visibles.filter(v => !sinSatelite || v === "calles");
+  // Los botones se rehacen solo si cambia la lista: rehacerlos al tocar uno cerraría el panel.
+  if ($("#vistaSeg").dataset.lista !== disponibles.join()){
+    $("#vistaSeg").dataset.lista = disponibles.join();
+    $("#vistaSeg").innerHTML = disponibles.map(v => `<button type="button" data-vista="${v}">${VISTAS[v]}</button>`).join("");
+  }
+  for (const b of $("#vistaSeg").children) b.setAttribute("aria-pressed", b.dataset.vista === vista);
+  $("#vistaSeg").style.gridTemplateColumns = `repeat(${disponibles.length},1fr)`;
+  $("#vistaSec").hidden = disponibles.length < 2;
+  $("#vistaOpRow").hidden = vista !== "superponer";
+  $("#vistaOp").value = mapaPref.opacidad;
+  $("#vistaInicio").value = mapaPref.inicio;
+  for (const c of document.querySelectorAll("[data-vista-visible]")){
+    c.checked = mapaPref.visibles.includes(c.dataset.vistaVisible);
+    // La vista con la que abre la página no se puede quitar del selector, y siempre queda al menos una.
+    c.disabled = (c.checked && mapaPref.visibles.length === 1) || c.dataset.vistaVisible === mapaPref.inicio;
+  }
+  for (const o of $("#vistaInicio").options) o.disabled = o.value !== "ultima" && !mapaPref.visibles.includes(o.value);
+  $("#vistaAjustes").hidden = sinSatelite;
+}
+$("#vistaSeg").addEventListener("click", e => { const b = e.target.closest("[data-vista]"); if (b) setVista(b.dataset.vista); });
+$("#vistaOp").addEventListener("input", e => { mapaPref.opacidad = +e.target.value; guardar("cde-vista-opacidad", mapaPref.opacidad); if (vista === "superponer") callesLayer.setOpacity(mapaPref.opacidad / 100); });
+$("#vistaInicio").addEventListener("change", e => { mapaPref.inicio = e.target.value; guardar("cde-vista-inicio", mapaPref.inicio); renderVistaUI(); });
+$("#vistaAjustes").addEventListener("change", e => {
+  const c = e.target.closest("[data-vista-visible]"); if (!c) return;
+  const v = c.dataset.vistaVisible;
+  mapaPref.visibles = Object.keys(VISTAS).filter(k => k === v ? c.checked : mapaPref.visibles.includes(k));
+  guardar("cde-vistas-visibles", mapaPref.visibles);
+  if (!mapaPref.visibles.includes(vista)) setVista(mapaPref.visibles[0]); else renderVistaUI();
+});
+setVista(vista, false);
 document.addEventListener("click", e => { if (!layersPop.hidden && !e.target.closest("#layersPop,#btnLayers")) setLayers(false); if (!qres.hidden && !e.target.closest(".searchbox")) qres.hidden = true; });
 $("#btnRecenter").addEventListener("click", () => map.flyTo(MOBILE.matches ? [-25.51,-54.625] : [-25.512,-54.638], MOBILE.matches ? 13 : 13.5, {duration:.6}));
 const qIn = $("#q"), qres = $("#qres");
