@@ -153,8 +153,10 @@ main{flex:1;min-height:0;display:flex;flex-direction:column}
 .nophoto{border:1px dashed var(--line);border-radius:8px;padding:10px 12px;font-size:12.5px;color:var(--muted)}
 .chip.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,var(--line));background:color-mix(in srgb,var(--ok) 10%,var(--panel))}
 .chip.bad{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,var(--line));background:color-mix(in srgb,var(--bad) 10%,var(--panel))}
-.ia-desc{align-self:flex-start;max-width:92%;border:1.5px solid color-mix(in srgb,var(--accent) 60%,var(--line));border-radius:8px;padding:5px 9px;font-size:12.5px;line-height:1.35;color:var(--ink);background:color-mix(in srgb,var(--accent) 6%,var(--panel));display:flex;flex-direction:column;gap:1px}
-.ia-desc .ai-tag{font-size:10px}
+.ia-desc{--claude:#D97757;--claude-ink:#A9492A;--claude-bg:#FAF6EF;align-self:flex-start;max-width:92%;border:1.5px solid var(--claude);border-radius:8px;padding:5px 9px;font-size:12.5px;line-height:1.35;color:var(--ink);background:var(--claude-bg);display:flex;flex-direction:column;gap:1px}
+.ia-desc .ai-tag{font-size:10px;color:var(--claude-ink)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .ia-desc{--claude-ink:#E89A7E;--claude-bg:color-mix(in srgb,#D97757 12%,var(--panel))}}
+:root[data-theme="dark"] .ia-desc{--claude-ink:#E89A7E;--claude-bg:color-mix(in srgb,#D97757 12%,var(--panel))}
 .chip.ia{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,var(--line));background:color-mix(in srgb,var(--accent) 10%,var(--panel))}
 .iav{color:var(--accent);font-weight:700}
 .chip.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--line));background:color-mix(in srgb,var(--warn) 10%,var(--panel))}
@@ -748,6 +750,6 @@ main{height:100%;display:block}
 <script src="vendor/supabase.js"></script>
 <script src="config.js?v=2"></script>
 <script src="store.js?v=3"></script>
-<script src="app.js?v=7"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>
