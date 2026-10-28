@@ -1006,7 +1006,7 @@ function openLogin(){
       <form class="field" id="lgForm"><label for="lgEmail">Tu email</label><input class="inp" id="lgEmail" type="email" autocomplete="email" required placeholder="nombre@ejemplo.com">
         <label for="lgPass" style="margin-top:8px">Contraseña <span class="note">(si el administrador te dio una)</span></label><input class="inp" id="lgPass" type="password" autocomplete="current-password">
         <button class="btn primary" type="submit" style="margin-top:8px" id="lgSubmit">Enviarme un enlace para entrar</button><small>Sin contraseña te llega un correo con un enlace: tocalo desde este mismo celular o computadora.</small></form>
-      ${CFG.google ? `<button class="btn" type="button" id="lgGoogle">Entrar con Google</button>` : ""}`}`
+      ${CFG.google ? `<button class="btn" type="button" id="lgGoogle">Iniciar sesión con Google</button>` : ""}`}`
       : `<p class="note" style="margin:0">Estás en el <b>modo de prueba</b> (sin base de datos configurada). Elegí un rol para recorrer la página; nada se guarda.</p>
       <div class="rowbtns"><button class="btn primary" type="button" data-role="municipal">Entrar como municipalidad</button><button class="btn" type="button" data-role="moderador">Entrar como moderación</button>${state.staff ? `<button class="btn" type="button" id="lgOut">Salir</button>` : ""}</div>`}
       <div class="note" id="lgMsg"></div>
