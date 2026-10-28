@@ -317,6 +317,11 @@ main{height:100%;display:block}
 .icon-btn{border:0;background:transparent;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:var(--muted);flex:none}
 .icon-btn:hover{background:var(--panel-2)}
 .icon-btn svg{width:22px;height:22px}
+.avatar-btn img,.avatar-btn .ini{width:32px;height:32px;border-radius:50%;object-fit:cover;display:grid;place-items:center}
+.avatar-btn .ini{background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:15px}
+.acct{display:flex;align-items:center;gap:12px}
+.acct img,.acct .ini{width:48px;height:48px;border-radius:50%;object-fit:cover;display:grid;place-items:center;flex:none}
+.acct .ini{background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:20px}
 .searchbox input{flex:1;min-width:0;border:0;background:transparent;font-size:16px;outline:none;color:var(--ink);height:100%}
 .searchbox input::placeholder{color:var(--muted)}
 .live{font-size:0;gap:0;padding:0 8px}
@@ -567,6 +572,7 @@ main{height:100%;display:block}
       <input id="q" type="search" placeholder="Buscar barrio o denuncia" autocomplete="off" aria-label="Buscar barrio o denuncia" aria-controls="qres">
       <span class="live" id="livePill" title="Estado de la conexión"><i></i><span>Conectando…</span></span>
       <span class="icon-btn" aria-hidden="true" style="color:var(--muted)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg></span>
+      <button class="icon-btn avatar-btn" id="btnAvatar" type="button" aria-label="Ingresar" title="Ingresar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></button>
       <div class="results" id="qres" hidden></div>
     </div>
     <div class="chiprow">

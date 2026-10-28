@@ -63,7 +63,7 @@ function supabaseStore(cfg, on){
     const {data} = await sb.from("perfiles").select("rol,nombre").eq("id", u.id).maybeSingle();
     if (data){ rol = data.rol; nombre = data.nombre || nombre; }
     const prevRol = S.user ? S.user.rol : "vecino";
-    S.user = {id:u.id, email:u.email || "", anon:!!u.is_anonymous, rol, nombre};
+    S.user = {id:u.id, email:u.email || "", anon:!!u.is_anonymous, rol, nombre, foto:u.user_metadata?.avatar_url || u.user_metadata?.picture || ""};
     on.user(S.user);
     // La moderación ve también las denuncias descartadas: al cambiar de rol se recarga la lista.
     if (S.started && prevRol !== rol) loadReports().catch(() => {});

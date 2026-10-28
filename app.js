@@ -998,11 +998,11 @@ function setLive(mode, text){
 function openLogin(){
   const u = Store.user;
   showDrawer(`
-    <div class="drawer-head"><div><div class="eyebrow">Cuenta</div><h2>Ingresar</h2></div><button class="x" type="button" aria-label="Cerrar" data-close>×</button></div>
+    <div class="drawer-head"><div><div class="eyebrow">Cuenta</div><h2>${u && !u.anon ? "Tu cuenta" : "Ingresar"}</h2></div><button class="x" type="button" aria-label="Cerrar" data-close>×</button></div>
     <div class="drawer-body">
       ${Store.mode === "supabase" ? `
-      <p class="note" style="margin:0">Para denunciar no hace falta cuenta. Ingresá si sos de la municipalidad o de la moderación, o si querés seguir tus denuncias desde otro celular.</p>
-      ${u && !u.anon ? `<div class="okbox">Ya ingresaste como <b>${esc(u.email || "")}</b> · rol: ${ROLES[u.rol] || "Vecino"}.</div><button class="btn" type="button" id="lgOut">Salir</button>` : `
+      ${u && !u.anon ? "" : `<p class="note" style="margin:0">Para denunciar no hace falta cuenta. Ingresá si sos de la municipalidad o de la moderación, o si querés seguir tus denuncias desde otro celular.</p>`}
+      ${u && !u.anon ? `<div class="acct">${avatarHtml(u)}<div><b>${esc(u.nombre || u.email || "")}</b><div class="note">${esc(u.email || "")} · ${ROLES[u.rol] || "Vecino"}</div></div></div><button class="btn" type="button" id="lgOut">Salir</button>` : `
       <form class="field" id="lgForm"><label for="lgEmail">Tu email</label><input class="inp" id="lgEmail" type="email" autocomplete="email" required placeholder="nombre@ejemplo.com">
         <label for="lgPass" style="margin-top:8px">Contraseña <span class="note">(si el administrador te dio una)</span></label><input class="inp" id="lgPass" type="password" autocomplete="current-password">
         <button class="btn primary" type="submit" style="margin-top:8px" id="lgSubmit">Enviarme un enlace para entrar</button><small>Sin contraseña te llega un correo con un enlace: tocalo desde este mismo celular o computadora.</small></form>
@@ -1026,10 +1026,24 @@ function openLogin(){
   $$("[data-role]", drawer).forEach(b => b.addEventListener("click", async () => { await Store.signInAs(b.dataset.role); closeDrawer(); toast(`Entraste como ${ROLES[b.dataset.role].toLowerCase()} (prueba).`); }));
 }
 $("#btnAccount").addEventListener("click", openLogin);
+// Foto de perfil (de Google) o inicial, a la derecha de la barra de búsqueda. Sin cuenta, un ícono que abre "Ingresar".
+const PERSON_ICON = $("#btnAvatar").innerHTML;
+function avatarHtml(u){
+  const ini = esc(((u.nombre || u.email || "?").trim()[0] || "?").toUpperCase());
+  return u.foto ? `<img src="${esc(u.foto)}" alt="" referrerpolicy="no-referrer" onerror="this.outerHTML='<span class=&quot;ini&quot;>${ini}</span>'">` : `<span class="ini">${ini}</span>`;
+}
+function renderAvatar(u){
+  const b = $("#btnAvatar"), signed = u && !u.anon;
+  b.innerHTML = signed ? avatarHtml(u) : PERSON_ICON;
+  const label = signed ? `Tu cuenta: ${u.nombre || u.email}${state.staff ? " · " + ROLES[u.rol] : ""}` : "Ingresar";
+  b.setAttribute("aria-label", label); b.title = label;
+}
+$("#btnAvatar").addEventListener("click", openLogin);
 function applyUser(u){
   state.staff = ["moderador","municipal","admin"].includes(u?.rol);
   state.muni = ["municipal","admin"].includes(u?.rol);
   $("#btnAccount").lastChild.textContent = u && !u.anon ? (state.staff ? ROLES[u.rol] : "Mi cuenta") : "Ingresar";
+  renderAvatar(u);
   if (!$("#view-municipalidad").hidden) renderMuni();
   if (state.sel && !drawer.hidden && findReport(state.sel)) openDetail(state.sel);
 }
