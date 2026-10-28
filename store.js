@@ -10,7 +10,7 @@ const fromRow = d => ({
   id:d.id, cat:d.categoria, lat:+d.lat, lng:+d.lng, t:Date.parse(d.creada), desc:d.descripcion, barrio:d.barrio || "—",
   status:d.estado, sev:d.gravedad, ai:d.clasificacion || {}, mod:d.moderacion || "", hasPhoto:!!d.foto, photoOrig:!!d.foto_original,
   photoTaken:d.foto_tomada ? Date.parse(d.foto_tomada) : null, votes:d.votos || 0, flags:d.marcas || 0, demo:!!d.demo,
-  resolvedAt:d.resuelta_en ? Date.parse(d.resuelta_en) : null, iaCheck:d.ia_estado || "", iaWhy:d.ia_motivo || "", iaDesc:d.ia_resumen || "", autor:d.autor || null, mine:false
+  resolvedAt:d.resuelta_en ? Date.parse(d.resuelta_en) : null, iaCheck:d.ia_estado || "", iaWhy:d.ia_motivo || "", iaDesc:d.ia_resumen || "", iaAbuso:d.ia_abuso || "", autor:d.autor || null, mine:false
 });
 const num = v => v == null || v === "" ? null : +v;
 const fromObra = o => ({
@@ -186,6 +186,14 @@ function supabaseStore(cfg, on){
     if (error) return null;
     return data?.[0] || null;
   };
+  // Apelaciones: el suspendido apela una vez por suspensión; la moderación acepta (vuelven sus denuncias) o rechaza.
+  S.apelar = async texto => { const {error} = await sb.rpc("apelar_suspension", {p_texto:texto}); if (error) throw nice(error); };
+  S.responderApelacion = async (id, aceptar, respuesta) => {
+    const {data, error} = await sb.rpc("responder_apelacion", {p_id:id, p_aceptar:!!aceptar, p_respuesta:respuesta || null});
+    if (error) throw nice(error);
+    if (data) await loadAll();
+    return data || 0;
+  };
   S.photoUrl = (r, alt) => `${base}/storage/v1/object/public/fotos/${encodeURIComponent(r.id)}.${alt ? "jpg" : "webp"}`;
   S.originalUrl = async r => {
     const {data, error} = await sb.storage.from("originales").list("", {search:r.id, limit:5});
@@ -287,14 +295,35 @@ function localStore(cfg, on){
     susp.set(usuario, {usuario, nombre:"usuario " + String(usuario).slice(0, 8), hasta:dias ? new Date(Date.now() + dias*864e5).toISOString() : null, motivo, por_nombre:S.user.nombre, denuncia, creada:new Date().toISOString(),
       denuncias:[...reports.values()].filter(r => r.autor === usuario).length});
     let n = 0;
-    if (ocultar) for (const r of reports.values()) if (r.autor === usuario && r.mod !== "falsa"){ r.mod = "falsa"; n++; }
+    if (ocultar) for (const r of reports.values()) if (r.autor === usuario && r.mod !== "falsa"){ r.mod = "falsa"; susp.get(usuario).ocultadas = [...(susp.get(usuario).ocultadas || []), r.id]; n++; }
     await log("Suspensión de usuario " + String(usuario).slice(0, 8), (dias ? dias + " días" : "Permanente") + " · Motivo: " + motivo);
     setTimeout(emit, 0);
     return n;
   };
   S.levantarSuspension = async usuario => { susp.delete(usuario); await log("Suspensión levantada", "usuario " + String(usuario).slice(0, 8)); };
   S.suspendidos = async () => [...susp.values()];
-  S.miSuspension = async () => null;
+  S.miSuspension = async () => {
+    const x = S.user && susp.get(S.user.id);
+    return x ? {hasta:x.hasta, motivo:x.motivo, por_nombre:x.por_nombre, apelacion_estado:x.apelacion_estado || null, apelacion_respuesta:x.apelacion_respuesta || null} : null;
+  };
+  let nApel = 0;
+  S.apelar = async texto => {
+    const x = S.user && susp.get(S.user.id);
+    if (!x) throw new Error("Tu cuenta no está suspendida.");
+    if (x.apelacion) throw new Error("Ya apelaste esta suspensión. La moderación te va a responder.");
+    Object.assign(x, {apelacion:++nApel, apelacion_texto:texto, apelacion_estado:"pendiente"});
+    await log("Apelación de usuario " + String(S.user.id).slice(0, 8), texto);
+  };
+  S.responderApelacion = async (id, aceptar, respuesta) => {
+    const x = [...susp.values()].find(s => s.apelacion === id);
+    if (!x || x.apelacion_estado !== "pendiente") throw new Error("Esa apelación ya fue respondida.");
+    Object.assign(x, {apelacion_estado:aceptar ? "aceptada" : "rechazada", apelacion_respuesta:respuesta || null});
+    let n = 0;
+    if (aceptar){ susp.delete(x.usuario); for (const id of x.ocultadas || []){ const r = reports.get(id); if (r?.mod === "falsa"){ r.mod = ""; n++; } } }
+    await log("Apelación de usuario " + String(x.usuario).slice(0, 8) + (aceptar ? " aceptada" : " rechazada"), respuesta || "");
+    setTimeout(emit, 0);
+    return n;
+  };
   S.photoUrl = r => r.photo || "";
   S.originalUrl = async () => { throw new Error("En el modo de prueba no se guardan originales."); };
   S.saveObra = async (o, prev, changes) => {

@@ -33,6 +33,8 @@ supabase/05-verificacion-ia.sql la IA revisa las fotos nuevas cada 5 minutos (pa
 api/verificar.js                función del servidor que hace esa revisión
 supabase/06-limpiar-resueltas.sql borra cada día las denuncias resueltas hace más de 2 semanas (paso 6)
 api/limpiar.js                  función del servidor que borra sus fotos
+supabase/07-suspensiones.sql    la moderación suspende usuarios y responde apelaciones (paso 7)
+supabase/08-antispam.sql        la IA detecta spam y bots y actúa (paso 7)
 scripts/generar-ejemplos.mjs    regenera los datos de ejemplo (opcional)
 ```
 
@@ -159,6 +161,16 @@ Para pausarla: `select cron.unschedule('limpiar-resueltas');`.
 
 ---
 
+## Paso 7 · Suspensiones, apelaciones y antispam con IA (opcional, 2 min)
+
+Supabase → **SQL Editor** → pegá todo `07-suspensiones.sql` → **Run**; después `08-antispam.sql` → **Run** (este necesita el paso 5).
+
+- **Suspender:** en la ficha de una denuncia, la moderación puede suspender a quien la hizo (7 días, 30 días o permanente) y, si es spam, ocultar todas sus denuncias. Un suspendido no puede denunciar ni votar; lo bloquea la base de datos.
+- **Apelar:** el suspendido ve el motivo y puede apelar una vez por suspensión. La moderación ve la apelación en "Usuarios suspendidos" y la acepta (se levanta la suspensión y vuelven al mapa las denuncias ocultadas) o la rechaza.
+- **Antispam con IA:** Claude Haiku revisa cada denuncia nueva, con o sin foto, junto con señales de la cuenta (cuántas denuncias hizo en la última hora, si repite el mismo texto, cuánto hace que existe). Si es spam, bot o contenido ofensivo con certeza alta, la oculta; si duda, la manda a la moderación. Un bot evidente se suspende 30 días; tres denuncias ocultadas por la IA en una semana suspenden 7 días. Nunca suspende a la moderación ni a la municipalidad, y todo queda en el historial a nombre de "IA (Claude Haiku)".
+
+---
+
 ## Mis denuncias, avisos y uso sin internet
 
 - **Mis denuncias** (campana junto a la búsqueda, o en el menú): lista las denuncias hechas desde ese dispositivo con su estado. Cuando una pasa a *En proceso*, *Resuelta*, o la verifica la moderación o la IA, aparece un aviso. Se puede desactivar con el interruptor "Avisarme cuando cambien". Si el vecino lo permite, el aviso también llega como notificación del sistema mientras la página esté abierta (aunque sea en otra pestaña).
@@ -222,5 +234,7 @@ select cron.alter_job(jobid, command := replace(command, 'https://mapa-cde-zspd.
 El mapa tiene tres vistas, que se eligen en el botón de capas: **Calles** (nuestro mapa, gratis y liviano), **Satélite** (Esri) y **Superponer** (las calles semitransparentes sobre el satélite). En "Ajustes de vista" cada persona elige con qué vista abre la página y cuáles aparecen en el selector; se guarda en su navegador.
 
 Las calles son imágenes dibujadas de antemano en `calles/` con el estilo de `scripts/calles/estilo.js` y datos de OpenStreetMap (vía OpenFreeMap). Para actualizarlas: GitHub > Actions > "Dibujar mapa de calles" > Run workflow (también corre solo cuando cambia el estilo).
+
+**Ahorro de datos** (en el mismo botón de capas): fuerza el mapa de calles simple y en cada denuncia muestra solo la descripción; la foto se carga solo si se toca "Ver foto". Arranca prendido en los celulares que tienen activado el ahorro de datos del sistema.
 
 La versión anterior a este cambio quedó guardada en la rama `respaldo-antes-mapa-calles`.

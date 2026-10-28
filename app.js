@@ -119,6 +119,9 @@ const mapaPref = {
   opacidad: leer("cde-vista-opacidad", 60)
 };
 if (!mapaPref.visibles.length) mapaPref.visibles = ["calles"];
+// Ahorro de datos: fuerza el mapa de calles simple y en las denuncias muestra solo la descripción (las fotos se cargan si se piden).
+// Arranca prendido si el celular ya tiene activado el ahorro de datos del sistema.
+let ahorro = !!leer("cde-ahorro", navigator.connection?.saveData === true);
 let tileErrors = 0, sinSatelite = !satLayer;
 let vista = mapaPref.inicio === "ultima" ? leer("cde-vista", "calles") : mapaPref.inicio;
 if (!VISTAS[vista] || (sinSatelite && vista !== "calles")) vista = "calles";
@@ -127,7 +130,7 @@ if (satLayer) satLayer.on("tileerror", () => {
   if (++tileErrors === 6 && !sinSatelite){ sinSatelite = true; setVista("calles", false); toast("Las imágenes satelitales no están disponibles; se muestra el mapa de calles."); }
 });
 function setVista(v, recordar = true){
-  if (sinSatelite) v = "calles";
+  if (sinSatelite || ahorro){ v = "calles"; recordar = false; }
   vista = v;
   if (recordar) guardar("cde-vista", v);
   if (satLayer){ if (v === "calles") map.removeLayer(satLayer); else satLayer.addTo(map); }
@@ -400,20 +403,19 @@ function openDetail(id){
       <div class="rowbtns"><span class="chip c" style="--c:${cvar(r.cat)}">${esc(r.barrio)}</span><span class="chip">${ago(r.t)}</span>${state.near.c ? `<span class="chip">a ${fmtDist(distM(state.near.c,[r.lat,r.lng]))} de vos</span>` : ""}${src}${modChip(r)}${iaChip(r)}</div>
       ${iaNote(r)}
       ${resNote(r)}
-      ${photoBlock(r)}
-      ${iaDesc(r)}
+      ${ahorro ? fotoAhorro(r) : photoBlock(r) + iaDesc(r)}
       <p style="margin:0;font-size:15px">${esc(r.desc)}</p>
       <div class="steps">${["Recibida","En proceso","Resuelta"].map((s,i)=>`<span class="${i<=stIdx?"done":""}">${s}</span>`).join("")}</div>
-      <div class="ai">
+      ${ahorro ? "" : `<div class="ai">
         <span class="ai-tag sim">Prioridad calculada</span>
         <div>Prioridad <b class="prio-${pc}">${pl}</b> · gravedad ${r.sev||3}/5 · ${r.votes||0} vecinos lo confirmaron</div>
-      </div>
+      </div>`}
       <div class="rowbtns">
         <button class="btn" type="button" data-vote="${esc(r.id)}" aria-pressed="${!!mine[r.id+":v"]}">👁 Yo también lo vi · ${r.votes||0}</button>
         <button class="btn flag-btn" type="button" data-flag="${esc(r.id)}" aria-pressed="${!!mine[r.id+":f"]}">⚑ Parece falsa${r.flags ? " · " + r.flags : ""}</button>
       </div>
       <button class="lnk note" type="button" data-hide="${esc(r.id)}" style="align-self:flex-start">${ocultas.has(r.id) ? "Volver a mostrar en mi mapa" : "Ocultar de mi mapa"}</button>
-      ${obraHtml}
+      ${ahorro && !state.staff ? "" : obraHtml}
       ${muniBtns}
       <div class="note mono">${r.lat.toFixed(5)}, ${r.lng.toFixed(5)} · ${new Date(r.t).toLocaleString("es-PY")}</div>
     </div>`);
@@ -430,7 +432,9 @@ function suspHtml(r){
   if (!r.autor || r.autor === Store.user?.id) return "";
   const s = suspendidos.get(r.autor);
   return s
-    ? `<div class="susp-box"><b>Usuario suspendido ${fmtHasta(s.hasta)}</b><span>Motivo: ${esc(s.motivo)}</span><button class="btn small" type="button" data-unsuspend="${esc(r.autor)}">Levantar suspensión</button></div>`
+    ? `<div class="susp-box"><b>Usuario suspendido ${fmtHasta(s.hasta)}</b><span>Motivo: ${esc(s.motivo)}</span>${apelHtml(s)}${s.apelacion_estado === "pendiente"
+        ? `<button class="btn small primary" type="button" data-apelacion-det="${esc(r.autor)}">Responder la apelación</button>`
+        : `<button class="btn small" type="button" data-unsuspend="${esc(r.autor)}">Levantar suspensión</button>`}</div>`
     : `<div class="rowbtns"><button class="btn small flag-btn" type="button" data-suspend="${esc(r.id)}">⛔ Suspender al usuario que la hizo</button></div>`;
 }
 function openSuspender(r){
@@ -473,23 +477,73 @@ async function levantar(usuario, volverA){
 document.addEventListener("click", e => {
   const s = e.target.closest("[data-suspend]"); if (s){ const r = findReport(s.dataset.suspend); if (r) openSuspender(r); return; }
   const u = e.target.closest("[data-unsuspend]"); if (u){ levantar(u.dataset.unsuspend, u.closest("#drawer") ? state.sel : null); return; }
+  const a = e.target.closest("[data-apelacion-det]"); if (a){ const x = suspendidos.get(a.dataset.apelacionDet); if (x) openApelacion(x, state.sel); return; }
   const b = e.target.closest("[data-back]"); if (b){ openDetail(b.dataset.back); }
 });
 // Si la cuenta de quien usa la página está suspendida, se le avisa antes de que llene el formulario.
 let miSusp = null;
 async function revisarMiSuspension(){ try { miSusp = Store.miSuspension ? await Store.miSuspension() : null; } catch(e) { miSusp = null; } }
 function avisoSuspension(){
+  const est = miSusp.apelacion_estado;
+  const apel = est === "pendiente"
+    ? `<div class="note" style="margin:0">⏳ <b>Tu apelación está en revisión.</b> La moderación te va a responder; vas a ver la respuesta acá.</div>`
+    : est === "rechazada"
+    ? `<div class="susp-box"><b>Tu apelación fue rechazada.</b>${miSusp.apelacion_respuesta ? `<span>Respuesta: ${esc(miSusp.apelacion_respuesta)}</span>` : ""}<span>Cada suspensión se puede apelar una sola vez.</span></div>`
+    : `<form id="apelForm" class="field" novalidate>
+        <span class="lab">¿Creés que es un error? Apelá la suspensión</span>
+        <textarea class="inp" id="apelTexto" rows="4" maxlength="600" placeholder="Contá por qué creés que la suspensión es un error. Por ejemplo: las denuncias eran reales, no soy un bot…" required></textarea>
+        <small>La revisa una persona de la moderación. Podés apelar una vez por suspensión.</small>
+        <div class="rowbtns" style="margin-top:8px"><button class="btn primary" type="submit">Enviar apelación</button></div>
+      </form>`;
   showDrawer(`
     <div class="drawer-head"><div><div class="eyebrow">Cuenta suspendida</div><h2>No podés hacer denuncias por ahora</h2></div><button class="x" type="button" aria-label="Cerrar" data-close>×</button></div>
     <div class="drawer-body">
-      <div class="susp-box"><b>Tu cuenta está suspendida ${fmtHasta(miSusp.hasta)}.</b><span>Motivo: ${esc(miSusp.motivo)}</span></div>
-      <p class="note" style="margin:0">Mientras dure la suspensión podés seguir viendo el mapa, pero no hacer denuncias ni votar. Si creés que es un error, escribile a la municipalidad.</p>
+      <div class="susp-box"><b>Tu cuenta está suspendida ${fmtHasta(miSusp.hasta)}.</b><span>Motivo: ${esc(miSusp.motivo)}</span>${miSusp.por_nombre && /^IA/.test(miSusp.por_nombre) ? `<span>La aplicó la revisión automática con IA.</span>` : ""}</div>
+      <p class="note" style="margin:0">Mientras dure la suspensión podés seguir viendo el mapa, pero no hacer denuncias ni votar.</p>
+      ${apel}
     </div>`);
+  $("#apelForm")?.addEventListener("submit", async e => {
+    e.preventDefault();
+    const texto = $("#apelTexto").value.trim();
+    if (texto.length < 10){ toast("Contá en al menos 10 letras por qué creés que es un error."); $("#apelTexto").focus(); return; }
+    const btn = e.submitter; if (btn) btn.disabled = true;
+    try { await Store.apelar(texto); await revisarMiSuspension(); toast("Apelación enviada. La moderación te va a responder."); if (miSusp) avisoSuspension(); else closeDrawer(); }
+    catch(err){ toast("No se pudo enviar: " + (err.message || err)); if (btn) btn.disabled = false; }
+  });
+}
+// Apelación pendiente: la moderación la lee y decide. Si acepta, se levanta la suspensión y vuelven las denuncias ocultadas.
+const apelHtml = x => x.apelacion_estado === "pendiente" ? `<span class="apel">✋ Apeló: «${esc(x.apelacion_texto || "")}»</span>`
+  : x.apelacion_estado === "rechazada" ? `<span class="note">Apelación rechazada</span>` : "";
+function openApelacion(x, volverA){
+  showDrawer(`
+    <div class="drawer-head"><div><div class="eyebrow">Moderación</div><h2>Apelación de ${esc(x.nombre || "un usuario")}</h2></div><button class="x" type="button" aria-label="Cerrar" ${volverA ? `data-back="${esc(volverA)}"` : "data-close"}>×</button></div>
+    <form class="drawer-body" id="apelResp" novalidate>
+      <div class="susp-box"><b>Suspendido ${fmtHasta(x.hasta)}</b><span>Motivo: ${esc(x.motivo)} · por ${esc(x.por_nombre || "Moderación")}</span></div>
+      <div class="field"><span class="lab">Lo que escribió</span><p style="margin:0;font-size:15px">«${esc(x.apelacion_texto || "")}»</p></div>
+      <label class="field"><span class="lab">Respuesta (opcional)</span><textarea class="inp" id="apelRespTxt" rows="3" maxlength="300" placeholder="El usuario la ve en su aviso de suspensión"></textarea></label>
+      <p class="note" style="margin:0">Si aceptás, se levanta la suspensión y vuelven al mapa las denuncias que se le habían ocultado. Si rechazás, la suspensión sigue y no puede volver a apelar.</p>
+      <div class="rowbtns"><button class="btn flag-btn" type="submit" data-aceptar="0">Rechazar</button><button class="btn primary" type="submit" data-aceptar="1">Aceptar y levantar</button></div>
+    </form>`);
+  $("#apelResp").addEventListener("submit", async e => {
+    e.preventDefault();
+    const aceptar = e.submitter?.dataset.aceptar === "1";
+    for (const b of $("#apelResp").querySelectorAll("button[type=submit]")) b.disabled = true;
+    try {
+      const n = await Store.responderApelacion(x.apelacion, aceptar, $("#apelRespTxt").value.trim());
+      await cargarSuspendidos();
+      toast(aceptar ? `Apelación aceptada: suspensión levantada.${n ? ` Volvieron ${n} denuncia${n === 1 ? "" : "s"} al mapa.` : ""}` : "Apelación rechazada. La suspensión sigue.");
+      refresh(); if (!$("#view-municipalidad").hidden) renderModq();
+      volverA && findReport(volverA) ? openDetail(volverA) : closeDrawer();
+    } catch(err){ toast("No se pudo responder: " + (err.message || err)); for (const b of $("#apelResp").querySelectorAll("button[type=submit]")) b.disabled = false; }
+  });
 }
 
+// La IA también busca spam, bots y contenido ofensivo (08-antispam.sql): oculta lo evidente y manda lo dudoso a moderación.
+const ABUSO = {spam:"posible spam", bot:"posible bot", ofensivo:"contenido ofensivo"};
 // Resultado de la revisión automática con IA. El público ve "Verificado con IA" o "No verificado"; las dudas las ve la moderación.
 function iaChip(r){
   if (r.iaCheck === "verificada") return `<span class="chip ia" title="${esc(r.iaWhy)}">✦ Verificado con IA</span>`;
+  if (state.staff && r.iaAbuso) return `<span class="chip ${r.mod === "falsa" ? "bad" : "warn"}">✦ IA: ${ABUSO[r.iaAbuso]}</span>`;
   if (state.staff && r.iaCheck === "dudosa") return '<span class="chip warn">✦ IA: dudosa</span>';
   if (r.mod === "verificada") return "";
   return `<span class="chip" title="${r.iaCheck ? "La IA no pudo confirmar la foto." : "Todavía no la revisó la IA."}">No verificado</span>`;
@@ -519,6 +573,12 @@ function photoBlock(r){
   const taken = r.photoTaken ? `<div class="note">Foto tomada ${ago(r.photoTaken)}${r.photoTaken < r.t - 3*DAY ? ` · <b style="color:var(--warn)">es ${Math.round((r.t-r.photoTaken)/DAY)} días anterior a la denuncia, podría ser reutilizada</b>` : ""}</div>` : "";
   return `<div class="ph" id="dPhoto"><img src="${esc(url)}" alt="Foto de la denuncia" data-zoom data-alt="${esc(Store.photoUrl(r, true))}"><span class="ph-zoom">Tocá para ampliar</span></div>${origLink(r)}${taken}`;
 }
+// Con ahorro de datos la foto no se descarga sola: se muestra un botón para verla.
+const fotoAhorro = r => hasPhoto(r) ? `<div id="dPhotoAhorro"><button class="btn small" type="button" data-ver-foto="${esc(r.id)}">📷 Ver foto <small class="note">(usa datos)</small></button></div>` : "";
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-ver-foto]"); if (!b) return;
+  const r = findReport(b.dataset.verFoto); if (r) $("#dPhotoAhorro").outerHTML = photoBlock(r) + iaDesc(r);
+});
 // Si la copia liviana se guardó como JPEG (celulares que no generan WebP), se prueba esa extensión.
 document.addEventListener("error", e => {
   const im = e.target; if (!(im instanceof HTMLImageElement) || !im.dataset.alt || im.dataset.tried) return;
@@ -756,7 +816,8 @@ function setLayers(open){ layersPop.hidden = !open; $("#btnLayers").setAttribute
 $("#btnLayers").addEventListener("click", e => { e.stopPropagation(); setLayers(layersPop.hidden); });
 // Selector de vista del mapa y sus ajustes (vista al abrir y qué vistas aparecen en el selector).
 function renderVistaUI(){
-  const disponibles = mapaPref.visibles.filter(v => !sinSatelite || v === "calles");
+  const disponibles = mapaPref.visibles.filter(v => !(sinSatelite || ahorro) || v === "calles");
+  $("#tgAhorro").checked = ahorro;
   // Los botones se rehacen solo si cambia la lista: rehacerlos al tocar uno cerraría el panel.
   if ($("#vistaSeg").dataset.lista !== disponibles.join()){
     $("#vistaSeg").dataset.lista = disponibles.join();
@@ -774,8 +835,17 @@ function renderVistaUI(){
     c.disabled = (c.checked && mapaPref.visibles.length === 1) || c.dataset.vistaVisible === mapaPref.inicio;
   }
   for (const o of $("#vistaInicio").options) o.disabled = o.value !== "ultima" && !mapaPref.visibles.includes(o.value);
-  $("#vistaAjustes").hidden = sinSatelite;
+  $("#vistaAjustes").hidden = sinSatelite || ahorro;
 }
+$("#tgAhorro").addEventListener("change", e => {
+  ahorro = e.target.checked; guardar("cde-ahorro", ahorro);
+  document.body.classList.toggle("ahorro", ahorro);
+  // Al apagarlo vuelve la vista que tenía elegida.
+  setVista(ahorro ? "calles" : (mapaPref.inicio === "ultima" ? leer("cde-vista", "calles") : mapaPref.inicio), false);
+  if (state.sel && !drawer.hidden && findReport(state.sel)) openDetail(state.sel);
+  toast(ahorro ? "Ahorro de datos activado: mapa de calles y denuncias sin fotos." : "Ahorro de datos desactivado.");
+});
+document.body.classList.toggle("ahorro", ahorro);
 $("#vistaSeg").addEventListener("click", e => { const b = e.target.closest("[data-vista]"); if (b) setVista(b.dataset.vista); });
 $("#vistaOp").addEventListener("input", e => { mapaPref.opacidad = +e.target.value; guardar("cde-vista-opacidad", mapaPref.opacidad); if (vista === "superponer") callesLayer.setOpacity(mapaPref.opacidad / 100); });
 $("#vistaInicio").addEventListener("change", e => { mapaPref.inicio = e.target.value; guardar("cde-vista-inicio", mapaPref.inicio); renderVistaUI(); });
@@ -984,12 +1054,12 @@ $("#access").addEventListener("click", async e => {
 });
 function renderModq(){
   const fakes = rawReportsAll().filter(r => r.mod === "falsa").sort((a,b) => b.t - a.t);
-  $("#modfake").innerHTML = state.staff ? (fakes.map(r => `<button type="button" data-open="${esc(r.id)}"><span><b>${CATS[r.cat].one}</b> · ${esc(r.barrio)} · ${ago(r.t)}</span><span class="flag bad">✕ falsa</span></button>`).join("") || `<div class="empty">Ninguna por ahora.</div>`) : `<div class="empty">Solo visible para la municipalidad.</div>`;
-  const q = allReports().filter(r => ((r.flags||0) > 0 || r.iaCheck === "dudosa") && !r.mod).sort((a,b) => (b.iaCheck === "dudosa") - (a.iaCheck === "dudosa") || (b.flags||0)-(a.flags||0)).slice(0,12);
-  $("#modsusp").innerHTML = state.staff ? ([...suspendidos.values()].map(x => `<div class="susp-row"><span><b>${esc(x.nombre)}</b> · ${fmtHasta(x.hasta)}<small>${esc(x.motivo)} · por ${esc(x.por_nombre || "Moderación")}${x.denuncia ? ` · desde <button class="lnk" type="button" data-open="${esc(x.denuncia)}">${esc(x.denuncia)}</button>` : ""}</small></span><button class="btn small" type="button" data-unsuspend="${esc(x.usuario)}">Levantar</button></div>`).join("") || `<div class="empty">Nadie está suspendido.</div>`) : `<div class="empty">Solo visible para la moderación.</div>`;
-  $("#modq").innerHTML = q.map(r => `<button type="button" data-open="${esc(r.id)}"><span><b>${CATS[r.cat].one}</b> · ${esc(r.barrio)} ${hasPhoto(r) ? "· con foto" : "· sin foto"}</span>${r.iaCheck === "dudosa" ? '<span class="flag warn">✦ IA dudosa</span>' : ""}${r.flags ? `<span class="flag ${r.flags>=3?"bad":"warn"}">⚑ ${r.flags}</span>` : ""}</button>`).join("") || `<div class="empty">No hay denuncias marcadas por vecinos ni por la IA.</div>`;
+  $("#modfake").innerHTML = state.staff ? (fakes.map(r => `<button type="button" data-open="${esc(r.id)}"><span><b>${CATS[r.cat].one}</b> · ${esc(r.barrio)} · ${ago(r.t)}</span><span class="flag bad">${r.iaAbuso ? `✦ IA: ${ABUSO[r.iaAbuso]}` : "✕ falsa"}</span></button>`).join("") || `<div class="empty">Ninguna por ahora.</div>`) : `<div class="empty">Solo visible para la municipalidad.</div>`;
+  const q = allReports().filter(r => ((r.flags||0) > 0 || r.iaCheck === "dudosa" || r.iaAbuso) && !r.mod).sort((a,b) => !!b.iaAbuso - !!a.iaAbuso || (b.iaCheck === "dudosa") - (a.iaCheck === "dudosa") || (b.flags||0)-(a.flags||0)).slice(0,12);
+  $("#modsusp").innerHTML = state.staff ? ([...suspendidos.values()].map(x => `<div class="susp-row${x.apelacion_estado === "pendiente" ? " apela" : ""}"><span><b>${esc(x.nombre)}</b> · ${fmtHasta(x.hasta)}<small>${esc(x.motivo)} · por ${esc(x.por_nombre || "Moderación")}${x.denuncia ? ` · desde <button class="lnk" type="button" data-open="${esc(x.denuncia)}">${esc(x.denuncia)}</button>` : ""}</small>${apelHtml(x)}</span>${x.apelacion_estado === "pendiente" ? `<button class="btn small primary" type="button" data-apelacion="${esc(x.usuario)}">Responder</button>` : `<button class="btn small" type="button" data-unsuspend="${esc(x.usuario)}">Levantar</button>`}</div>`).join("") || `<div class="empty">Nadie está suspendido.</div>`) : `<div class="empty">Solo visible para la moderación.</div>`;
+  $("#modq").innerHTML = q.map(r => `<button type="button" data-open="${esc(r.id)}"><span><b>${CATS[r.cat].one}</b> · ${esc(r.barrio)} ${hasPhoto(r) ? "· con foto" : "· sin foto"}</span>${r.iaAbuso ? `<span class="flag bad">✦ IA: ${ABUSO[r.iaAbuso]}</span>` : r.iaCheck === "dudosa" ? '<span class="flag warn">✦ IA dudosa</span>' : ""}${r.flags ? `<span class="flag ${r.flags>=3?"bad":"warn"}">⚑ ${r.flags}</span>` : ""}</button>`).join("") || `<div class="empty">No hay denuncias marcadas por vecinos ni por la IA.</div>`;
 }
-$("#modsusp").addEventListener("click", e => { const b = e.target.closest("[data-open]"); if (!b) return; const r = findReport(b.dataset.open); if (!r) return toast("Esa denuncia ya no está en el mapa."); location.hash = "mapa"; setTimeout(() => { map.setView([r.lat,r.lng], 16); openDetail(r.id); }, 60); });
+$("#modsusp").addEventListener("click", e => { const a = e.target.closest("[data-apelacion]"); if (a){ const x = suspendidos.get(a.dataset.apelacion); if (x){ location.hash = "mapa"; setTimeout(() => openApelacion(x), 60); } return; } const b = e.target.closest("[data-open]"); if (!b) return; const r = findReport(b.dataset.open); if (!r) return toast("Esa denuncia ya no está en el mapa."); location.hash = "mapa"; setTimeout(() => { map.setView([r.lat,r.lng], 16); openDetail(r.id); }, 60); });
 $("#modfake").addEventListener("click", e => { const b = e.target.closest("[data-open]"); if (!b) return; const r = findReport(b.dataset.open); if (!r) return; location.hash = "mapa"; setTimeout(() => { map.setView([r.lat,r.lng], 16); openDetail(r.id); }, 60); });
 $("#modq").addEventListener("click", e => { const b = e.target.closest("[data-open]"); if (!b) return; const r = findReport(b.dataset.open); if (!r) return; location.hash = "mapa"; setTimeout(() => { map.setView([r.lat,r.lng], 16); openDetail(r.id); }, 60); });
 function renderMuni(){
@@ -1239,7 +1309,12 @@ function applyUser(u){
   state.muni = ["municipal","admin"].includes(u?.rol);
   $("#btnAccount").lastChild.textContent = u && !u.anon ? (state.staff ? ROLES[u.rol] : "Mi cuenta") : "Ingresar";
   renderAvatar(u);
-  revisarMiSuspension();
+  revisarMiSuspension().then(() => {
+    // Quien está suspendido se entera al entrar (una vez por sesión) y puede apelar desde ahí.
+    if (!miSusp) return;
+    try { if (sessionStorage.getItem("cde-aviso-susp")) return; sessionStorage.setItem("cde-aviso-susp", "1"); } catch(e) {}
+    if (drawer.hidden) avisoSuspension();
+  });
   cargarSuspendidos().then(() => { if (!$("#view-municipalidad").hidden) renderModq(); if (state.staff && state.sel && !drawer.hidden && findReport(state.sel)) openDetail(state.sel); });
   if (!$("#view-municipalidad").hidden) renderMuni();
   if (state.sel && !drawer.hidden && findReport(state.sel)) openDetail(state.sel);

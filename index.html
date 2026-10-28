@@ -151,6 +151,9 @@ main{flex:1;min-height:0;display:flex;flex-direction:column}
 .susp-box span{color:var(--muted)}
 .susp-row{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
 .susp-row small{display:block;color:var(--muted);margin-top:2px}
+.susp-row .apel,.susp-box .apel{display:block;color:var(--ink);margin-top:4px;font-style:italic}
+.susp-row.apela{background:color-mix(in srgb,var(--warn) 9%,transparent);border-radius:8px;padding:8px}
+.ahorro-tg{border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:4px}
 /* Selector de vista del mapa */
 .vista-sec{display:flex;flex-direction:column;gap:6px;margin:4px 0 8px}
 .vista-sec .seg{grid-template-columns:repeat(3,1fr)}
@@ -652,6 +655,7 @@ main{height:100%;display:block}
     </div>
     <div class="layers" id="layersPop" hidden>
       <h3>Capas y filtros</h3>
+      <label class="tg ahorro-tg"><span>Ahorro de datos<small>Solo el mapa de calles simple y la descripción de las denuncias, sin fotos</small></span><input type="checkbox" class="switch" id="tgAhorro"></label>
       <div class="vista-sec" id="vistaSec">
         <div class="seg" id="vistaSeg" role="group" aria-label="Tipo de mapa"></div>
         <label class="tg" id="vistaOpRow" hidden><span>Transparencia de las calles<small>Para comparar con el satélite</small></span><input type="range" id="vistaOp" min="0" max="100" aria-label="Transparencia de las calles"></label>
@@ -796,7 +800,7 @@ main{height:100%;display:block}
 <script src="vendor/leaflet.js"></script>
 <script src="vendor/supabase.js"></script>
 <script src="config.js?v=3"></script>
-<script src="store.js?v=5"></script>
-<script src="app.js?v=14"></script>
+<script src="store.js?v=6"></script>
+<script src="app.js?v=15"></script>
 </body>
 </html>
