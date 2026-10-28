@@ -59,7 +59,7 @@ const nearestBarrio = p => BARRIOS.reduce((best,b)=>{const d=distM(p,b.c);return
 
 /* ---------- Estado ---------- */
 const PERIODS = {dia:{n:"Día", label:"últimas 24 h", ms:DAY}, semana:{n:"Semana", label:"últimos 7 días", ms:7*DAY}, mes:{n:"Mes", label:"últimos 30 días", ms:30*DAY}, anio:{n:"Año", label:"últimos 12 meses", ms:365*DAY}};
-const state = {period:"mes", cats:new Set(CAT_KEYS), showRes:true, showDemo:true, onlyPhoto:false, near:{on:false, c:null, r:1000, src:null}, heat:false, heatSlot:"", sel:null, muni:false, staff:false};
+const state = {period:"mes", cats:new Set(CAT_KEYS), showRes:false, showDemo:true, onlyPhoto:false, near:{on:false, c:null, r:1000, src:null}, heat:false, heatSlot:"", sel:null, muni:false, staff:false};
 try { const p = localStorage.getItem("cde-period"); if (p && PERIODS[p]) state.period = p; } catch(e) {}
 const live = new Map();      // denuncias de la base (Supabase) o del modo de prueba
 const obrasLive = new Map();
@@ -115,8 +115,12 @@ function iconFor(r, sel){
   return L.divIcon({className:"", iconSize:[26,26], iconAnchor:sel?[17,34]:[13,26],
     html:`<div class="pinw"><div class="pin ${r.status==="resuelta"?"res":""} ${hot?"hot":""} ${sel?"sel":""} ${r.mod==="falsa"?"fake":""}" style="--c:${cvar(r.cat)}">${ICONS[r.cat]}</div>${hasPhoto(r) ? `<span class="cam" title="Con foto">${CAM}</span>` : ""}</div>`});
 }
+// Una denuncia resuelta sigue 10 minutos en el mapa, por si se marcó por error y hay que cancelarlo; después sale del mapa.
+const RES_GRACIA = 10*60*1000;
+const resReciente = r => r.status === "resuelta" && !!r.resolvedAt && Date.now() - r.resolvedAt < RES_GRACIA;
+const enMapa = r => r.status !== "resuelta" || resReciente(r) || state.showRes;
 function visibleReports(){
-  return allReports().filter(r => state.cats.has(r.cat) && inPeriod(r) && (state.showRes || r.status !== "resuelta") && (!state.onlyPhoto || hasPhoto(r)) && nearOK(r));
+  return allReports().filter(r => state.cats.has(r.cat) && inPeriod(r) && enMapa(r) && (!state.onlyPhoto || hasPhoto(r)) && nearOK(r));
 }
 const nearActive = () => state.near.on && !!state.near.c;
 const nearOK = r => !nearActive() || distM(state.near.c, [r.lat, r.lng]) <= state.near.r;
@@ -342,7 +346,7 @@ function openDetail(id){
   }
   const muniBtns = state.staff ? `<div class="card" style="padding:12px;gap:8px"><div class="eyebrow">${state.muni ? "Acciones municipales" : "Moderación"}</div>
       <div class="rowbtns">${r.mod!=="verificada"?`<button class="btn small" data-mod="verificada" type="button">✓ Verificar</button>`:""}${r.mod!=="falsa"?`<button class="btn small flag-btn" data-mod="falsa" type="button">✕ Marcar como falsa</button>`:""}${r.mod?`<button class="btn small" data-mod="" type="button">Quitar marca</button>`:""}</div>
-      ${state.muni ? `<div class="rowbtns">${r.status!=="en_proceso"?`<button class="btn small" data-status="en_proceso" type="button">Marcar en proceso</button>`:""}${r.status!=="resuelta"?`<button class="btn small" data-status="resuelta" type="button">Marcar resuelta</button>`:""}
+      ${state.muni ? `<div class="rowbtns">${r.status!=="en_proceso"?`<button class="btn small" data-status="en_proceso" type="button">Marcar en proceso</button>`:""}${r.status!=="resuelta"?`<button class="btn small" data-status="resuelta" type="button">Marcar resuelta</button>`:""}${resReciente(r)?`<button class="btn small primary" data-undo-res type="button">↶ Cancelar "resuelta"</button>`:""}
       ${!o && ["bache","semaforo","alumbrado","inundacion","basura"].includes(r.cat) ? `<button class="btn small primary" data-new-obra="${esc(id)}" type="button">Asignar obra</button>`:""}</div>` : ""}</div>` : "";
   showDrawer(`
     <div class="rd-head">
@@ -353,6 +357,7 @@ function openDetail(id){
     <div class="drawer-body">
       <div class="rowbtns"><span class="chip c" style="--c:${cvar(r.cat)}">${esc(r.barrio)}</span><span class="chip">${ago(r.t)}</span>${state.near.c ? `<span class="chip">a ${fmtDist(distM(state.near.c,[r.lat,r.lng]))} de vos</span>` : ""}${src}${modChip(r)}${iaChip(r)}</div>
       ${iaNote(r)}
+      ${resNote(r)}
       ${photoBlock(r)}
       <p style="margin:0;font-size:15px">${esc(r.desc)}</p>
       <div class="steps">${["Recibida","En proceso","Resuelta"].map((s,i)=>`<span class="${i<=stIdx?"done":""}">${s}</span>`).join("")}</div>
@@ -375,6 +380,11 @@ function iaChip(r){
   if (state.staff && r.iaCheck === "dudosa") return '<span class="chip warn">✦ IA: dudosa</span>';
   if (r.mod === "verificada") return "";
   return `<span class="chip" title="${r.iaCheck ? "La IA no pudo confirmar la foto." : "Todavía no la revisó la IA."}">No verificado</span>`;
+}
+function resNote(r){
+  if (!resReciente(r)) return "";
+  const min = Math.max(1, Math.ceil((RES_GRACIA - (Date.now() - r.resolvedAt)) / 60000));
+  return `<div class="note" id="resNote">✓ Marcada como resuelta. Se quita del mapa en ${min} ${min===1?"minuto":"minutos"}${state.muni ? "; si fue un error, tocá «Cancelar \"resuelta\"»" : ""}.</div>`;
 }
 const iaNote = r => state.staff && r.iaWhy && r.iaCheck !== "sin_foto" ? `<div class="note">✦ Revisión con IA: ${esc(r.iaWhy)}</div>` : "";
 function modChip(r){
@@ -414,7 +424,18 @@ drawer.addEventListener("click", async e => {
   const md = e.target.closest("[data-mod]");
   if (md){ const r = findReport(state.sel); const m = md.dataset.mod; if (!await patchReport(r, {mod:m})) return; toast(m==="falsa" ? "Marcada como falsa: ya no aparece en el mapa público." : m ? "Denuncia verificada." : "Marca quitada."); if (m==="falsa") return closeDrawer(); return openDetail(r.id); }
   const s = e.target.closest("[data-status]");
-  if (s){ const r = findReport(state.sel); if (!await patchReport(r, {status:s.dataset.status})) return; toast("Estado actualizado."); return openDetail(r.id); }
+  if (s){
+    const r = findReport(state.sel), antes = r.status, st = s.dataset.status;
+    if (!await patchReport(r, {status:st})) return;
+    if (st === "resuelta") estadoPrevio.set(r.id, antes);
+    toast(st === "resuelta" ? "Marcada como resuelta. Se quita del mapa en 10 minutos; hasta entonces podés cancelarlo." : "Estado actualizado.");
+    return openDetail(r.id);
+  }
+  if (e.target.closest("[data-undo-res]")){
+    const r = findReport(state.sel);
+    if (!await patchReport(r, {status:estadoPrevio.get(r.id) || "en_proceso"})) return;
+    estadoPrevio.delete(r.id); toast("Cancelado: la denuncia vuelve a estar abierta."); return openDetail(r.id);
+  }
   const g = e.target.closest("[data-goto-obra]"); if (g){ location.hash = "municipalidad"; setTimeout(()=>openObraEditor(g.dataset.gotoObra), 60); return; }
   const n = e.target.closest("[data-new-obra]"); if (n){ location.hash = "municipalidad"; setTimeout(()=>openObraEditor(n.dataset.newObra, true), 60); return; }
   if (e.target.closest("#btnAnalyze")) return analyze();
@@ -424,6 +445,7 @@ drawer.addEventListener("click", async e => {
   if (e.target.closest("#btnNotDup")) { formState.ignoreDup = true; checkDuplicate(); return; }
 });
 // Cambios de estado o moderación: los aplica la base, que valida el rol y deja constancia en el historial.
+const estadoPrevio = new Map();  // estado anterior a "resuelta", para poder cancelarlo
 async function patchReport(r, patch){
   try { Object.assign(r, await Store.updateReport(r.id, patch)); refresh(); return true; }
   catch(err){ toast("No se pudo guardar: " + (err.message || err)); return false; }
@@ -534,7 +556,7 @@ $("#btnFilters").addEventListener("click", () => setFilters(fpanel.hidden));
 $("#fClose").addEventListener("click", () => setFilters(false));
 $("#fApply").addEventListener("click", () => { setFilters(false); if (nearActive()) fitNear(); });
 function renderFilterUI(){
-  const n = (CAT_KEYS.length - state.cats.size ? 1 : 0) + (nearActive() ? 1 : 0) + (state.onlyPhoto ? 1 : 0) + (!state.showRes ? 1 : 0);
+  const n = (CAT_KEYS.length - state.cats.size ? 1 : 0) + (nearActive() ? 1 : 0) + (state.onlyPhoto ? 1 : 0) + (state.showRes ? 1 : 0);
   $("#fBadge").hidden = !n; $("#fBadge").textContent = n;
   const nc = $("#nearChip"); nc.hidden = !nearActive();
   if (nearActive()) nc.innerHTML = `A menos de ${fmtDist(state.near.r)} <span class="xx" aria-hidden="true">×</span>`, nc.setAttribute("aria-label", `Quitar filtro de cercanía de ${fmtDist(state.near.r)}`);
@@ -550,7 +572,7 @@ $("#presets").addEventListener("click", e => { const b = e.target.closest("[data
 $("#fAll").addEventListener("click", () => { state.cats = new Set(CAT_KEYS); refresh(); });
 $("#fNone").addEventListener("click", () => { state.cats = new Set(); refresh(); });
 $("#fReset").addEventListener("click", () => {
-  state.cats = new Set(CAT_KEYS); state.onlyPhoto = false; state.showRes = true; $("#tgPhoto").checked = false; $("#tgRes").checked = true;
+  state.cats = new Set(CAT_KEYS); state.onlyPhoto = false; state.showRes = false; $("#tgPhoto").checked = false; $("#tgRes").checked = false;
   setNearOn(false); refresh();
 });
 function nearStatus(text, cls=""){ const el = $("#nearStatus"); el.textContent = text; el.className = "near-status " + cls; }
@@ -988,6 +1010,12 @@ function refresh(){
   }, 16);
 }
 setInterval(() => { renderSide(); }, 60000);
+// Saca del mapa las resueltas que ya cumplieron sus 10 minutos y actualiza la cuenta regresiva de la ficha abierta.
+setInterval(() => {
+  if ([...markers.keys()].some(id => { const r = findReport(id); return r && !enMapa(r); })) refresh();
+  const nota = $("#resNote"), r = nota && state.sel && findReport(state.sel);
+  if (r) nota.outerHTML = resNote(r);
+}, 20000);
 
 function setLive(mode, text){
   const p = $("#livePill"); p.classList.toggle("on", mode==="on");
