@@ -397,7 +397,7 @@ function resNote(r){
 }
 // Lo que la IA vio en la foto, arriba de lo que escribió el vecino. Si la IA dudó, solo lo ve la moderación.
 const iaDesc = r => r.iaDesc && (r.iaCheck === "verificada" || state.staff)
-  ? `<div class="ia-desc"><span class="ai-tag">Análisis de Claude</span>${esc(r.iaDesc)}</div>` : "";
+  ? `<div class="ia-desc"><span class="ai-tag">Análisis IA</span>${esc(r.iaDesc)}</div>` : "";
 const iaNote = r => state.staff && r.iaWhy && r.iaCheck !== "sin_foto" ? `<div class="note">✦ Revisión con IA: ${esc(r.iaWhy)}</div>` : "";
 function modChip(r){
   if (r.mod==="verificada") return '<span class="chip ok">✓ Verificado manualmente</span>';
