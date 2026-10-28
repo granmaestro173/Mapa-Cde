@@ -1,0 +1,52 @@
+# Calcula las zonas inundables (carpeta inundacion/) y las guarda en el repositorio.
+# Usa FABDEM: el relieve Copernicus de 30 m sin árboles ni edificios (Universidad de Bristol, CC BY-NC-SA 4.0).
+# El Copernicus original mide la copa de los árboles y los techos: en las costas del Paraná, que tienen monte,
+# el terreno parece 10 a 20 m más alto de lo que es y la crecida del río se subestima.
+# Si FABDEM no se puede bajar, se usa el Copernicus original y la página lo avisa.
+name: Calcular zonas inundables
+on:
+  push:
+    branches: [main]
+    paths: ["scripts/inundacion/**"]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: calcular-inundacion
+  cancel-in-progress: false
+jobs:
+  calcular:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Instalar
+        run: pip install numpy tifffile imagecodecs pillow pysheds affine scipy
+      - name: Bajar el relieve
+        run: |
+          mkdir -p /tmp/dem && cd /tmp/dem
+          C=https://copernicus-dem-30m.s3.amazonaws.com/Copernicus_DSM_COG_10_S26_00_W055_00_DEM
+          curl -fsSL -o wbm.tif "$C/AUXFILES/Copernicus_DSM_COG_10_S26_00_W055_00_WBM.tif"
+          if curl -fsSL --retry 3 -o fab.zip "https://data.bris.ac.uk/datasets/s5hqmjcdj8yo2ibzi9b4ew3sn/S30W060-S20W050_FABDEM_V1-2.zip" \
+             && unzip -j -o fab.zip 'S26W055_FABDEM_V1-2.tif' && mv S26W055_FABDEM_V1-2.tif dem.tif; then
+            echo "DEM_FUENTE=FABDEM V1-2 (Universidad de Bristol, a partir de Copernicus DEM GLO-30; CC BY-NC-SA 4.0)" >> "$GITHUB_ENV"
+            echo "DEM_MODELO=terreno" >> "$GITHUB_ENV"
+          else
+            echo "::warning::No se pudo bajar FABDEM; se usa Copernicus DEM (incluye árboles y techos)."
+            curl -fsSL -o dem.tif "$C/Copernicus_DSM_COG_10_S26_00_W055_00_DEM.tif"
+          fi
+          rm -f fab.zip; ls -la
+      - name: Calcular
+        run: python scripts/inundacion/calcular.py /tmp/dem/dem.tif /tmp/dem/wbm.tif
+      - name: Guardar
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add inundacion
+          if git diff --cached --quiet; then echo "Sin cambios"; exit 0; fi
+          git commit -m "Zonas inundables: datos recalculados"
+          git pull --rebase origin main
+          git push origin HEAD:main

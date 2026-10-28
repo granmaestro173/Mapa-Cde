@@ -65,6 +65,18 @@ for nombre, color in colores.items():
     grande = Image.fromarray(img, "RGBA").resize((h.shape[1] * 3, h.shape[0] * 3), Image.BILINEAR)
     grande.quantize(32, method=Image.Quantize.FASTOCTREE).save(os.path.join(SALIDA, f"riesgo-{nombre}.png"), optimize=True)
 
+# Crecida del Paraná: la página inunda, desde el río, todo lo que esté por debajo del nivel elegido y conectado con él.
+# Se guarda la cota de cada celda baja en una imagen sin pérdida: rojo = (cota - 95 m) x 4 (pasos de 25 cm; 255 = más alto
+# que 158 m), verde = 255 en el cauce del río (punto de partida del agua), azul = 255 en lagos (no se pintan).
+COTA_BASE = 95
+cod = np.full(h.shape + (3,), 0, dtype=np.uint8)
+cod[..., 0] = np.clip(np.round((z - COTA_BASE) * 4), 0, 255).astype(np.uint8)
+cod[..., 0][z > COTA_BASE + 254 / 4] = 255
+wbm_z = tifffile.imread(sys.argv[2])[r0:r1, c0:c1][zr0:zr1, zc0:zc1]
+cod[..., 1][wbm_z == 3] = 255
+cod[..., 2][wbm_z == 2] = 255
+Image.fromarray(cod, "RGB").save(os.path.join(SALIDA, "cota.png"), optimize=True)
+
 # Cauces como líneas (para dibujarlos encima)
 red = grid.extract_river_network(fdir, acc > (UMBRAL_KM2 / celda_km2))
 lineas = []
@@ -98,8 +110,9 @@ fichas.sort(key=lambda f: -f["indice"])
 
 json.dump({
   "zona": lim, "niveles": [{"hasta_m": t_, "nombre": n} for t_, n in NIVELES], "umbral_cauce_km2": UMBRAL_KM2,
-  "barrios": fichas, "cauces": lineas,
-  "fuente": "Copernicus DEM GLO-30 (ESA / Unión Europea). Método HAND con pysheds.",
+  "barrios": fichas, "cauces": lineas, "cota_base": COTA_BASE, "celdas": list(h.shape),
+  "fuente": os.environ.get("DEM_FUENTE", "Copernicus DEM GLO-30 (ESA / Unión Europea)") + ". Método HAND con pysheds.",
+  "modelo": os.environ.get("DEM_MODELO", "superficie"),
   "aviso": "Estimación a partir del relieve; no reemplaza un estudio hidrológico ni el mapa oficial de riesgo."
 }, open(os.path.join(SALIDA, "datos.json"), "w"), ensure_ascii=False, separators=(",", ":"))
 print("cauces", len(lineas), "barrios", len(fichas), "celdas", h.shape)

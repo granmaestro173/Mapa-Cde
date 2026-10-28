@@ -105,10 +105,19 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
     <p class="nota" id="escTxt" style="margin-top:8px"></p>
   </section>
 
+  <section class="caja" id="parana">
+    <label class="tg" style="margin:0"><h2 style="margin:0">Crecida del río Paraná</h2><input type="checkbox" id="tgParana" checked></label>
+    <label class="tg">Nivel del río <b id="nivelTxt">121 m</b></label>
+    <input type="range" id="nivel" min="104" max="127" step="0.5" value="121" aria-label="Nivel del río Paraná en metros" style="width:100%;accent-color:#7b3fc4">
+    <p class="nota" id="paranaTxt"></p>
+    <p class="nota">Referencia: el 14 de octubre de 2026 el Paraná llegó a 120,99 m en Ciudad del Este y desbordó el arroyo Acaraymí; San Rafael fue de los barrios más afectados. Cuando el río crece, el agua entra por los arroyos aunque no llueva en la ciudad.</p>
+  </section>
+
   <section class="leyenda" aria-label="Leyenda">
     <span><i style="background:var(--r1)"></i>Muy alta: hasta 1,5 m sobre el arroyo</span>
     <span><i style="background:var(--r2)"></i>Alta: de 1,5 a 4 m sobre el arroyo</span>
     <span><i style="background:var(--r3)"></i>Media: de 4 a 8 m sobre el arroyo</span>
+    <span><i style="background:#7b3fc4;opacity:.75"></i>Bajo el agua con la crecida del Paraná elegida</span>
     <span><i style="background:none;border-top:2.5px solid var(--r2);height:0;border-radius:0"></i>Arroyos y cauces</span>
     <span><span class="pin" style="width:16px;height:16px"><i></i></span>Denuncias de calles inundadas</span>
     <label class="tg">Transparencia de las zonas <input type="range" id="op" min="20" max="100" value="85"></label>
@@ -123,11 +132,12 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
   <section>
     <h2>Barrios más expuestos</h2>
     <div class="barrios" id="barrios"></div>
-    <p class="nota" style="margin-top:8px">Porcentaje de la superficie de cada barrio en cada nivel. Tocá un barrio para verlo en el mapa.</p>
+    <p class="nota" style="margin-top:8px">Porcentaje de la superficie de cada barrio en cada nivel, solo por lluvia (sin la crecida del Paraná). Los barrios se marcan con un círculo aproximado, no con sus límites oficiales. Tocá un barrio para verlo en el mapa.</p>
   </section>
 
   <section class="fuentes">
     <b>Cómo se calculó.</b> Con el modelo de elevación Copernicus DEM de 30 m se calculó hacia dónde corre el agua y dónde se junta (arroyos). Para cada punto se midió cuántos metros está por encima del arroyo al que drena (método HAND). Los ríos y lagos se excluyen.<br><br>
+    La crecida del Paraná se simula llenando desde el río todo lo que queda por debajo del nivel elegido y está conectado con él (las alturas son las del modelo, sobre el nivel del mar).<br><br>
     <b>Es una estimación.</b> El modelo incluye techos y árboles, y no conoce los desagües pluviales. No reemplaza un estudio hidrológico ni el mapa oficial de riesgo; para eso hacen falta el plano de desagües de la municipalidad y registros de inundaciones reales.<br><br>
     Fuentes: <a href="https://spacedata.copernicus.eu/collections/copernicus-digital-elevation-model" target="_blank" rel="noopener">Copernicus DEM GLO-30</a> (© DLR, © Airbus, programa Copernicus de la UE y la ESA) ·
     pronóstico de <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> ·
@@ -189,6 +199,9 @@ fetch("inundacion/datos.json").then(r => { if (!r.ok) throw 0; return r.json(); 
   const cv = L.canvas({padding:.3});
   for (const linea of d.cauces) L.polyline(linea, {renderer:cv, color:"#1e88e5", weight:1.6, opacity:.85, interactive:false}).addTo(cauces);
   verEscenario(escenario);
+  cargarCota();
+  // Con el relieve de superficie (incluye árboles y techos) la crecida del Paraná se subestima en las costas con monte.
+  if (d.modelo !== "terreno") $("#paranaTxt").insertAdjacentHTML("afterend", `<p class="nota" style="color:var(--warn)">⚠ Este cálculo usa un relieve que incluye árboles y techos: en las costas con monte el terreno parece más alto y el agua real llega más lejos que lo que se ve acá.</p>`);
   $("#barrios").innerHTML = d.barrios.map((b, i) => {
     const [cls, txt] = nivelBarrio(b);
     return `<button type="button" data-i="${i}"><b>${esc(b.n)}</b><span class="chip ${cls}">Exposición ${txt.toLowerCase()}</span>
@@ -232,6 +245,47 @@ fetch("https://api.open-meteo.com/v1/forecast?latitude=-25.515&longitude=-54.62&
     $("#alertaT").textContent = "No se pudo cargar el pronóstico";
     $("#alertaP").textContent = "Probá recargar la página. Igual podés elegir un escenario de lluvia.";
   });
+
+// Crecida del Paraná: desde el cauce del río se llena todo lo conectado que esté por debajo del nivel elegido.
+// cota.png: rojo = (cota - base) x 4, verde = cauce del río, azul = lago (ver scripts/inundacion/calcular.py).
+let cota = null, paranaCapa = null;
+function crecida(){
+  const on = $("#tgParana").checked, nivel = +$("#nivel").value;
+  $("#nivelTxt").textContent = String(nivel).replace(".", ",") + " m";
+  if (!cota || !on){ if (paranaCapa) map.removeLayer(paranaCapa); $("#paranaTxt").textContent = on ? "" : "Simulación apagada."; return; }
+  const {w, h, px, base} = cota, tope = Math.round((nivel - base) * 4);
+  const lleno = new Uint8Array(w * h), cola = new Int32Array(w * h); let ini = 0, fin = 0, n = 0;
+  for (let i = 0; i < w * h; i++) if (px[i * 4 + 1] > 127){ lleno[i] = 1; cola[fin++] = i; }
+  while (ini < fin){
+    const i = cola[ini++], x = i % w, y = (i - x) / w;
+    for (const j of [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, y > 0 ? i - w : -1, y < h - 1 ? i + w : -1]){
+      if (j < 0 || lleno[j] || px[j * 4] > tope || px[j * 4] === 255) continue;
+      lleno[j] = 1; cola[fin++] = j;
+    }
+  }
+  const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+  const ctx = cv.getContext("2d"), img = ctx.createImageData(w, h);
+  for (let i = 0; i < w * h; i++) if (lleno[i] && px[i * 4 + 1] < 128 && px[i * 4 + 2] < 128){
+    img.data.set([123, 63, 196, 190], i * 4); n++;
+  }
+  ctx.putImageData(img, 0, 0);
+  if (paranaCapa) paranaCapa.setUrl(cv.toDataURL()); else paranaCapa = L.imageOverlay(cv.toDataURL(), datos.zona, {opacity:.8});
+  paranaCapa.addTo(map);
+  const km2 = n * 0.00084;
+  $("#paranaTxt").textContent = n ? `Con el río a ${String(nivel).replace(".", ",")} m quedarían bajo el agua unos ${km2.toFixed(1).replace(".", ",")} km² junto al Paraná y la desembocadura de sus arroyos (de los dos lados del río).` : "A este nivel el río no sale de su cauce.";
+}
+$("#nivel").addEventListener("input", crecida);
+$("#tgParana").addEventListener("change", crecida);
+function cargarCota(){
+  const im = new Image();
+  im.onload = () => {
+    const cv = document.createElement("canvas"); cv.width = im.width; cv.height = im.height;
+    const ctx = cv.getContext("2d", {willReadFrequently:true}); ctx.drawImage(im, 0, 0);
+    cota = {w:im.width, h:im.height, px:ctx.getImageData(0, 0, im.width, im.height).data, base:datos.cota_base};
+    crecida();
+  };
+  im.src = "inundacion/cota.png";
+}
 
 $("#grab").addEventListener("click", () => $("#panel").classList.toggle("abierto"));
 </script>
