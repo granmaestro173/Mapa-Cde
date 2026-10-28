@@ -414,11 +414,11 @@ function denunciadas(){
     const px = lng => (lng - o) * 111320 * Math.cos(-25.5 * Math.PI / 180) * k, py = lat => (n - lat) * 111320 * k;
     cv.width = Math.min(4000, Math.ceil(px(e))); cv.height = Math.min(4000, Math.ceil(py(s)));
     const cx = cv.getContext("2d"), fx = cv.width / px(e), fy = cv.height / py(s);
-    cx.fillStyle = "#ef6c00";
+    cx.fillStyle = "#1e88e5";
     for (const r of rs){ cx.beginPath(); cx.ellipse(px(r.lng) * fx, py(r.lat) * fy, INUND_R * k * fx, INUND_R * k * fy, 0, 0, 2 * Math.PI); cx.fill(); }
     const b = [[s, o], [n, e]];
     if (inund.denun){ inund.denun.setUrl(cv.toDataURL()); inund.denun.setBounds(L.latLngBounds(b)); }
-    else inund.denun = L.imageOverlay(cv.toDataURL(), b, {opacity:.55, className:"inund-denun"});
+    else inund.denun = L.imageOverlay(cv.toDataURL(), b, {opacity:.85, className:"inund-denun"});
   }
   inund.denun.addTo(map);
   $("#inundDenunTxt").textContent = `${rs.length} denuncia${rs.length > 1 ? "s" : ""} de inundación en los últimos 2 años.`;
