@@ -172,6 +172,23 @@ Para ver que funciona: hacé una denuncia con foto y esperá unos minutos. En Su
 
 ---
 
+## Cambiar la dirección del sitio
+
+1. Vercel → tu proyecto → **Settings → Domains** → agregá la dirección nueva. Dejá la vieja un tiempo para que sigan andando los links compartidos.
+2. Supabase → **Authentication → URL Configuration**: cambiá *Site URL* y *Redirect URLs* (con `/**` al final).
+3. Google Cloud → **Clients** → *Authorized JavaScript origins*: la dirección nueva (solo si usás Google).
+4. Supabase → **SQL Editor**, para que la revisión con IA llame a la dirección nueva (cambiá `NUEVA-DIRECCION`):
+
+```sql
+select cron.alter_job((select jobid from cron.job where jobname = 'verificar-con-ia'),
+  command := replace((select command from cron.job where jobname = 'verificar-con-ia'),
+                     'https://mapa-cde-zspd.vercel.app', 'https://NUEVA-DIRECCION'));
+```
+
+   Y cambiá también la dirección en `supabase/05-verificacion-ia.sql`, por si lo volvés a ejecutar.
+
+---
+
 ## Preguntas frecuentes
 
 **Dice "Modo de prueba" en vez de "En vivo".** Falta completar `config.js` o quedó mal pegado. Fijate que la URL empiece con `https://` y que la clave esté completa, entre comillas.
