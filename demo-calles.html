@@ -23,8 +23,15 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
 .opac[hidden]{display:none}.opac input{width:140px;accent-color:var(--accent)}
 .estado{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:5;background:var(--panel);box-shadow:var(--shadow);border-radius:18px;padding:8px 14px;font-size:13px;color:var(--muted)}
 .estado:empty{display:none}
-.pin{display:grid;place-items:center;width:24px;height:24px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);background:var(--c);border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.45);cursor:pointer}
-.pin i{width:7px;height:7px;border-radius:50%;background:#fff}
+/* Marcadores iguales a los de la página principal */
+:root{--sign:#1a73e8;--c-bache:#d9622b;--c-inundacion:#2a7fd4;--c-animal:#8d6a4c;--c-semaforo:#d99a00;--c-inseguro:#7b52c4;--c-asalto:#d23a4b;--c-basura:#4f8a3a;--c-alumbrado:#17999a}
+.mk{width:26px;height:26px;cursor:pointer}
+.pin{display:grid;place-items:center;width:24px;height:24px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);background:var(--c);border:2px solid var(--panel);box-shadow:0 1px 3px rgba(0,0,0,.45)}
+.pin svg{transform:rotate(45deg);width:13px;height:13px;color:#fff}
+.pin.hot{outline:3px solid #fbbc04;outline-offset:1px}
+.pinw{position:relative;width:100%;height:100%}
+.cam{position:absolute;right:-7px;top:-7px;width:15px;height:15px;border-radius:50%;background:var(--panel);color:var(--ink);display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.cam svg{width:9px;height:9px}
 .maplibregl-ctrl-group{border-radius:8px!important;box-shadow:var(--shadow)!important}
 .maplibregl-ctrl-attrib{font-size:10.5px}
 @media (max-width:480px){.card span{display:none}.seg button{padding:9px 8px;font-size:12px}.card b{font-size:13px}}
@@ -115,10 +122,22 @@ map.on("load", () => { document.getElementById("estado").textContent = ""; });
 map.on("error", e => { if (!map.loaded() && e.sourceId !== "sat" && !e.tile) document.getElementById("estado").textContent = "No se pudo cargar el mapa. Probá recargar."; console.warn(e.error); });
 
 // Denuncias de ejemplo, para ver cómo quedan los marcadores encima.
-const COLOR = {bache:"#d9622b", inundacion:"#2a7fd4", animal:"#8d6a4c", semaforo:"#d99a00", inseguro:"#7b52c4", asalto:"#d23a4b", basura:"#4f8a3a", alumbrado:"#17999a"};
+const ICONS = {
+  bache:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M3 17h18"/><path d="M7 17c1-3 3-4 5-4s4 1 5 4"/></svg>',
+  inundacion:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M2 10c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2 2-2 4-2"/><path d="M2 16c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2 2-2 4-2"/></svg>',
+  animal:'<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="10" r="2.2"/><circle cx="10" cy="6" r="2.2"/><circle cx="14" cy="6" r="2.2"/><circle cx="18" cy="10" r="2.2"/><path d="M12 11c-3 0-6 4-6 7 0 2 2 2 3 2s2-1 3-1 2 1 3 1 3 0 3-2c0-3-3-7-6-7z"/></svg>',
+  semaforo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="8" y="2.5" width="8" height="19" rx="2.5"/><circle cx="12" cy="7.5" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="16.5" r="1.4" fill="currentColor"/></svg>',
+  inseguro:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 17H3z"/><path d="M12 10v4"/><path d="M12 17h.01"/></svg>',
+  asalto:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>',
+  basura:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg>',
+  alumbrado:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/></svg>'
+};
+const CAM = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 4h6l1.5 2H20a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.5z"/><circle cx="12" cy="13" r="3.6" fill="var(--panel)"/></svg>';
 fetch("datos-ejemplo.json").then(r => r.json()).then(d => {
   for (const r of d.denuncias) if (r.status !== "resuelta"){
-    const el = document.createElement("div"); el.className = "pin"; el.style.setProperty("--c", COLOR[r.cat]); el.title = r.desc; el.innerHTML = "<i></i>";
+    const el = document.createElement("div"); el.className = "mk"; el.title = r.desc;
+    const hot = r.votes >= 8;
+    el.innerHTML = `<div class="pinw"><div class="pin ${hot ? "hot" : ""}" style="--c:var(--c-${r.cat})">${ICONS[r.cat]}</div>${r.photo || r.hasPhoto ? `<span class="cam" title="Con foto">${CAM}</span>` : ""}</div>`;
     new maplibregl.Marker({element:el, anchor:"bottom"}).setLngLat([r.lng, r.lat]).addTo(map);
   }
 }).catch(() => {});
