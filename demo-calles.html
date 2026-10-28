@@ -23,15 +23,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
 .opac[hidden]{display:none}.opac input{width:140px;accent-color:var(--accent)}
 .estado{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:5;background:var(--panel);box-shadow:var(--shadow);border-radius:18px;padding:8px 14px;font-size:13px;color:var(--muted)}
 .estado:empty{display:none}
-/* Marcadores iguales a los de la página principal */
-:root{--sign:#1a73e8;--c-bache:#d9622b;--c-inundacion:#2a7fd4;--c-animal:#8d6a4c;--c-semaforo:#d99a00;--c-inseguro:#7b52c4;--c-asalto:#d23a4b;--c-basura:#4f8a3a;--c-alumbrado:#17999a}
-.mk{width:26px;height:26px;cursor:pointer}
-.pin{display:grid;place-items:center;width:24px;height:24px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);background:var(--c);border:2px solid var(--panel);box-shadow:0 1px 3px rgba(0,0,0,.45)}
-.pin svg{transform:rotate(45deg);width:13px;height:13px;color:#fff}
-.pin.hot{outline:3px solid #fbbc04;outline-offset:1px}
-.pinw{position:relative;width:100%;height:100%}
-.cam{position:absolute;right:-7px;top:-7px;width:15px;height:15px;border-radius:50%;background:var(--panel);color:var(--ink);display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.4)}
-.cam svg{width:9px;height:9px}
+.maplibregl-popup-content{background:var(--panel);color:var(--ink);border-radius:10px;font-size:13px;padding:8px 12px;box-shadow:var(--shadow)}
 .maplibregl-ctrl-group{border-radius:8px!important;box-shadow:var(--shadow)!important}
 .maplibregl-ctrl-attrib{font-size:10.5px}
 @media (max-width:480px){.card span{display:none}.seg button{padding:9px 8px;font-size:12px}.card b{font-size:13px}}
@@ -90,7 +82,6 @@ const style = {
     {id:"verde", type:"fill", source:"osm", "source-layer":"landcover", filter:tipo("grass", "wood"), paint:{"fill-color":C.parque, "fill-opacity":.6}},
     {id:"agua", type:"fill", source:"osm", "source-layer":"water", paint:{"fill-color":C.agua}},
     {id:"arroyos", type:"line", source:"osm", "source-layer":"waterway", paint:{"line-color":C.agua, "line-width":ancho(1, 2, 5)}},
-    {id:"edificios", type:"fill", source:"osm", "source-layer":"building", minzoom:15.5, paint:{"fill-color":C.edif, "fill-opacity":["interpolate", ["linear"], ["zoom"], 15.5, 0, 16.5, 1]}},
     // Primero todos los bordes y después los rellenos, así los cruces quedan limpios.
     ...CALLES.map(k => ({id:k.id + "-borde", type:"line", source:"osm", "source-layer":"transportation", minzoom:k.min, filter:k.f,
       layout:{"line-cap":"round", "line-join":"round"}, paint:{"line-color":k.b, "line-width":ancho(...k.w, [.9, 1.6, 3])}})),
@@ -114,7 +105,7 @@ const style = {
   ]
 };
 
-const map = new maplibregl.Map({container:"map", style, center:[-54.6135, -25.5095], zoom:15, minZoom:12, maxZoom:19,
+const map = new maplibregl.Map({container:"map", style, fadeDuration:0, renderWorldCopies:false, pixelRatio:Math.min(devicePixelRatio || 1, 2), maxPitch:0, center:[-54.6135, -25.5095], zoom:15, minZoom:12, maxZoom:19,
   maxBounds:[[-54.75, -25.62], [-54.55, -25.43]], attributionControl:{compact:true}, dragRotate:false, pitchWithRotate:false});
 map.touchZoomRotate.disableRotation();
 map.addControl(new maplibregl.NavigationControl({showCompass:false}), "bottom-right");
@@ -133,18 +124,53 @@ const ICONS = {
   alumbrado:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/></svg>'
 };
 const CAM = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 4h6l1.5 2H20a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.5z"/><circle cx="12" cy="13" r="3.6" fill="var(--panel)"/></svg>';
-fetch("datos-ejemplo.json").then(r => r.json()).then(d => {
-  for (const r of d.denuncias) if (r.status !== "resuelta"){
-    const el = document.createElement("div"); el.className = "mk"; el.title = r.desc;
-    const hot = r.votes >= 8;
-    el.innerHTML = `<div class="pinw"><div class="pin ${hot ? "hot" : ""}" style="--c:var(--c-${r.cat})">${ICONS[r.cat]}</div>${r.photo || r.hasPhoto ? `<span class="cam" title="Con foto">${CAM}</span>` : ""}</div>`;
-    new maplibregl.Marker({element:el, anchor:"bottom"}).setLngLat([r.lng, r.lat]).addTo(map);
-  }
+// Los marcadores se dibujan dentro del mapa (no como elementos de la página), así mover y hacer zoom es fluido
+// aunque haya cientos de denuncias. Cada ícono se arma una vez, igual al de la página principal.
+const COLOR = {bache:"#d9622b", inundacion:"#2a7fd4", animal:"#8d6a4c", semaforo:"#d99a00", inseguro:"#7b52c4", asalto:"#d23a4b", basura:"#4f8a3a", alumbrado:"#17999a"};
+const GOTA = "M0,-12A12,12 0 0 1 12,0A12,12 0 0 1 0,12L-8,12A4,4 0 0 1 -12,8L-12,0A12,12 0 0 1 0,-12Z";
+function iconoSvg(cat, hot, foto){
+  const ico = ICONS[cat].replace("<svg ", '<svg x="17.5" y="15.5" width="13" height="13" ').replaceAll("currentColor", "#fff");
+  const camara = CAM.replace("<svg ", '<svg x="32" y="5" width="9" height="9" ').replaceAll("currentColor", "#202124").replace("var(--panel)", "#fff");
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="44" viewBox="0 0 48 44">
+    <g transform="translate(24 22) rotate(-45)">
+      <path d="${GOTA}" transform="translate(1.2 1.2)" fill="rgba(0,0,0,.28)"/>
+      ${hot ? `<path d="${GOTA}" transform="scale(1.33)" fill="none" stroke="#fbbc04" stroke-width="2.4"/>` : ""}
+      <path d="${GOTA}" fill="${COLOR[cat]}" stroke="#fff" stroke-width="2"/>
+    </g>${ico}
+    ${foto ? `<circle cx="36.5" cy="9.5" r="7" fill="#fff" stroke="rgba(0,0,0,.25)" stroke-width=".8"/>${camara}` : ""}</svg>`;
+}
+// Versión simple (para la vista Calles): la gota del color de la categoría con un punto blanco.
+const iconoSimple = cat => `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="44" viewBox="0 0 48 44">
+  <g transform="translate(24 22) rotate(-45)"><path d="${GOTA}" transform="translate(1.2 1.2)" fill="rgba(0,0,0,.28)"/>
+  <path d="${GOTA}" fill="${COLOR[cat]}" stroke="#fff" stroke-width="2"/></g><circle cx="24" cy="22" r="3.6" fill="#fff"/></svg>`;
+const imagenPin = () => vista === "calles" ? ["concat", "simple-", ["get", "cat"]] : ["get", "img"];
+function cargarImagen(id, svg){
+  return new Promise(ok => {
+    const img = new Image(96, 88);
+    img.onload = () => { const c = document.createElement("canvas"); c.width = 96; c.height = 88; c.getContext("2d").drawImage(img, 0, 0, 96, 88);
+      if (!map.hasImage(id)) map.addImage(id, c.getContext("2d").getImageData(0, 0, 96, 88), {pixelRatio:2}); ok(); };
+    img.onerror = () => ok();
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  });
+}
+Promise.all([fetch("datos-ejemplo.json").then(r => r.json()), new Promise(ok => map.once("load", ok))]).then(async ([d]) => {
+  const lista = d.denuncias.filter(r => r.status !== "resuelta");
+  const nombre = r => `pin-${r.cat}-${r.votes >= 8 ? 1 : 0}-${r.photo || r.hasPhoto ? 1 : 0}`;
+  await Promise.all([...new Set(lista.map(nombre))].map(id => { const [, cat, h, f] = id.split("-"); return cargarImagen(id, iconoSvg(cat, h === "1", f === "1")); }));
+  await Promise.all([...new Set(lista.map(r => r.cat))].map(cat => cargarImagen("simple-" + cat, iconoSimple(cat))));
+  map.addSource("denuncias", {type:"geojson", data:{type:"FeatureCollection", features:lista.map(r => ({type:"Feature",
+    geometry:{type:"Point", coordinates:[r.lng, r.lat]}, properties:{img:nombre(r), cat:r.cat, desc:r.desc, barrio:r.barrio || ""}}))}});
+  map.addLayer({id:"denuncias", type:"symbol", source:"denuncias", layout:{"icon-image":imagenPin(), "icon-anchor":"center", "icon-offset":[0, -15],
+    "icon-allow-overlap":true, "icon-ignore-placement":true, "symbol-z-order":"viewport-y"}});
+  map.on("click", "denuncias", e => { const f = e.features[0];
+    new maplibregl.Popup({offset:32, closeButton:false}).setLngLat(f.geometry.coordinates).setText(f.properties.desc + (f.properties.barrio ? " · " + f.properties.barrio : "")).addTo(map); });
+  map.on("mouseenter", "denuncias", () => map.getCanvas().style.cursor = "pointer");
+  map.on("mouseleave", "denuncias", () => map.getCanvas().style.cursor = "");
 }).catch(() => {});
 
 // Tres vistas: Calles (nuestro mapa), Satélite (solo la imagen de Esri) y Superponer
 // (nuestras calles encima del satélite, al estilo de las rutas de Esri, para comprobar que coinciden).
-const SUPERFICIES = ["parques", "verde", "agua", "arroyos", "edificios"];
+const SUPERFICIES = ["parques", "verde", "agua", "arroyos"];
 const NOMBRES = ["nombres-agua", "nombres-calles", "barrios", "ciudades"];
 const HIBRIDO = {menor:"#ffffff", terciaria:"#ffffff", avenida:"#ffe08a", ruta:"#ffb35c"};
 let vista = "calles";
@@ -169,6 +195,8 @@ function pintar(){
     map.setPaintProperty(id, "text-halo-color", sup ? "rgba(0,0,0,.75)" : C.halo);
   }
   ver("puente-frontera", !sat);
+  // Íconos simples sobre el mapa de calles; los completos (con categoría, foto y votos) sobre el satélite.
+  if (map.getLayer("denuncias")) map.setLayoutProperty("denuncias", "icon-image", imagenPin());
   document.getElementById("opac").hidden = !sup;
   for (const [b, v] of [["bCalles", "calles"], ["bSat", "satelite"], ["bSup", "superponer"]]) document.getElementById(b).setAttribute("aria-pressed", vista === v);
 }
@@ -176,7 +204,8 @@ const cambiar = v => { vista = v; if (map.isStyleLoaded()) pintar(); else map.on
 document.getElementById("bCalles").onclick = () => cambiar("calles");
 document.getElementById("bSat").onclick = () => cambiar("satelite");
 document.getElementById("bSup").onclick = () => cambiar("superponer");
-document.getElementById("rOpac").oninput = () => vista === "superponer" && pintar();
+let pendiente = false;
+document.getElementById("rOpac").oninput = () => { if (vista !== "superponer" || pendiente) return; pendiente = true; requestAnimationFrame(() => { pendiente = false; pintar(); }); };
 if (!(window.CDE_CONFIG || {}).esriKey) document.getElementById("bSat").hidden = document.getElementById("bSup").hidden = true;
 </script>
 </body>
