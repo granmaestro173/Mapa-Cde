@@ -7,19 +7,19 @@ const CONSULTA = `[out:json][timeout:90];(way["highway"~"^(trunk|primary|seconda
 const SERVIDORES = ["https://overpass-api.de/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
 export const config = {maxDuration:60};
 
-async function pedir(url){
-  const r = await fetch(url, {method:"POST", body:"data=" + encodeURIComponent(CONSULTA),
-    headers:{"content-type":"application/x-www-form-urlencoded", "accept":"application/json", "user-agent":"MapaCiudadanoCDE/1.0 (+https://mapa-cde-zspd.vercel.app)"},
-    signal:AbortSignal.timeout(14000)});
-  if (!r.ok) throw new Error(url + ": " + r.status + " " + (await r.text()).slice(0, 200));
+// Se prueba con POST y con GET, porque algunos servidores rechazan uno de los dos.
+async function pedir(url, metodo){
+  const opciones = {headers:{accept:"application/json,*/*", "user-agent":"MapaCiudadanoCDE/1.0"}, signal:AbortSignal.timeout(45000)};
+  const r = metodo === "GET" ? await fetch(url + "?data=" + encodeURIComponent(CONSULTA), opciones)
+    : await fetch(url, {...opciones, method:"POST", body:new URLSearchParams({data:CONSULTA})});
+  if (!r.ok) throw new Error(metodo + " " + url + ": " + r.status);
   return r.json();
 }
 
 export default async function handler(req, res){
   let datos = null, errores = [];
-  for (const url of SERVIDORES){
-    try { datos = await pedir(url); break; } catch(err){ errores.push(err.message); }
-  }
+  try { datos = await Promise.any(SERVIDORES.flatMap(url => ["POST", "GET"].map(m => pedir(url, m)))); }
+  catch(err){ errores = (err.errors || [err]).map(e => e.message); }
   if (!datos){ res.setHeader("cache-control", "no-store"); return res.status(502).json({error:"No se pudieron obtener las calles.", detalle:errores}); }
 
   // Solo lo que dibuja el mapa, con 5 decimales (un metro de precisión).
