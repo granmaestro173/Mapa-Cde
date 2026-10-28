@@ -1,0 +1,12 @@
+{
+  "zoomMin": 13,
+  "zoomMax": 17,
+  "zona": {
+    "sur": -25.591994,
+    "oeste": -54.7229,
+    "norte": -25.453195,
+    "este": -54.580078
+  },
+  "fecha": "2026-10-28T05:04:38.670Z",
+  "fuente": "© colaboradores de OpenStreetMap (ODbL), vía OpenFreeMap"
+}
