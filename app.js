@@ -237,6 +237,22 @@ function setPick(p){
   const el = $("#fLoc"); if (el) el.innerHTML = `<b>${esc(nearestBarrio(p))}</b> <span class="mono note">${p[0].toFixed(5)}, ${p[1].toFixed(5)}</span>`;
   checkDuplicate();
 }
+// Ubica la denuncia donde está el vecino (pide permiso al navegador; solo funciona con https).
+function formLocate(btn){
+  if (!navigator.geolocation){ toast("Este navegador no comparte la ubicación. Marcá el punto en el mapa."); return; }
+  btn.disabled = true; btn.textContent = "Buscando…";
+  const done = () => { btn.disabled = false; btn.textContent = "Usar mi ubicación"; };
+  navigator.geolocation.getCurrentPosition(pos => {
+    done();
+    const c = [pos.coords.latitude, pos.coords.longitude];
+    if (!L.latLngBounds(SAT_BOUNDS).contains(c)){ toast("Parece que no estás en Ciudad del Este. Marcá el punto en el mapa."); return; }
+    setPick(c); map.flyTo(c, Math.max(map.getZoom(), 17), {duration:.6});
+    if (pickLatLng && pos.coords.accuracy > 60) toast(`Ubicación aproximada (±${Math.round(pos.coords.accuracy)} m). Podés arrastrar el pin para ajustarla.`);
+  }, err => {
+    done();
+    toast(err.code === 1 ? "No se dio permiso para usar la ubicación. Marcá el punto en el mapa." : "No se pudo obtener la ubicación. Marcá el punto en el mapa.");
+  }, {enableHighAccuracy:true, timeout:10000, maximumAge:30000});
+}
 function clearPick(){ document.body.classList.remove("picking"); pickMode=false; pickLatLng=null; $("#pickBanner").hidden=true; if (pickMarker){ map.removeLayer(pickMarker); pickMarker=null; } }
 
 /* ---------- Panel lateral ---------- */
@@ -394,6 +410,7 @@ drawer.addEventListener("click", async e => {
   const n = e.target.closest("[data-new-obra]"); if (n){ location.hash = "municipalidad"; setTimeout(()=>openObraEditor(n.dataset.newObra, true), 60); return; }
   if (e.target.closest("#btnAnalyze")) return analyze();
   if (e.target.closest("#btnFormLogin")) return openLogin();
+  if (e.target.closest("#btnFormGps")) return formLocate(e.target.closest("#btnFormGps"));
   if (e.target.closest("#btnPick")) { pickMode = true; $("#pickBanner").hidden = false; if (MOBILE.matches) document.body.classList.add("picking"); return; }
   if (e.target.closest("#btnNotDup")) { formState.ignoreDup = true; checkDuplicate(); return; }
 });
@@ -438,7 +455,7 @@ function openForm(){
     <form class="drawer-body" id="reportForm" novalidate>
       <div class="field"><span class="lab">Foto del problema (recomendada)</span><div class="ph-btns"><label class="inp ph-pick" for="fCam">Sacar foto</label><label class="inp ph-pick" for="fPhoto">Elegir de la galería</label></div><input type="file" id="fCam" accept="image/*" capture="environment" hidden><input type="file" id="fPhoto" accept="image/*" hidden><small>Los vecinos la ven al tocar el pin y ayuda a distinguir denuncias reales de falsas. Se envía una copia liviana para el mapa y el original queda guardado en calidad completa, visible solo para la moderación.</small><div class="ph-prev" id="fPrev" hidden><img class="thumb" id="fThumb" alt="Vista previa"><button class="ph-x" type="button" id="fPhotoX" aria-label="Descartar foto" title="Descartar foto">×</button></div><small id="fPhotoInfo"></small></div>
       <div class="field"><label for="fDesc">Descripción</label><textarea class="inp" id="fDesc" placeholder="Ej.: Pozo grande frente a la parada, ya reventó dos cubiertas" required></textarea></div>
-      <div class="field"><span class="lab">Ubicación</span><div id="fLoc" class="note">Sin marcar todavía.</div><button class="btn small" id="btnPick" type="button" style="align-self:flex-start">Marcar en el mapa</button></div>
+      <div class="field"><span class="lab">Ubicación</span><div id="fLoc" class="note">Sin marcar todavía.</div><div class="rowbtns"><button class="btn small" id="btnFormGps" type="button">Usar mi ubicación</button><button class="btn small" id="btnPick" type="button">Marcar en el mapa</button></div></div>
       <div class="grid2">
         <div class="field"><label for="fCat">Categoría</label><select class="inp" id="fCat"><option value="">Automática</option>${CAT_KEYS.map(k=>`<option value="${k}">${CATS[k].one}</option>`).join("")}</select></div>
         <div class="field"><label for="fSev">Gravedad</label><select class="inp" id="fSev"><option value="">Automática</option>${[1,2,3,4,5].map(n=>`<option>${n}</option>`).join("")}</select></div>
