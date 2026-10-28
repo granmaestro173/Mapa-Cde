@@ -7,7 +7,11 @@ Método: HAND (altura sobre el drenaje más cercano). Se rellenan pozos, se calc
 en cada celda y cuánta área le aporta; donde se junta agua de más de UMBRAL_KM2 hay un cauce. Para cada celda,
 HAND es cuántos metros está por encima del cauce al que drena. Poco HAND = se inunda primero cuando el cauce crece.
 
-Uso: python3 scripts/inundacion/calcular.py dem.tif wbm.tif   (genera inundacion/riesgo-*.png e inundacion/datos.json)
+Solo cuentan como cauce los que existen de verdad: los arroyos y ríos de OpenStreetMap (osm.json, bajado con Overpass)
+y los cauces que juntan agua de más de UMBRAL_SEGURO_KM2 (esos son arroyos aunque no estén en el mapa). Sin esto, cualquier
+bajada del terreno donde se junta agua de lluvia parecía un arroyo y zonas sin ningún arroyo cerca salían inundables.
+
+Uso: python3 scripts/inundacion/calcular.py dem.tif wbm.tif [osm.json]   (genera inundacion/riesgo-*.png e inundacion/datos.json)
 Necesita: pip install numpy tifffile imagecodecs pillow pysheds affine
 El DEM y la máscara se bajan de https://copernicus-dem-30m.s3.amazonaws.com/ (hoja Copernicus_DSM_COG_10_S26_00_W055_00_DEM).
 wbm.tif es la máscara de agua que viene con el mismo DEM (AUXFILES/*_WBM.tif): ríos y lagos no se pintan.
@@ -25,6 +29,8 @@ SALIDA = os.path.join(os.path.dirname(__file__), "..", "..", "inundacion")
 ZONA = [[-25.591994, -54.722900], [-25.453195, -54.580078]]
 CALCULO = [[-25.70, -54.86], [-25.36, -54.52]]
 UMBRAL_KM2 = 0.4          # área que tiene que juntar un cauce (arroyos chicos incluidos)
+UMBRAL_SEGURO_KM2 = 10    # con esta área es un arroyo aunque no figure en OpenStreetMap
+CERCA_OSM = 3             # celdas (~90 m) de tolerancia entre el cauce del relieve y el trazado de OpenStreetMap
 NIVELES = [(1.5, "muy_alta"), (4, "alta"), (8, "media")]   # metros de HAND
 
 dem_path = sys.argv[1]
@@ -44,7 +50,27 @@ acc = grid.accumulation(fdir)
 lat_m = 111320 * paso; lng_m = 111320 * paso * math.cos(math.radians(-25.52))
 celda_km2 = lat_m * lng_m / 1e6
 cauces = acc > (UMBRAL_KM2 / celda_km2)
-hand = np.asarray(grid.compute_hand(fdir, Raster(dem, viewfinder=vf), cauces), dtype="float64")
+# Cauces reales: los del relieve que coinciden con un arroyo o río de OpenStreetMap, los muy grandes, y el Paraná.
+wbm_calc = tifffile.imread(sys.argv[2])[r0:r1, c0:c1]
+osm = np.zeros(dem.shape, dtype=bool); n_osm = 0
+if len(sys.argv) > 3 and os.path.exists(sys.argv[3]):
+    for el in json.load(open(sys.argv[3])).get("elements", []):
+        g = el.get("geometry") or []
+        if len(g) < 2: continue
+        n_osm += 1
+        for a_, b_ in zip(g, g[1:]):
+            pasos = max(2, int(max(abs(a_["lat"] - b_["lat"]), abs(a_["lon"] - b_["lon"])) / paso * 2) + 1)
+            for k in range(pasos + 1):
+                la_ = a_["lat"] + (b_["lat"] - a_["lat"]) * k / pasos; lo_ = a_["lon"] + (b_["lon"] - a_["lon"]) * k / pasos
+                i_, j_ = fila(la_) - r0, col(lo_) - c0
+                if 0 <= i_ < dem.shape[0] and 0 <= j_ < dem.shape[1]: osm[i_, j_] = True
+from scipy.ndimage import binary_dilation
+cerca = binary_dilation(osm | (wbm_calc == 3), iterations=CERCA_OSM)
+cauces_relieve = np.asarray(cauces, dtype=bool)
+cauces = (cauces_relieve & cerca) | (np.asarray(acc) > UMBRAL_SEGURO_KM2 / celda_km2) | (wbm_calc == 3)
+vf_b = ViewFinder(affine=af, shape=dem.shape, crs="EPSG:4326", nodata=False)
+print("arroyos de OpenStreetMap", n_osm, "· celdas de cauce", int(cauces_relieve.sum()), "->", int(cauces.sum()))
+hand = np.asarray(grid.compute_hand(fdir, Raster(dem, viewfinder=vf), Raster(cauces, viewfinder=vf_b)), dtype="float64")
 hand[hand < 0] = 0
 
 # Recorte a la zona del mapa
@@ -78,7 +104,7 @@ cod[..., 2][wbm_z == 2] = 255
 Image.fromarray(cod, "RGB").save(os.path.join(SALIDA, "cota.png"), optimize=True)
 
 # Cauces como líneas (para dibujarlos encima)
-red = grid.extract_river_network(fdir, acc > (UMBRAL_KM2 / celda_km2))
+red = grid.extract_river_network(fdir, Raster(cauces & (wbm_calc != 3), viewfinder=vf_b))
 lineas = []
 for f in red["features"]:
     pts = [[round(lat, 5), round(lng, 5)] for lng, lat in f["geometry"]["coordinates"]]
@@ -111,7 +137,9 @@ fichas.sort(key=lambda f: -f["indice"])
 json.dump({
   "zona": lim, "niveles": [{"hasta_m": t_, "nombre": n} for t_, n in NIVELES], "umbral_cauce_km2": UMBRAL_KM2,
   "barrios": fichas, "cauces": lineas, "cota_base": COTA_BASE, "celdas": list(h.shape),
-  "fuente": os.environ.get("DEM_FUENTE", "Copernicus DEM GLO-30 (ESA / Unión Europea)") + ". Método HAND con pysheds.",
+  "fuente": os.environ.get("DEM_FUENTE", "Copernicus DEM GLO-30 (ESA / Unión Europea)") + ". Método HAND con pysheds"
+            + (". Arroyos y ríos: © colaboradores de OpenStreetMap (ODbL)." if n_osm else "."),
+  "arroyos_osm": n_osm,
   "modelo": os.environ.get("DEM_MODELO", "superficie"),
   "aviso": "Estimación a partir del relieve; no reemplaza un estudio hidrológico ni el mapa oficial de riesgo."
 }, open(os.path.join(SALIDA, "datos.json"), "w"), ensure_ascii=False, separators=(",", ":"))
