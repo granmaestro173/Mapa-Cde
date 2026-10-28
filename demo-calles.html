@@ -60,7 +60,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
 <script src="config.js"></script>
 <script>
 // Demo: el mapa de calles dibujado por nosotros con datos de OpenStreetMap (licencia ODbL).
-// En la versión final los datos irían en un archivo propio del sitio; acá se piden en vivo a Overpass solo para la prueba.
+// En la versión final los datos irían en un archivo propio del sitio; acá los entrega api/calles.js, que los guarda una semana.
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const CENTRO = [-25.5095, -54.6135], CAJA = [-25.545, -54.665, -25.485, -54.595];
 const map = L.map("map", {zoomControl:false, minZoom:13, maxZoom:19, preferCanvas:true,
@@ -110,9 +110,8 @@ function nombre(texto, pts, clase, desde){
 }
 
 async function cargar(){
-  const q = `[out:json][timeout:60];(way["highway"~"^(trunk|primary|secondary|tertiary|residential|unclassified|living_street|pedestrian)$"](${CAJA});way["leisure"="park"](${CAJA});way["natural"="water"](${CAJA});way["waterway"~"^(river|stream)$"](${CAJA}););out geom;`;
-  const res = await fetch("https://overpass-api.de/api/interpreter", {method:"POST", body:"data=" + encodeURIComponent(q), headers:{"Content-Type":"application/x-www-form-urlencoded"}});
-  if (!res.ok) throw new Error("Overpass " + res.status);
+  const res = await fetch("api/calles");
+  if (!res.ok) throw new Error("servidor " + res.status);
   const datos = await res.json();
   const ways = datos.elements.filter(e => e.type === "way" && e.geometry);
   for (const e of ways){
