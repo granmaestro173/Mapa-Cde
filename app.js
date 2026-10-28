@@ -434,12 +434,16 @@ async function clima(){
     $("#clima").className = "clima n" + n;
     $("#climaT").textContent = n ? `${["", "Lluvia fuerte", "Lluvia muy fuerte", "Lluvia extrema"][n]}: ${Math.round(max)} mm el ${diaC(p.daily.time[iMax])}` : "Sin lluvias fuertes previstas";
     if (n && !inund.escManual) verInundEsc(n);
+    const tot = mm.reduce((a, b) => a + b, 0), hora = new Date().toLocaleTimeString("es-PY", {hour:"2-digit", minute:"2-digit", hourCycle:"h23"});
+    $("#inundLluvia").innerHTML = `Lluvia estimada: <b>${Math.round(max)} mm</b> el ${diaC(p.daily.time[iMax])} (el día más lluvioso) · ${Math.round(tot)} mm en 7 días.`
+      + `<small>${n ? `Escenario sugerido: "${["", "Fuerte", "Muy fuerte", "Extrema"][n]}".` : "No llega a lluvia fuerte: el escenario elegido muestra qué pasaría si llueve más."} Pronóstico Open-Meteo, actualizado a las ${hora}.</small>`;
     const txt = `${["", "Atención", "Alerta", "Alerta"][n]}: se esperan ${Math.round(max)} mm de lluvia el ${diaC(p.daily.time[iMax])}`;
     let visto = ""; try { visto = sessionStorage.getItem("cde-lluvia-visto") || ""; } catch(e) {}
     $("#lluviaTxt").textContent = txt;
     $("#lluviaBanner").hidden = !n || visto === txt;
   } catch(e){
     $("#climaT").textContent = "No se pudo cargar el pronóstico";
+    $("#inundLluvia").textContent = "No se pudo cargar el pronóstico de lluvia. Elegí un escenario.";
   }
   try {
     const r = await fetch("https://flood-api.open-meteo.com/v1/flood?latitude=-25.53&longitude=-54.597&daily=river_discharge&past_days=3&forecast_days=10");

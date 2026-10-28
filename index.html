@@ -155,6 +155,7 @@ main{flex:1;min-height:0;display:flex;flex-direction:column}
 .susp-row.apela{background:color-mix(in srgb,var(--warn) 9%,transparent);border-radius:8px;padding:8px}
 .inund-opts{display:flex;flex-direction:column;gap:8px;padding:8px 10px;border-radius:10px;background:var(--panel-2)}
 .inund-opts .seg button{font-size:12px;line-height:1.15;padding:6px 4px}.inund-opts .seg small{display:block;font-size:10.5px;opacity:.8}
+.inund-lluvia{font-size:12.5px;line-height:1.35}.inund-lluvia b{font-size:15px}.inund-lluvia small{display:block;color:var(--muted);font-size:11px}
 .inund-opts input[type=range]{width:100%;accent-color:#7b3fc4}
 .inundkey{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:4px}.inundkey span{display:flex;align-items:center;gap:4px}.inundkey i{width:10px;height:10px;border-radius:3px}
 #legend>div+div{margin-top:8px}
@@ -695,6 +696,7 @@ main{height:100%;display:block}
         <label class="tg" id="heatSlotRow" hidden><span>Franja horaria<small>Riesgo según la hora del día</small></span><select class="inp" id="heatSlot" style="width:auto;padding:5px 8px"><option value="">Todo el día</option><option value="m">Mañana (6 a 12)</option><option value="t">Tarde (12 a 18)</option><option value="n">Noche (18 a 24)</option><option value="d">Madrugada (0 a 6)</option></select></label>
         <label class="tg"><span>Zonas inundables<small>Zonas bajas junto a arroyos y crecida del Paraná. Es una estimación a partir del relieve.</small></span><input type="checkbox" class="switch" id="tgInund"></label>
         <div class="inund-opts" id="inundOpts" hidden>
+          <div class="inund-lluvia" id="inundLluvia">Cargando el pronóstico de lluvia…</div>
           <div class="seg" id="inundEsc" role="group" aria-label="Escenario de lluvia" style="grid-template-columns:repeat(3,1fr)">
             <button type="button" data-n="1" aria-pressed="false">Fuerte<small>30–60 mm</small></button><button type="button" data-n="2" aria-pressed="true">Muy fuerte<small>60–100 mm</small></button><button type="button" data-n="3" aria-pressed="false">Extrema<small>+100 mm</small></button>
           </div>
@@ -839,6 +841,6 @@ main{height:100%;display:block}
 <script src="vendor/supabase.js"></script>
 <script src="config.js?v=3"></script>
 <script src="store.js?v=6"></script>
-<script src="app.js?v=16"></script>
+<script src="app.js?v=17"></script>
 </body>
 </html>
