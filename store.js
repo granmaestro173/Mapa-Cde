@@ -150,6 +150,20 @@ function supabaseStore(cfg, on){
     const r = fromRow(row); r.mine = true;
     return {report:r, warn};
   };
+  // Cancelar una denuncia recién enviada (hasta 3 minutos). Después se borran sus fotos, que quedaron sin denuncia.
+  S.cancelReport = async id => {
+    const {error} = await sb.rpc("cancelar_denuncia", {p_id:id});
+    if (error){
+      if (/cancelar_denuncia/.test(error.message || "") && /function|schema cache/i.test(error.message || "")) throw new Error("Falta activar esta función en la base (09-cancelar.sql).");
+      throw nice(error);
+    }
+    for (const b of ["fotos", "originales"]){
+      const {data} = await sb.storage.from(b).list("", {search:id, limit:5}).catch(() => ({data:null}));
+      const nombres = (data || []).map(o => o.name).filter(n => n.split(".")[0] === id);
+      if (nombres.length) await sb.storage.from(b).remove(nombres).catch(() => {});
+    }
+    return true;
+  };
   S.updateReport = async (id, patch) => {
     const upd = {};
     if ("status" in patch) upd.estado = patch.status;
@@ -270,6 +284,7 @@ function localStore(cfg, on){
     reports.set(id, r);
     return {report:r, warn:null};
   };
+  S.cancelReport = async id => { reports.delete(id); setTimeout(emit, 0); return true; };
   const LBL = {recibida:"Recibida", en_proceso:"En proceso", resuelta:"Resuelta"};
   S.updateReport = async (id, patch) => {
     const r = reports.get(id), rol = S.user?.rol;

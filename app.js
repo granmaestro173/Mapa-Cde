@@ -520,6 +520,7 @@ function openDetail(id){
     </div>
     <div class="drawer-body">
       <div class="rowbtns" id="rdChips"><span class="chip c" style="--c:${cvar(r.cat)}">${esc(r.barrio)}</span><span class="chip">${ago(r.t)}</span>${state.near.c ? `<span class="chip">a ${fmtDist(distM(state.near.c,[r.lat,r.lng]))} de vos</span>` : ""}${src}${modChip(r)}${iaChip(r)}</div>
+      ${cancelarHtml(r)}
       ${iaNote(r)}
       ${resNote(r)}
       ${ahorro ? fotoAhorro(r) : photoBlock(r) + iaDesc(r)}
@@ -546,6 +547,33 @@ function openDetail(id){
       : `<span class="chip" title="Según el relieve del terreno (FABDEM)">Fuera de las zonas de riesgo del modelo</span>`);
   }).catch(() => {});
 }
+/* ---------- Cancelar una denuncia recién enviada ---------- */
+// Durante 3 minutos después de enviarla, quien la hizo puede cancelarla si se equivocó. La denuncia ya está publicada;
+// si la cancela se borra con sus fotos. Se cuenta desde que este dispositivo la envió (la base vuelve a controlarlo).
+const VENTANA_CANCELAR = 3 * 60 * 1000;
+const cancelables = (() => { try { return JSON.parse(sessionStorage.getItem("cde-cancelables") || "{}"); } catch(e) { return {}; } })();
+function abrirVentanaCancelar(id){ cancelables[id] = Date.now(); try { sessionStorage.setItem("cde-cancelables", JSON.stringify(cancelables)); } catch(e) {} }
+const restoCancelar = id => cancelables[id] ? VENTANA_CANCELAR - (Date.now() - cancelables[id]) : 0;
+function cancelarHtml(r){
+  const resto = restoCancelar(r.id); if (resto <= 0) return "";
+  setTimeout(() => { const b = $("#cancelBox"); if (b && b.dataset.id === r.id) b.remove(); }, resto);
+  return `<div class="cancel-box" id="cancelBox" data-id="${esc(r.id)}"><span>¿Te equivocaste? Podés cancelar esta denuncia por unos minutos.</span>
+    <button class="btn small flag-btn" type="button" data-cancelar="${esc(r.id)}">Cancelar denuncia</button></div>`;
+}
+async function cancelarDenuncia(b){
+  const id = b.dataset.cancelar;
+  if (!b.dataset.seguro){ b.dataset.seguro = "1"; b.textContent = "Sí, cancelarla"; return; }
+  if (restoCancelar(id) <= 0){ $("#cancelBox")?.remove(); return toast("Pasaron los 3 minutos: la denuncia ya no se puede cancelar."); }
+  b.disabled = true; b.textContent = "Cancelando…";
+  try {
+    await Store.cancelReport(id);
+    delete cancelables[id]; delete mias[id]; guardarLS(AV.mias, mias);
+    try { sessionStorage.setItem("cde-cancelables", JSON.stringify(cancelables)); } catch(e) {}
+    live.delete(id); closeDrawer(); refresh();
+    toast("Denuncia cancelada. Ya no aparece en el mapa.");
+  } catch(err){ b.disabled = false; b.textContent = "Cancelar denuncia"; delete b.dataset.seguro; toast(err.message || "No se pudo cancelar la denuncia."); }
+}
+
 /* ---------- Suspensión de usuarios (moderación) ---------- */
 // Un usuario suspendido no puede denunciar ni votar: lo bloquea la base (07-suspensiones.sql). Todo queda en el historial.
 let suspendidos = new Map();   // usuario -> suspensión vigente (solo se carga para la moderación)
@@ -716,6 +744,7 @@ lightbox.addEventListener("click", () => { lightbox.hidden = true; lightbox.quer
 document.addEventListener("keydown", e => { if (e.key === "Escape" && !lightbox.hidden) lightbox.click(); });
 drawer.addEventListener("click", async e => {
   if (e.target.closest("[data-close]")) return closeDrawer();
+  const cn = e.target.closest("[data-cancelar]"); if (cn) return cancelarDenuncia(cn);
   const z = e.target.closest("[data-zoom]"); if (z) return openLightbox(z.src);
   const og = e.target.closest("[data-orig]");
   if (og){ og.disabled = true; try { window.open(await Store.originalUrl(findReport(og.dataset.orig)), "_blank", "noopener"); } catch(err){ toast(err.message || "No se pudo abrir el original."); } og.disabled = false; return; }
@@ -1456,7 +1485,7 @@ let avisos = leerLS(AV.avisos, []);      // [{id, t, texto, leido}]
 let avisosActivos = leerLS(AV.activos, true);
 const huella = r => [r.status, r.mod || "", r.iaCheck === "verificada" ? "ia" : ""].join("|");
 const esMia = r => !!mias[r.id] || r.mine || (!!r.autor && r.autor === Store.user?.id);
-function registrarMia(r){ mias[r.id] = huella(r); guardarLS(AV.mias, mias); }
+function registrarMia(r){ mias[r.id] = huella(r); guardarLS(AV.mias, mias); abrirVentanaCancelar(r.id); }
 function textoAviso(r, antes){
   const [st, md, ia] = antes.split("|"), que = `Tu denuncia de ${CATS[r.cat].one.toLowerCase()} en ${r.barrio}`;
   if (r.status !== st) return r.status === "resuelta" ? `¡${que} fue resuelta!` : r.status === "en_proceso" ? `${que} está en proceso.` : `${que} volvió a "Recibida".`;

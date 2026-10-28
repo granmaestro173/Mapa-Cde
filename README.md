@@ -35,6 +35,7 @@ supabase/06-limpiar-resueltas.sql borra cada día las denuncias resueltas hace m
 api/limpiar.js                  función del servidor que borra sus fotos
 supabase/07-suspensiones.sql    la moderación suspende usuarios y responde apelaciones (paso 7)
 supabase/08-antispam.sql        la IA detecta spam y bots y actúa (paso 7)
+supabase/09-cancelar.sql        3 minutos para cancelar una denuncia recién enviada (paso 7)
 scripts/generar-ejemplos.mjs    regenera los datos de ejemplo (opcional)
 ```
 
@@ -163,7 +164,7 @@ Para pausarla: `select cron.unschedule('limpiar-resueltas');`.
 
 ## Paso 7 · Suspensiones, apelaciones y antispam con IA (opcional, 2 min)
 
-Supabase → **SQL Editor** → pegá todo `07-suspensiones.sql` → **Run**; después `08-antispam.sql` → **Run** (este necesita el paso 5).
+Supabase → **SQL Editor** → pegá todo `07-suspensiones.sql` → **Run**; después `08-antispam.sql` → **Run** (este necesita el paso 5); y por último `09-cancelar.sql` → **Run** (quien envía una denuncia tiene 3 minutos para cancelarla si se equivocó).
 
 - **Suspender:** en la ficha de una denuncia, la moderación puede suspender a quien la hizo (7 días, 30 días o permanente) y, si es spam, ocultar todas sus denuncias. Un suspendido no puede denunciar ni votar; lo bloquea la base de datos.
 - **Apelar:** el suspendido ve el motivo y puede apelar una vez por suspensión. La moderación ve la apelación en "Usuarios suspendidos" y la acepta (se levanta la suspensión y vuelven al mapa las denuncias ocultadas) o la rechaza.
