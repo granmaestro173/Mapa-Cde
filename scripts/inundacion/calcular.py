@@ -8,7 +8,8 @@ en cada celda y cuánta área le aporta; donde se junta agua de más de UMBRAL_K
 HAND es cuántos metros está por encima del cauce al que drena. Poco HAND = se inunda primero cuando el cauce crece.
 
 Solo cuentan como cauce los que existen de verdad: los arroyos y ríos de OpenStreetMap (osm.json, bajado con Overpass)
-y los cauces que juntan agua de más de UMBRAL_SEGURO_KM2 (esos son arroyos aunque no estén en el mapa). Sin esto, cualquier
+y que además juntan agua de más de UMBRAL_GRANDE_KM2 (arroyos grandes), más los que juntan más de UMBRAL_SEGURO_KM2 aunque
+no estén en el mapa. Los cauces chicos de adentro de la ciudad no se usan. Sin esto, cualquier
 bajada del terreno donde se junta agua de lluvia parecía un arroyo y zonas sin ningún arroyo cerca salían inundables.
 
 Uso: python3 scripts/inundacion/calcular.py dem.tif wbm.tif [osm.json] [rutas.json]   (genera inundacion/riesgo-*.png e inundacion/datos.json)
@@ -29,7 +30,8 @@ SALIDA = os.path.join(os.path.dirname(__file__), "..", "..", "inundacion")
 ZONA = [[-25.591994, -54.722900], [-25.453195, -54.580078]]
 CALCULO = [[-25.70, -54.86], [-25.36, -54.52]]
 UMBRAL_KM2 = 0.4          # área que tiene que juntar un cauce (arroyos chicos incluidos)
-UMBRAL_SEGURO_KM2 = 10    # con esta área es un arroyo aunque no figure en OpenStreetMap
+UMBRAL_GRANDE_KM2 = 5     # solo arroyos grandes: los cauces chicos de adentro de la ciudad no cuentan
+UMBRAL_SEGURO_KM2 = 25    # con esta área es un arroyo grande aunque no figure en OpenStreetMap
 CERCA_OSM = 3             # celdas (~90 m) de tolerancia entre el cauce del relieve y el trazado de OpenStreetMap
 NIVELES = [(1.5, "muy_alta"), (3, "alta"), (5, "media")]   # metros de HAND
 # Además de estar bajo, tiene que estar cerca de un arroyo o río real (metros en horizontal). Lo que queda lejos,
@@ -70,11 +72,12 @@ if len(sys.argv) > 3 and os.path.exists(sys.argv[3]):
 from scipy.ndimage import binary_dilation
 cerca = binary_dilation(osm | (wbm_calc == 3), iterations=CERCA_OSM)
 cauces_relieve = np.asarray(cauces, dtype=bool)
-cauces = (cauces_relieve & cerca) | (np.asarray(acc) > UMBRAL_SEGURO_KM2 / celda_km2) | (wbm_calc == 3)
+acc_km2 = np.asarray(acc) * celda_km2
+cauces = (cauces_relieve & cerca & (acc_km2 > UMBRAL_GRANDE_KM2)) | (acc_km2 > UMBRAL_SEGURO_KM2) | (wbm_calc == 3)
 vf_b = ViewFinder(affine=af, shape=dem.shape, crs="EPSG:4326", nodata=False)
 # Distancia en metros de cada celda al arroyo o río más cercano.
 from scipy.ndimage import distance_transform_edt
-dist_cauce = distance_transform_edt(~(cauces | osm), sampling=(lat_m, lng_m))
+dist_cauce = distance_transform_edt(~cauces, sampling=(lat_m, lng_m))
 # Rutas principales (OpenStreetMap): van sobre terraplén, más altas que el relieve de 30 m, y no se pintan.
 rutas = np.zeros(dem.shape, dtype=bool)
 def trazar(destino, elementos):
@@ -158,7 +161,7 @@ for b in barrios:
 fichas.sort(key=lambda f: -f["indice"])
 
 json.dump({
-  "zona": lim, "niveles": [{"hasta_m": t_, "nombre": n, "a_menos_de_m": DISTANCIA[n]} for t_, n in NIVELES], "umbral_cauce_km2": UMBRAL_KM2,
+  "zona": lim, "niveles": [{"hasta_m": t_, "nombre": n, "a_menos_de_m": DISTANCIA[n]} for t_, n in NIVELES], "umbral_cauce_km2": UMBRAL_GRANDE_KM2,
   "barrios": fichas, "cauces": lineas, "cota_base": COTA_BASE, "celdas": list(h.shape),
   "fuente": os.environ.get("DEM_FUENTE", "Copernicus DEM GLO-30 (ESA / Unión Europea)") + ". Método HAND con pysheds"
             + (". Arroyos y ríos: © colaboradores de OpenStreetMap (ODbL)." if n_osm else "."),
