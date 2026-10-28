@@ -398,6 +398,32 @@ function crecida(){
   inund.parana.addTo(map);
   $("#inundNota").textContent = n ? `Con el río a ${String(nivel).replace(".", ",")} m quedarían bajo el agua unos ${(n * .00084).toFixed(1).replace(".", ",")} km² junto al Paraná y sus arroyos.` : "A este nivel el río no sale de su cauce.";
 }
+// Inundaciones denunciadas: cada denuncia de inundación (no falsa, de los últimos 2 años) pinta un círculo de ~150 m
+// en un lienzo propio; las cercanas se juntan en una sola mancha. Se rehace cuando cambian las denuncias.
+const INUND_R = 150, INUND_PLAZO = 730 * 864e5;
+function denunciadas(){
+  const rs = inund.on ? allReports().filter(r => r.cat === "inundacion" && Date.now() - r.t < INUND_PLAZO) : [];
+  const clave = rs.map(r => r.id + r.lat + r.lng).join();
+  if (!rs.length){ if (inund.denun) map.removeLayer(inund.denun); inund.denunK = clave; $("#inundDenunTxt").textContent = ""; return; }
+  if (clave !== inund.denunK){
+    inund.denunK = clave;
+    const dLat = INUND_R / 111320 * 1.5, dLng = dLat / Math.cos(-25.5 * Math.PI / 180);
+    const s = Math.min(...rs.map(r => r.lat)) - dLat, n = Math.max(...rs.map(r => r.lat)) + dLat;
+    const o = Math.min(...rs.map(r => r.lng)) - dLng, e = Math.max(...rs.map(r => r.lng)) + dLng;
+    const k = 0.25, cv = document.createElement("canvas");   // ~4 m por píxel
+    const px = lng => (lng - o) * 111320 * Math.cos(-25.5 * Math.PI / 180) * k, py = lat => (n - lat) * 111320 * k;
+    cv.width = Math.min(4000, Math.ceil(px(e))); cv.height = Math.min(4000, Math.ceil(py(s)));
+    const cx = cv.getContext("2d"), fx = cv.width / px(e), fy = cv.height / py(s);
+    cx.fillStyle = "#ef6c00";
+    for (const r of rs){ cx.beginPath(); cx.ellipse(px(r.lng) * fx, py(r.lat) * fy, INUND_R * k * fx, INUND_R * k * fy, 0, 0, 2 * Math.PI); cx.fill(); }
+    const b = [[s, o], [n, e]];
+    if (inund.denun){ inund.denun.setUrl(cv.toDataURL()); inund.denun.setBounds(L.latLngBounds(b)); }
+    else inund.denun = L.imageOverlay(cv.toDataURL(), b, {opacity:.55, className:"inund-denun"});
+  }
+  inund.denun.addTo(map);
+  $("#inundDenunTxt").textContent = `${rs.length} denuncia${rs.length > 1 ? "s" : ""} de inundación en los últimos 2 años.`;
+}
+
 async function setInund(on){
   inund.on = on; $("#tgInund").checked = on;
   if (on) $("#lluviaBanner").hidden = true;
@@ -409,7 +435,7 @@ async function setInund(on){
       if (!inund.cota) inund.cota = await leerPng("inundacion/cota.png");
     } catch(e){ toast("No se pudieron cargar las zonas inundables."); }
   }
-  verInundEsc(inund.esc); crecida();
+  verInundEsc(inund.esc); crecida(); denunciadas();
 }
 $("#tgInund").addEventListener("change", e => setInund(e.target.checked));
 $("#inundEsc").addEventListener("click", e => { const b = e.target.closest("[data-n]"); if (b){ inund.escManual = true; verInundEsc(+b.dataset.n); } });
@@ -1398,7 +1424,7 @@ function refresh(){
   clearTimeout(rT);
   rT = setTimeout(() => {
     revisarAvisos(); abrirPendiente();
-    renderPeriodSegs(); renderSide(); renderPins();
+    renderPeriodSegs(); renderSide(); renderPins(); denunciadas();
     if (!$("#view-estadisticas").hidden) renderStats();
     if (!$("#view-municipalidad").hidden) renderMuni();
   }, 16);
