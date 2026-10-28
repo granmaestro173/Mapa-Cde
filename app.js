@@ -225,7 +225,7 @@ function zoneStats(gy, gx){
 }
 function zoneFallback(z, barrio, nivel){
   const top = z.cats[0] ? CATS[z.cats[0][0]].n.toLowerCase() : "denuncias";
-  return `Riesgo ${nivel} en ${barrio}: se ${z.rs.length===1?"registra 1 denuncia":`acumulan ${z.rs.length} denuncias`} cerca, sobre todo de ${top}, ${z.recientes} en los últimos 30 días y ${z.abiertas} sin resolver. La mayoría ocurre alrededor de las ${z.peak}:00.\nRecomendación: ${z.cats[0]?.[0]==="asalto" || z.cats[0]?.[0]==="inseguro" ? "evitar transitar solo a esa hora y pedir patrullaje en la zona" : "circular con precaución y priorizar el arreglo en la cuadrilla municipal"}.`;
+  return `Riesgo ${nivel} en ${barrio}: se ${z.rs.length===1?"registra 1 denuncia":`acumulan ${z.rs.length} denuncias`} cerca, sobre todo de ${top}, ${z.recientes} en los últimos 30 días y ${z.abiertas} sin resolver. ${z.rs.length===1 ? "Ocurrió" : "La mayoría de las denuncias ocurrieron"} alrededor de las ${z.peak}:00.\nRecomendación: ${z.cats[0]?.[0]==="asalto" || z.cats[0]?.[0]==="inseguro" ? "evitar transitar solo a esa hora y pedir patrullaje en la zona" : "circular con precaución y priorizar el arreglo en la cuadrilla municipal"}.`;
 }
 function openZone(gy, gx, n, p){
   const z = zoneStats(gy, gx), barrio = nearestBarrio(p), nivel = n > .7 ? "alto" : "medio";
