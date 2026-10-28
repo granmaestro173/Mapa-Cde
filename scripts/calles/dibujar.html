@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Dibujo de calles</title>
+<link rel="stylesheet" href="../../vendor/maplibre-gl.css">
+<style>html,body{margin:0;background:#fff}#map{position:absolute;left:0;top:0}</style>
+</head>
+<body>
+<div id="map"></div>
+<script src="../../vendor/maplibre-gl.js"></script>
+<script src="estilo.js"></script>
+<script>
+// Página que usa scripts/dibujar-calles.mjs: dibuja un bloque de teselas de una vez (con un borde extra para que
+// los nombres de las calles no queden cortados entre imágenes) y devuelve cada tesela como imagen WebP.
+const TESELA = 256, ESCALA = 2;
+let map;
+function preparar(lado){
+  const el = document.getElementById("map");
+  el.style.width = el.style.height = lado * TESELA + "px";
+  map = new maplibregl.Map({container:el, style:estiloCalles(false), interactive:false, attributionControl:false,
+    fadeDuration:0, pixelRatio:ESCALA, preserveDrawingBuffer:true, renderWorldCopies:false, center:[-54.61, -25.51], zoom:14});
+  return new Promise(ok => map.once("idle", ok));
+}
+const lng = x => x * 360 - 180;
+const lat = y => Math.atan(Math.sinh(Math.PI * (1 - 2 * y))) * 180 / Math.PI;
+// z, x0, y0: zoom y primera tesela del bloque (en la numeración de Leaflet, teselas de 256 px); n: teselas por lado; m: borde.
+async function dibujar(z, x0, y0, n, m){
+  const lado = n + 2 * m, mundo = 2 ** z;
+  map.jumpTo({center:[lng((x0 + n / 2) / mundo), lat((y0 + n / 2) / mundo)], zoom:z - 1});   // MapLibre usa teselas de 512 px
+  await new Promise(ok => { const t = setTimeout(ok, 45000); map.once("idle", () => { clearTimeout(t); ok(); }); });
+  const fuente = map.getCanvas(), px = TESELA * ESCALA, c = document.createElement("canvas");
+  c.width = c.height = px;
+  const ctx = c.getContext("2d"), salida = [];
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++){
+    ctx.clearRect(0, 0, px, px);
+    ctx.drawImage(fuente, (m + i) * px, (m + j) * px, px, px, 0, 0, px, px);
+    salida.push({x:x0 + i, y:y0 + j, img:c.toDataURL("image/webp", .8).split(",")[1]});
+  }
+  return salida;
+}
+</script>
+</body>
+</html>

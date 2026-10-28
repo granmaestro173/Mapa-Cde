@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Mapa de calles propio · demo</title>
 <meta name="robots" content="noindex">
-<link rel="stylesheet" href="vendor/maplibre-gl.css">
+<style> .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane > svg,.leaflet-pane > canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0;}.leaflet-container{overflow:hidden;}.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow{-webkit-user-select:none;-moz-user-select:none;user-select:none;-webkit-user-drag:none;}.leaflet-tile::selection{background:transparent;}.leaflet-safari .leaflet-tile{image-rendering:-webkit-optimize-contrast;}.leaflet-safari .leaflet-tile-container{width:1600px;height:1600px;-webkit-transform-origin:0 0;}.leaflet-marker-icon,.leaflet-marker-shadow{display:block;}.leaflet-container .leaflet-overlay-pane svg{max-width:none !important;max-height:none !important;}.leaflet-container .leaflet-marker-pane img,.leaflet-container .leaflet-shadow-pane img,.leaflet-container .leaflet-tile-pane img,.leaflet-container img.leaflet-image-layer,.leaflet-container .leaflet-tile{max-width:none !important;max-height:none !important;width:auto;padding:0;}.leaflet-container img.leaflet-tile{mix-blend-mode:plus-lighter;}.leaflet-container.leaflet-touch-zoom{-ms-touch-action:pan-x pan-y;touch-action:pan-x pan-y;}.leaflet-container.leaflet-touch-drag{-ms-touch-action:pinch-zoom;touch-action:none;touch-action:pinch-zoom;}.leaflet-container.leaflet-touch-drag.leaflet-touch-zoom{-ms-touch-action:none;touch-action:none;}.leaflet-container{-webkit-tap-highlight-color:transparent;}.leaflet-container a{-webkit-tap-highlight-color:rgba(51,181,229,0.4);}.leaflet-tile{filter:inherit;visibility:hidden;}.leaflet-tile-loaded{visibility:inherit;}.leaflet-zoom-box{width:0;height:0;-moz-box-sizing:border-box;box-sizing:border-box;z-index:800;}.leaflet-overlay-pane svg{-moz-user-select:none;}.leaflet-pane{z-index:400;}.leaflet-tile-pane{z-index:200;}.leaflet-overlay-pane{z-index:400;}.leaflet-shadow-pane{z-index:500;}.leaflet-marker-pane{z-index:600;}.leaflet-tooltip-pane{z-index:650;}.leaflet-popup-pane{z-index:700;}.leaflet-map-pane canvas{z-index:100;}.leaflet-map-pane svg{z-index:200;}.leaflet-vml-shape{width:1px;height:1px;}.lvml{behavior:url(#default#VML);display:inline-block;position:absolute;}.leaflet-control{position:relative;z-index:800;pointer-events:visiblePainted;pointer-events:auto;}.leaflet-top,.leaflet-bottom{position:absolute;z-index:1000;pointer-events:none;}.leaflet-top{top:0;}.leaflet-right{right:0;}.leaflet-bottom{bottom:0;}.leaflet-left{left:0;}.leaflet-control{float:left;clear:both;}.leaflet-right .leaflet-control{float:right;}.leaflet-top .leaflet-control{margin-top:10px;}.leaflet-bottom .leaflet-control{margin-bottom:10px;}.leaflet-left .leaflet-control{margin-left:10px;}.leaflet-right .leaflet-control{margin-right:10px;}.leaflet-fade-anim .leaflet-popup{opacity:0;-webkit-transition:opacity 0.2s linear;-moz-transition:opacity 0.2s linear;transition:opacity 0.2s linear;}.leaflet-fade-anim .leaflet-map-pane .leaflet-popup{opacity:1;}.leaflet-zoom-animated{-webkit-transform-origin:0 0;-ms-transform-origin:0 0;transform-origin:0 0;}svg.leaflet-zoom-animated{will-change:transform;}.leaflet-zoom-anim .leaflet-zoom-animated{-webkit-transition:-webkit-transform 0.25s cubic-bezier(0,0,0.25,1);-moz-transition:-moz-transform 0.25s cubic-bezier(0,0,0.25,1);transition:transform 0.25s cubic-bezier(0,0,0.25,1);}.leaflet-zoom-anim .leaflet-tile,.leaflet-pan-anim .leaflet-tile{-webkit-transition:none;-moz-transition:none;transition:none;}.leaflet-zoom-anim .leaflet-zoom-hide{visibility:hidden;}.leaflet-interactive{cursor:pointer;}.leaflet-grab{cursor:-webkit-grab;cursor:-moz-grab;cursor:grab;}.leaflet-crosshair,.leaflet-crosshair .leaflet-interactive{cursor:crosshair;}.leaflet-popup-pane,.leaflet-control{cursor:auto;}.leaflet-dragging .leaflet-grab,.leaflet-dragging .leaflet-grab .leaflet-interactive,.leaflet-dragging .leaflet-marker-draggable{cursor:move;cursor:-webkit-grabbing;cursor:-moz-grabbing;cursor:grabbing;}.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-image-layer,.leaflet-pane > svg path,.leaflet-tile-container{pointer-events:none;}.leaflet-marker-icon.leaflet-interactive,.leaflet-image-layer.leaflet-interactive,.leaflet-pane > svg path.leaflet-interactive,svg.leaflet-image-layer.leaflet-interactive path{pointer-events:visiblePainted;pointer-events:auto;}.leaflet-container{background:#ddd;outline-offset:1px;}.leaflet-container a{color:#0078A8;}.leaflet-zoom-box{border:2px dotted #38f;background:rgba(255,255,255,0.5);}.leaflet-container{font-family:"Helvetica Neue",Arial,Helvetica,sans-serif;font-size:12px;font-size:0.75rem;line-height:1.5;}.leaflet-bar{box-shadow:0 1px 5px rgba(0,0,0,0.65);border-radius:4px;}.leaflet-bar a{background-color:#fff;border-bottom:1px solid #ccc;width:26px;height:26px;line-height:26px;display:block;text-align:center;text-decoration:none;color:black;}.leaflet-bar a,.leaflet-control-layers-toggle{background-position:50% 50%;background-repeat:no-repeat;display:block;}.leaflet-bar a:hover,.leaflet-bar a:focus{background-color:#f4f4f4;}.leaflet-bar a:first-child{border-top-left-radius:4px;border-top-right-radius:4px;}.leaflet-bar a:last-child{border-bottom-left-radius:4px;border-bottom-right-radius:4px;border-bottom:none;}.leaflet-bar a.leaflet-disabled{cursor:default;background-color:#f4f4f4;color:#bbb;}.leaflet-touch .leaflet-bar a{width:30px;height:30px;line-height:30px;}.leaflet-touch .leaflet-bar a:first-child{border-top-left-radius:2px;border-top-right-radius:2px;}.leaflet-touch .leaflet-bar a:last-child{border-bottom-left-radius:2px;border-bottom-right-radius:2px;}.leaflet-control-zoom-in,.leaflet-control-zoom-out{font:bold 18px 'Lucida Console',Monaco,monospace;text-indent:1px;}.leaflet-touch .leaflet-control-zoom-in,.leaflet-touch .leaflet-control-zoom-out{font-size:22px;}.leaflet-control-layers{box-shadow:0 1px 5px rgba(0,0,0,0.4);background:#fff;border-radius:5px;}.leaflet-control-layers-toggle{background-image:url(images/layers.png);width:36px;height:36px;}.leaflet-retina .leaflet-control-layers-toggle{background-image:url(images/layers-2x.png);background-size:26px 26px;}.leaflet-touch .leaflet-control-layers-toggle{width:44px;height:44px;}.leaflet-control-layers .leaflet-control-layers-list,.leaflet-control-layers-expanded .leaflet-control-layers-toggle{display:none;}.leaflet-control-layers-expanded .leaflet-control-layers-list{display:block;position:relative;}.leaflet-control-layers-expanded{padding:6px 10px 6px 6px;color:#333;background:#fff;}.leaflet-control-layers-scrollbar{overflow-y:scroll;overflow-x:hidden;padding-right:5px;}.leaflet-control-layers-selector{margin-top:2px;position:relative;top:1px;}.leaflet-control-layers label{display:block;font-size:13px;font-size:1.08333em;}.leaflet-control-layers-separator{height:0;border-top:1px solid #ddd;margin:5px -10px 5px -6px;}.leaflet-default-icon-path{background-image:url(images/marker-icon.png);}.leaflet-container .leaflet-control-attribution{background:#fff;background:rgba(255,255,255,0.8);margin:0;}.leaflet-control-attribution,.leaflet-control-scale-line{padding:0 5px;color:#333;line-height:1.4;}.leaflet-control-attribution a{text-decoration:none;}.leaflet-control-attribution a:hover,.leaflet-control-attribution a:focus{text-decoration:underline;}.leaflet-attribution-flag{display:inline !important;vertical-align:baseline !important;width:1em;height:0.6669em;}.leaflet-left .leaflet-control-scale{margin-left:5px;}.leaflet-bottom .leaflet-control-scale{margin-bottom:5px;}.leaflet-control-scale-line{border:2px solid #777;border-top:none;line-height:1.1;padding:2px 5px 1px;white-space:nowrap;-moz-box-sizing:border-box;box-sizing:border-box;background:rgba(255,255,255,0.8);text-shadow:1px 1px #fff;}.leaflet-control-scale-line:not(:first-child){border-top:2px solid #777;border-bottom:none;margin-top:-2px;}.leaflet-control-scale-line:not(:first-child):not(:last-child){border-bottom:2px solid #777;}.leaflet-touch .leaflet-control-attribution,.leaflet-touch .leaflet-control-layers,.leaflet-touch .leaflet-bar{box-shadow:none;}.leaflet-touch .leaflet-control-layers,.leaflet-touch .leaflet-bar{border:2px solid rgba(0,0,0,0.2);background-clip:padding-box;}.leaflet-popup{position:absolute;text-align:center;margin-bottom:20px;}.leaflet-popup-content-wrapper{padding:1px;text-align:left;border-radius:12px;}.leaflet-popup-content{margin:13px 24px 13px 20px;line-height:1.3;font-size:13px;font-size:1.08333em;min-height:1px;}.leaflet-popup-content p{margin:17px 0;margin:1.3em 0;}.leaflet-popup-tip-container{width:40px;height:20px;position:absolute;left:50%;margin-top:-1px;margin-left:-20px;overflow:hidden;pointer-events:none;}.leaflet-popup-tip{width:17px;height:17px;padding:1px;margin:-10px auto 0;pointer-events:auto;-webkit-transform:rotate(45deg);-moz-transform:rotate(45deg);-ms-transform:rotate(45deg);transform:rotate(45deg);}.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:white;color:#333;box-shadow:0 3px 14px rgba(0,0,0,0.4);}.leaflet-container a.leaflet-popup-close-button{position:absolute;top:0;right:0;border:none;text-align:center;width:24px;height:24px;font:16px/24px Tahoma,Verdana,sans-serif;color:#757575;text-decoration:none;background:transparent;}.leaflet-container a.leaflet-popup-close-button:hover,.leaflet-container a.leaflet-popup-close-button:focus{color:#585858;}.leaflet-popup-scrolled{overflow:auto;}.leaflet-oldie .leaflet-popup-content-wrapper{-ms-zoom:1;}.leaflet-oldie .leaflet-popup-tip{width:24px;margin:0 auto;-ms-filter:"progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678,M12=0.70710678,M21=-0.70710678,M22=0.70710678)";filter:progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678,M12=0.70710678,M21=-0.70710678,M22=0.70710678);}.leaflet-oldie .leaflet-control-zoom,.leaflet-oldie .leaflet-control-layers,.leaflet-oldie .leaflet-popup-content-wrapper,.leaflet-oldie .leaflet-popup-tip{border:1px solid #999;}.leaflet-div-icon{background:#fff;border:1px solid #666;}.leaflet-tooltip{position:absolute;padding:6px;background-color:#fff;border:1px solid #fff;border-radius:3px;color:#222;white-space:nowrap;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;pointer-events:none;box-shadow:0 1px 3px rgba(0,0,0,0.4);}.leaflet-tooltip.leaflet-interactive{cursor:pointer;pointer-events:auto;}.leaflet-tooltip-top:before,.leaflet-tooltip-bottom:before,.leaflet-tooltip-left:before,.leaflet-tooltip-right:before{position:absolute;pointer-events:none;border:6px solid transparent;background:transparent;content:"";}.leaflet-tooltip-bottom{margin-top:6px;}.leaflet-tooltip-top{margin-top:-6px;}.leaflet-tooltip-bottom:before,.leaflet-tooltip-top:before{left:50%;margin-left:-6px;}.leaflet-tooltip-top:before{bottom:0;margin-bottom:-12px;border-top-color:#fff;}.leaflet-tooltip-bottom:before{top:0;margin-top:-12px;margin-left:-6px;border-bottom-color:#fff;}.leaflet-tooltip-left{margin-left:-6px;}.leaflet-tooltip-right{margin-left:6px;}.leaflet-tooltip-left:before,.leaflet-tooltip-right:before{top:50%;margin-top:-6px;}.leaflet-tooltip-left:before{right:0;margin-right:-12px;border-left-color:#fff;}.leaflet-tooltip-right:before{left:0;margin-left:-12px;border-right-color:#fff;}@media print{.leaflet-control{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style>
 <style>
 :root{--bg:#f6f4ef;--panel:#ffffff;--ink:#202124;--muted:#5f6368;--line:#dadce0;--accent:#1a73e8;
   --shadow:0 1px 2px rgba(60,64,67,.3),0 2px 6px 2px rgba(60,64,67,.15)}
@@ -23,11 +23,24 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
 .opac[hidden]{display:none}.opac input{width:140px;accent-color:var(--accent)}
 .estado{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:5;background:var(--panel);box-shadow:var(--shadow);border-radius:18px;padding:8px 14px;font-size:13px;color:var(--muted)}
 .estado:empty{display:none}
-.maplibregl-popup-content{background:var(--panel);color:var(--ink);border-radius:10px;font-size:13px;padding:8px 12px;box-shadow:var(--shadow)}
-.maplibregl-ctrl-group{border-radius:8px!important;box-shadow:var(--shadow)!important}
-.maplibregl-ctrl-attrib{font-size:10.5px}
+
 @media (max-width:480px){.card span{display:none}.seg button{padding:9px 8px;font-size:12px}.card b{font-size:13px}}
 @media (max-width:400px){.card{display:none}}
+
+:root{--land:#f2efe9;--c-bache:#d9622b;--c-inundacion:#2a7fd4;--c-animal:#8d6a4c;--c-semaforo:#d99a00;--c-inseguro:#7b52c4;--c-asalto:#d23a4b;--c-basura:#4f8a3a;--c-alumbrado:#17999a}
+.leaflet-container{font-family:inherit;background:var(--land)}
+.leaflet-container .leaflet-control-attribution{background:color-mix(in srgb,var(--panel) 85%,transparent);color:var(--muted);font-size:10.5px}
+.leaflet-control-zoom{border:0!important;box-shadow:var(--shadow)!important;border-radius:8px!important;overflow:hidden}
+.leaflet-bar a{width:40px!important;height:40px!important;line-height:40px!important;background:var(--panel);color:var(--ink);border-color:var(--line)!important}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--panel);color:var(--ink)}
+/* Marcadores: simples sobre las calles, completos (iguales a la página principal) sobre el satélite */
+.pin{display:grid;place-items:center;width:24px;height:24px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);background:var(--c);border:2px solid var(--panel);box-shadow:0 1px 3px rgba(0,0,0,.45)}
+.pin svg{transform:rotate(45deg);width:13px;height:13px;color:#fff}
+.pin i{width:7px;height:7px;border-radius:50%;background:#fff}
+.pin.hot{outline:3px solid #fbbc04;outline-offset:1px}
+.pinw{position:relative;width:100%;height:100%}
+.cam{position:absolute;right:-7px;top:-7px;width:15px;height:15px;border-radius:50%;background:var(--panel);color:var(--ink);display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.cam svg{width:9px;height:9px}
 </style>
 </head>
 <body>
@@ -40,87 +53,30 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
     <button id="bSup" aria-pressed="false">Superponer</button>
   </div>
 </div>
-<label class="opac" id="opac" hidden>Calles <input type="range" id="rOpac" min="0" max="100" value="85" aria-label="Transparencia de las calles"></label>
-<div class="estado" id="estado">Cargando el mapa…</div>
-<script src="vendor/maplibre-gl.js"></script>
+<label class="opac" id="opac" hidden>Calles <input type="range" id="rOpac" min="0" max="100" value="60" aria-label="Transparencia de las calles"></label>
+<div class="estado" id="estado"></div>
+<script src="vendor/leaflet.js"></script>
 <script src="config.js"></script>
 <script>
-// Demo: mapa de calles con estilo propio (colores, grosores y nombres los definimos nosotros).
-// Los datos son de OpenStreetMap (ODbL) y llegan en "teselas vectoriales" del servicio gratuito OpenFreeMap,
-// que no pide registro ni tiene límite de visitas. El dibujo lo hace el navegador con MapLibre.
-const oscuro = matchMedia("(prefers-color-scheme: dark)").matches;
-const C = oscuro
-  ? {tierra:"#1d2327", parque:"#1f3326", agua:"#1d4157", aguaTxt:"#8fbcd4", edif:"#262e33", calle:"#3b464d", calleBorde:"#151b1f",
-     av:"#6b5a2e", avBorde:"#3a3120", ruta:"#7a4f2a", rutaBorde:"#45301b", txt:"#d5d9dc", halo:"#1d2327", barrio:"#9aa0a6"}
-  : {tierra:"#f2efe9", parque:"#d6e8c9", agua:"#aad3df", aguaTxt:"#4a7f99", edif:"#e4dfd6", calle:"#ffffff", calleBorde:"#d4cfc4",
-     av:"#fde293", avBorde:"#e3b55a", ruta:"#f9b26b", rutaBorde:"#d9853a", txt:"#3c4043", halo:"#ffffff", barrio:"#70757a"};
+// Demo: el mapa de calles propio, dibujado de antemano como imágenes (carpeta calles/, ver scripts/dibujar-calles.mjs).
+// Al ser imágenes, cualquier computadora o celular lo mueve sin trabarse, igual que el satélite.
+// Datos de las calles: © colaboradores de OpenStreetMap (ODbL), vía OpenFreeMap.
+const ZONA = [[-25.591994, -54.722900], [-25.453195, -54.580078]];
+const map = L.map("map", {zoomControl:false, minZoom:13, maxZoom:19, maxBounds:[[-25.62, -54.75], [-25.43, -54.55]], maxBoundsViscosity:.8})
+  .setView([-25.5095, -54.6135], 16);
+L.control.zoom({position:"bottomright"}).addTo(map);
+map.attributionControl.setPrefix(false);
 
-// Grosor de cada tipo de calle según el zoom.
-const ancho = (z13, z16, z19, extra = [0, 0, 0]) => ["interpolate", ["exponential", 1.6], ["zoom"], 13, z13 + extra[0], 16, z16 + extra[1], 19, z19 + extra[2]];
-const tipo = (...c) => ["match", ["get", "class"], c, true, false];
-const CALLES = [
-  {id:"menor", f:tipo("minor", "service", "track", "path", "pedestrian"), w:[.6, 4, 16], c:C.calle, b:C.calleBorde, min:14.5},
-  {id:"terciaria", f:tipo("tertiary"), w:[1.2, 6, 20], c:C.calle, b:C.calleBorde, min:12},
-  {id:"avenida", f:tipo("primary", "secondary"), w:[2.2, 8, 26], c:C.av, b:C.avBorde, min:10},
-  {id:"ruta", f:tipo("trunk", "motorway"), w:[3, 10, 30], c:C.ruta, b:C.rutaBorde, min:8}
-];
-const fuente = ["Noto Sans Regular"], negrita = ["Noto Sans Bold"];
+const estado = document.getElementById("estado");
+const calles = L.tileLayer("calles/{z}/{x}/{y}.webp", {minNativeZoom:13, maxNativeZoom:17, maxZoom:19, bounds:ZONA,
+  attribution:"© colaboradores de OpenStreetMap · OpenFreeMap"}).addTo(map);
+fetch("calles/info.json").then(r => { if (!r.ok) throw 0; return r.json(); })
+  .then(i => calles.options.maxNativeZoom = i.zoomMax)
+  .catch(() => estado.textContent = "Las imágenes de las calles todavía se están dibujando. Probá de nuevo en unos minutos.");
+const KEY = (window.CDE_CONFIG || {}).esriKey;
+const sat = KEY ? L.tileLayer("https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=" + encodeURIComponent(KEY),
+  {maxNativeZoom:18, maxZoom:19, bounds:ZONA, attribution:"Powered by Esri · Imágenes © Esri, Maxar, Earthstar Geographics"}) : null;
 
-const style = {
-  version:8,
-  glyphs:"https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
-  sources:{
-    osm:{type:"vector", url:"https://tiles.openfreemap.org/planet", attribution:"© colaboradores de OpenStreetMap · OpenFreeMap"},
-    ...((window.CDE_CONFIG || {}).esriKey ? {sat:{type:"raster", tileSize:256, maxzoom:18,
-      tiles:["https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=" + encodeURIComponent(CDE_CONFIG.esriKey)],
-      attribution:"Powered by Esri · Imágenes © Esri, Maxar, Earthstar Geographics"}} : {})
-  },
-  layers:[
-    {id:"fondo", type:"background", paint:{"background-color":C.tierra}},
-    ...((window.CDE_CONFIG || {}).esriKey ? [{id:"satelite", type:"raster", source:"sat", layout:{visibility:"none"}}] : []),
-    {id:"parques", type:"fill", source:"osm", "source-layer":"park", paint:{"fill-color":C.parque}},
-    {id:"agua", type:"fill", source:"osm", "source-layer":"water", paint:{"fill-color":C.agua}},
-    {id:"arroyos", type:"line", source:"osm", "source-layer":"waterway", paint:{"line-color":C.agua, "line-width":ancho(1, 2, 5)}},
-    // Primero todos los bordes y después los rellenos, así los cruces quedan limpios.
-    ...CALLES.map(k => ({id:k.id + "-borde", type:"line", source:"osm", "source-layer":"transportation", minzoom:k.min, filter:k.f,
-      layout:{"line-cap":"round", "line-join":"round"}, paint:{"line-color":k.b, "line-width":ancho(...k.w, [.9, 1.6, 3])}})),
-    ...CALLES.map(k => ({id:k.id, type:"line", source:"osm", "source-layer":"transportation", minzoom:k.min, filter:k.f,
-      layout:{"line-cap":"round", "line-join":"round"}, paint:{"line-color":k.c, "line-width":ancho(...k.w)}})),
-    {id:"nombres-agua", type:"symbol", source:"osm", "source-layer":"water_name",
-      layout:{"text-field":["get", "name"], "text-font":fuente, "text-size":13, "text-letter-spacing":.2},
-      paint:{"text-color":C.aguaTxt, "text-halo-color":C.halo, "text-halo-width":1}},
-    {id:"nombres-calles", type:"symbol", source:"osm", "source-layer":"transportation_name", minzoom:15,
-      layout:{"symbol-placement":"line", "text-field":["get", "name"], "text-size":["interpolate", ["linear"], ["zoom"], 14, 10, 18, 13],
-        "text-font":["match", ["get", "class"], ["trunk", "primary", "secondary", "motorway"], ["literal", negrita], ["literal", fuente]], "text-max-angle":30, "symbol-spacing":300},
-      paint:{"text-color":C.txt, "text-halo-color":C.halo, "text-halo-width":1.6}},
-    {id:"barrios", type:"symbol", source:"osm", "source-layer":"place", filter:tipo("suburb", "neighbourhood", "quarter"), minzoom:13, maxzoom:17,
-      layout:{"text-field":["get", "name"], "text-font":negrita, "text-size":12, "text-transform":"uppercase", "text-letter-spacing":.12, "text-max-width":8},
-      paint:{"text-color":C.barrio, "text-halo-color":C.halo, "text-halo-width":1.5}},
-    {id:"ciudades", type:"symbol", source:"osm", "source-layer":"place", filter:tipo("city", "town"),
-      layout:{"text-field":["get", "name"], "text-font":negrita, "text-size":["interpolate", ["linear"], ["zoom"], 10, 13, 14, 18]},
-      paint:{"text-color":C.txt, "text-halo-color":C.halo, "text-halo-width":2}},
-  ]
-};
-
-const map = new maplibregl.Map({container:"map", style, fadeDuration:0, renderWorldCopies:false, pixelRatio:Math.min(devicePixelRatio || 1, 1.5), maxTileCacheSize:80, maxPitch:0, center:[-54.6135, -25.5095], zoom:15, minZoom:13, maxZoom:19,
-  maxBounds:[[-54.75, -25.62], [-54.55, -25.43]], attributionControl:{compact:true}, dragRotate:false, pitchWithRotate:false});
-map.touchZoomRotate.disableRotation();
-map.addControl(new maplibregl.NavigationControl({showCompass:false}), "bottom-right");
-map.on("load", () => { document.getElementById("estado").textContent = sinPlacaDeVideo() ?
-  "Tu navegador está dibujando el mapa sin la placa de video y por eso va lento. Activá la aceleración por hardware en la configuración del navegador." : ""; });
-
-// Este tipo de mapa lo dibuja la placa de video. Si el navegador la tiene desactivada, lo dibuja el procesador y se traba.
-function sinPlacaDeVideo(){
-  try {
-    const c = document.createElement("canvas");
-    if (!c.getContext("webgl", {failIfMajorPerformanceCaveat:true})) return true;
-    const gl = document.createElement("canvas").getContext("webgl"), ext = gl && gl.getExtension("WEBGL_debug_renderer_info");
-    return !!ext && /swiftshader|llvmpipe|software|basic render/i.test(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL));
-  } catch { return false; }
-}
-map.on("error", e => { if (!map.loaded() && e.sourceId !== "sat" && !e.tile) document.getElementById("estado").textContent = "No se pudo cargar el mapa. Probá recargar."; console.warn(e.error); });
-
-// Denuncias de ejemplo, para ver cómo quedan los marcadores encima.
 const ICONS = {
   bache:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M3 17h18"/><path d="M7 17c1-3 3-4 5-4s4 1 5 4"/></svg>',
   inundacion:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M2 10c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2 2-2 4-2"/><path d="M2 16c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2 2-2 4-2"/></svg>',
@@ -132,88 +88,36 @@ const ICONS = {
   alumbrado:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z"/></svg>'
 };
 const CAM = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 4h6l1.5 2H20a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.5z"/><circle cx="12" cy="13" r="3.6" fill="var(--panel)"/></svg>';
-// Los marcadores se dibujan dentro del mapa (no como elementos de la página), así mover y hacer zoom es fluido
-// aunque haya cientos de denuncias. Cada ícono se arma una vez, igual al de la página principal.
-const COLOR = {bache:"#d9622b", inundacion:"#2a7fd4", animal:"#8d6a4c", semaforo:"#d99a00", inseguro:"#7b52c4", asalto:"#d23a4b", basura:"#4f8a3a", alumbrado:"#17999a"};
-const GOTA = "M0,-12A12,12 0 0 1 12,0A12,12 0 0 1 0,12L-8,12A4,4 0 0 1 -12,8L-12,0A12,12 0 0 1 0,-12Z";
-function iconoSvg(cat, hot, foto){
-  const ico = ICONS[cat].replace("<svg ", '<svg x="17.5" y="15.5" width="13" height="13" ').replaceAll("currentColor", "#fff");
-  const camara = CAM.replace("<svg ", '<svg x="32" y="5" width="9" height="9" ').replaceAll("currentColor", "#202124").replace("var(--panel)", "#fff");
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="44" viewBox="0 0 48 44">
-    <g transform="translate(24 22) rotate(-45)">
-      <path d="${GOTA}" transform="translate(1.2 1.2)" fill="rgba(0,0,0,.28)"/>
-      ${hot ? `<path d="${GOTA}" transform="scale(1.33)" fill="none" stroke="#fbbc04" stroke-width="2.4"/>` : ""}
-      <path d="${GOTA}" fill="${COLOR[cat]}" stroke="#fff" stroke-width="2"/>
-    </g>${ico}
-    ${foto ? `<circle cx="36.5" cy="9.5" r="7" fill="#fff" stroke="rgba(0,0,0,.25)" stroke-width=".8"/>${camara}` : ""}</svg>`;
+let vista = "calles", denuncias = [];
+const marcadores = [];
+function icono(r){
+  const completo = vista !== "calles", hot = r.votes >= 8;
+  return L.divIcon({className:"", iconSize:[26, 26], iconAnchor:[13, 26], html:completo
+    ? `<div class="pinw"><div class="pin ${hot ? "hot" : ""}" style="--c:var(--c-${r.cat})">${ICONS[r.cat]}</div>${r.photo || r.hasPhoto ? `<span class="cam" title="Con foto">${CAM}</span>` : ""}</div>`
+    : `<div class="pin" style="--c:var(--c-${r.cat})"><i></i></div>`});
 }
-// Versión simple (para la vista Calles): la gota del color de la categoría con un punto blanco.
-const iconoSimple = cat => `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="44" viewBox="0 0 48 44">
-  <g transform="translate(24 22) rotate(-45)"><path d="${GOTA}" transform="translate(1.2 1.2)" fill="rgba(0,0,0,.28)"/>
-  <path d="${GOTA}" fill="${COLOR[cat]}" stroke="#fff" stroke-width="2"/></g><circle cx="24" cy="22" r="3.6" fill="#fff"/></svg>`;
-const imagenPin = () => vista === "calles" ? ["concat", "simple-", ["get", "cat"]] : ["get", "img"];
-function cargarImagen(id, svg){
-  return new Promise(ok => {
-    const img = new Image(96, 88);
-    img.onload = () => { const c = document.createElement("canvas"); c.width = 96; c.height = 88; c.getContext("2d").drawImage(img, 0, 0, 96, 88);
-      if (!map.hasImage(id)) map.addImage(id, c.getContext("2d").getImageData(0, 0, 96, 88), {pixelRatio:2}); ok(); };
-    img.onerror = () => ok();
-    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
-  });
-}
-Promise.all([fetch("datos-ejemplo.json").then(r => r.json()), new Promise(ok => map.once("load", ok))]).then(async ([d]) => {
-  const lista = d.denuncias.filter(r => r.status !== "resuelta");
-  const nombre = r => `pin-${r.cat}-${r.votes >= 8 ? 1 : 0}-${r.photo || r.hasPhoto ? 1 : 0}`;
-  await Promise.all([...new Set(lista.map(nombre))].map(id => { const [, cat, h, f] = id.split("-"); return cargarImagen(id, iconoSvg(cat, h === "1", f === "1")); }));
-  await Promise.all([...new Set(lista.map(r => r.cat))].map(cat => cargarImagen("simple-" + cat, iconoSimple(cat))));
-  map.addSource("denuncias", {type:"geojson", data:{type:"FeatureCollection", features:lista.map(r => ({type:"Feature",
-    geometry:{type:"Point", coordinates:[r.lng, r.lat]}, properties:{img:nombre(r), cat:r.cat, desc:r.desc, barrio:r.barrio || ""}}))}});
-  map.addLayer({id:"denuncias", type:"symbol", source:"denuncias", layout:{"icon-image":imagenPin(), "icon-anchor":"center", "icon-offset":[0, -15],
-    "icon-allow-overlap":true, "icon-ignore-placement":true, "symbol-z-order":"viewport-y"}});
-  map.on("click", "denuncias", e => { const f = e.features[0];
-    new maplibregl.Popup({offset:32, closeButton:false}).setLngLat(f.geometry.coordinates).setText(f.properties.desc + (f.properties.barrio ? " · " + f.properties.barrio : "")).addTo(map); });
-  map.on("mouseenter", "denuncias", () => map.getCanvas().style.cursor = "pointer");
-  map.on("mouseleave", "denuncias", () => map.getCanvas().style.cursor = "");
+fetch("datos-ejemplo.json").then(r => r.json()).then(d => {
+  denuncias = d.denuncias.filter(r => r.status !== "resuelta");
+  for (const r of denuncias) marcadores.push(L.marker([r.lat, r.lng], {icon:icono(r), title:r.desc}).bindPopup(r.desc + (r.barrio ? " · " + r.barrio : "")).addTo(map));
 }).catch(() => {});
 
-// Tres vistas: Calles (nuestro mapa), Satélite (solo la imagen de Esri) y Superponer
-// (nuestras calles encima del satélite, al estilo de las rutas de Esri, para comprobar que coinciden).
-const SUPERFICIES = ["parques", "agua", "arroyos"];
-const NOMBRES = ["nombres-agua", "nombres-calles", "barrios", "ciudades"];
-const HIBRIDO = {menor:"#ffffff", terciaria:"#ffffff", avenida:"#ffe08a", ruta:"#ffb35c"};
-let vista = "calles";
-function pintar(){
-  const sat = vista !== "calles", sup = vista === "superponer", op = document.getElementById("rOpac").value / 100;
-  const ver = (id, si) => map.setLayoutProperty(id, "visibility", si ? "visible" : "none");
-  if (map.getLayer("satelite")) ver("satelite", sat);
-  for (const id of SUPERFICIES) ver(id, !sat);
-  for (const k of CALLES){
-    ver(k.id, vista !== "satelite"); ver(k.id + "-borde", vista !== "satelite");
-    map.setPaintProperty(k.id, "line-color", sup ? HIBRIDO[k.id] : k.c);
-    map.setPaintProperty(k.id, "line-opacity", sup ? op : 1);
-    map.setPaintProperty(k.id + "-borde", "line-color", sup ? "#000000" : k.b);
-    map.setPaintProperty(k.id + "-borde", "line-opacity", sup ? op * .45 : 1);
-    // Encima del satélite las calles van más finas, para ver la calle real debajo.
-    map.setPaintProperty(k.id, "line-width", sup ? ancho(...k.w.map(x => x * .45)) : ancho(...k.w));
-    map.setPaintProperty(k.id + "-borde", "line-width", sup ? ancho(...k.w.map(x => x * .45), [.8, 1.2, 1.6]) : ancho(...k.w, [.9, 1.6, 3]));
-  }
-  for (const id of NOMBRES){
-    ver(id, vista !== "satelite");
-    map.setPaintProperty(id, "text-color", sup ? "#ffffff" : id === "nombres-agua" ? C.aguaTxt : id === "barrios" ? C.barrio : C.txt);
-    map.setPaintProperty(id, "text-halo-color", sup ? "rgba(0,0,0,.75)" : C.halo);
-  }
-  // Íconos simples sobre el mapa de calles; los completos (con categoría, foto y votos) sobre el satélite.
-  if (map.getLayer("denuncias")) map.setLayoutProperty("denuncias", "icon-image", imagenPin());
-  document.getElementById("opac").hidden = !sup;
-  for (const [b, v] of [["bCalles", "calles"], ["bSat", "satelite"], ["bSup", "superponer"]]) document.getElementById(b).setAttribute("aria-pressed", vista === v);
+// Tres vistas: Calles (nuestro mapa), Satélite (solo Esri) y Superponer (nuestras calles semitransparentes sobre el satélite,
+// para comprobar que coinciden con las calles reales).
+function cambiar(v){
+  vista = v;
+  const op = document.getElementById("rOpac").value / 100;
+  if (sat) v === "calles" ? map.removeLayer(sat) : sat.addTo(map);
+  if (v === "satelite") map.removeLayer(calles); else { calles.addTo(map); calles.bringToFront(); }
+  calles.setOpacity(v === "superponer" ? op : 1);
+  document.getElementById("opac").hidden = v !== "superponer";
+  for (const [b, x] of [["bCalles", "calles"], ["bSat", "satelite"], ["bSup", "superponer"]]) document.getElementById(b).setAttribute("aria-pressed", v === x);
+  marcadores.forEach((m, i) => m.setIcon(icono(denuncias[i])));
 }
-const cambiar = v => { vista = v; if (map.isStyleLoaded()) pintar(); else map.once("load", pintar); };
 document.getElementById("bCalles").onclick = () => cambiar("calles");
 document.getElementById("bSat").onclick = () => cambiar("satelite");
 document.getElementById("bSup").onclick = () => cambiar("superponer");
-let pendiente = false;
-document.getElementById("rOpac").oninput = () => { if (vista !== "superponer" || pendiente) return; pendiente = true; requestAnimationFrame(() => { pendiente = false; pintar(); }); };
-if (!(window.CDE_CONFIG || {}).esriKey) document.getElementById("bSat").hidden = document.getElementById("bSup").hidden = true;
+document.getElementById("rOpac").oninput = e => calles.setOpacity(e.target.value / 100);
+if (!sat) document.getElementById("bSat").hidden = document.getElementById("bSup").hidden = true;
 </script>
 </body>
 </html>

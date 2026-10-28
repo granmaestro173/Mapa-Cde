@@ -1,0 +1,44 @@
+# Dibuja el mapa de calles propio como imágenes (carpeta calles/) y las guarda en el repositorio.
+# Se ejecuta a mano desde la pestaña Actions de GitHub ("Dibujar mapa de calles" > Run workflow)
+# cada vez que se quiera tomar los cambios de calles de OpenStreetMap (cada versión suma unos 70 MB al repositorio,
+# por eso no se repite sola por calendario).
+name: Dibujar mapa de calles
+on:
+  # También corre solo cuando cambia el estilo de las calles.
+  push:
+    branches: [main]
+    paths: ["scripts/calles/**", "scripts/dibujar-calles.mjs"]
+  workflow_dispatch:
+    inputs:
+      zoom_max:
+        description: "Zoom máximo (17 = nivel de cuadra)"
+        default: "17"
+permissions:
+  contents: write
+concurrency:
+  group: dibujar-calles
+  cancel-in-progress: false
+jobs:
+  dibujar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Instalar Chromium
+        run: |
+          npm install --no-save playwright@1.48.2
+          npx playwright install --with-deps chromium
+      - name: Dibujar
+        run: node scripts/dibujar-calles.mjs 13 "${{ github.event.inputs.zoom_max || '17' }}"
+      - name: Guardar las imágenes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add calles
+          if git diff --cached --quiet; then echo "Sin cambios"; exit 0; fi
+          git commit -m "Mapa de calles: imágenes actualizadas"
+          git pull --rebase origin main
+          git push origin HEAD:main
