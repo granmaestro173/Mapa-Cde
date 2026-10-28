@@ -251,4 +251,4 @@ En el mapa principal la misma medición está integrada:
 - **Aviso rojo sobre el mapa** cuando se esperan 30 mm o más en un día. El pronóstico se vuelve a pedir cada hora.
 - **Denuncias de calle inundada**: la ficha dice si el punto cae en una zona de riesgo del modelo.
 
-El modelo usa FABDEM (relieve sin árboles ni edificios) calculado con la acción `calcular-inundacion` de GitHub. Solo se marcan zonas cerca de arroyos y ríos reales de OpenStreetMap (hasta 150, 250 o 400 m según el nivel); las rutas principales no se pintan porque van sobre terraplén. Además, cada cauce se controla con la cobertura del suelo satelital (ESA WorldCover 10 m): los tramos que pasan por encima de casas se borran.
+El modelo usa FABDEM (relieve sin árboles ni edificios) calculado con la acción `calcular-inundacion` de GitHub. Solo se marcan zonas cerca de los ríos grandes de OpenStreetMap (Paraná, Acaray, Monday) (hasta 150, 250 o 400 m según el nivel); las rutas principales no se pintan porque van sobre terraplén. Además, cada cauce se controla con la cobertura del suelo satelital (ESA WorldCover 10 m): los tramos que pasan por encima de casas se borran.

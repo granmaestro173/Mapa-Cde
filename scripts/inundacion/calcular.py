@@ -7,7 +7,8 @@ Método: HAND (altura sobre el drenaje más cercano). Se rellenan pozos, se calc
 en cada celda y cuánta área le aporta; donde se junta agua de más de UMBRAL_KM2 hay un cauce. Para cada celda,
 HAND es cuántos metros está por encima del cauce al que drena. Poco HAND = se inunda primero cuando el cauce crece.
 
-Solo cuentan como cauce los que existen de verdad: los arroyos y ríos de OpenStreetMap (osm.json, bajado con Overpass)
+Solo cuentan como cauce los ríos grandes que existen de verdad: los "river" de OpenStreetMap (osm.json, bajado con Overpass:
+Paraná, Acaray, Monday y los arroyos más grandes); los arroyos chicos de adentro de la ciudad no se usan
 y que además juntan agua de más de UMBRAL_GRANDE_KM2 (arroyos grandes), más los que juntan más de UMBRAL_SEGURO_KM2 aunque
 no estén en el mapa. Los cauces chicos de adentro de la ciudad no se usan. Sin esto, cualquier
 bajada del terreno donde se junta agua de lluvia parecía un arroyo y zonas sin ningún arroyo cerca salían inundables.
