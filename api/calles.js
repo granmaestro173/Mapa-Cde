@@ -4,13 +4,14 @@
 
 const CAJA = "-25.545,-54.665,-25.485,-54.595";
 const CONSULTA = `[out:json][timeout:90];(way["highway"~"^(trunk|primary|secondary|tertiary|residential|unclassified|living_street|pedestrian)$"](${CAJA});way["leisure"="park"](${CAJA});way["natural"="water"](${CAJA});way["waterway"~"^(river|stream)$"](${CAJA}););out geom;`;
-const SERVIDORES = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
+const SERVIDORES = ["https://overpass-api.de/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
+export const config = {maxDuration:60};
 
 async function pedir(url){
   const r = await fetch(url, {method:"POST", body:"data=" + encodeURIComponent(CONSULTA),
-    headers:{"content-type":"application/x-www-form-urlencoded", "user-agent":"MapaCiudadanoCDE/1.0 (https://mapa-cde-zspd.vercel.app)"},
-    signal:AbortSignal.timeout(25000)});
-  if (!r.ok) throw new Error(url + ": " + r.status);
+    headers:{"content-type":"application/x-www-form-urlencoded", "accept":"application/json", "user-agent":"MapaCiudadanoCDE/1.0 (+https://mapa-cde-zspd.vercel.app)"},
+    signal:AbortSignal.timeout(14000)});
+  if (!r.ok) throw new Error(url + ": " + r.status + " " + (await r.text()).slice(0, 200));
   return r.json();
 }
 
