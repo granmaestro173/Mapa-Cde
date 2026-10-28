@@ -42,7 +42,7 @@ const BARRIOS = [
   {n:"San Isidro", c:[-25.5285,-54.6325], r:.005, w:{asalto:2,inseguro:2,semaforo:.5,basura:2,bache:4,alumbrado:3,animal:2,inundacion:2}},
   {n:"Barrio Obrero", c:[-25.4965,-54.6345], r:.0045, w:{asalto:3,inseguro:2.5,semaforo:1,basura:2,bache:3,alumbrado:2,animal:1.5,inundacion:1}},
   {n:"Ciudad Nueva", c:[-25.5055,-54.6455], r:.005, w:{asalto:2.5,inseguro:2,semaforo:1.5,basura:2,bache:3,alumbrado:2,animal:1.5,inundacion:1.5}},
-  {n:"San Rafael", c:[-25.5345,-54.6125], r:.0045, w:{asalto:2.5,inseguro:2.5,semaforo:.5,basura:2.5,bache:3,alumbrado:3,animal:1.5,inundacion:3}},
+  {n:"San Rafael", c:[-25.504,-54.6075], r:.003, w:{asalto:2.5,inseguro:2.5,semaforo:.5,basura:2.5,bache:3,alumbrado:3,animal:1.5,inundacion:3}},
   {n:"Km 7", c:[-25.5095,-54.6635], r:.005, w:{asalto:4,inseguro:3,semaforo:2,basura:2,bache:3,alumbrado:2,animal:2,inundacion:1}},
   {n:"Km 8 Acaray", c:[-25.4935,-54.6795], r:.006, w:{asalto:2,inseguro:2,semaforo:1,basura:2,bache:3,alumbrado:2.5,animal:3,inundacion:1.5}},
   {n:"Remansito", c:[-25.4815,-54.6185], r:.005, w:{asalto:1.5,inseguro:1.5,semaforo:.5,basura:1.5,bache:2.5,alumbrado:2,animal:2,inundacion:2.5}},
