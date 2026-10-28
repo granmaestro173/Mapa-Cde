@@ -557,7 +557,9 @@ const restoCancelar = id => cancelables[id] ? VENTANA_CANCELAR - (Date.now() - c
 function cancelarHtml(r){
   const resto = restoCancelar(r.id); if (resto <= 0) return "";
   setTimeout(() => { const b = $("#cancelBox"); if (b && b.dataset.id === r.id) b.remove(); }, resto);
-  return `<div class="cancel-box" id="cancelBox" data-id="${esc(r.id)}"><span>¿Te equivocaste? Podés cancelar esta denuncia por unos minutos.</span>
+  return `<div class="cancel-box" id="cancelBox" data-id="${esc(r.id)}">
+    <div class="cancel-tuya"><b>Tu denuncia: ${esc(CATS[r.cat].one)} en ${esc(r.barrio)}</b><q>${esc(r.desc || "Sin descripción")}</q></div>
+    <span>¿Te equivocaste? Podés cancelar esta denuncia por unos minutos.</span>
     <button class="btn small flag-btn" type="button" data-cancelar="${esc(r.id)}">Cancelar denuncia</button></div>`;
 }
 async function cancelarDenuncia(b){
