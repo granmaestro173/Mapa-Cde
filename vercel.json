@@ -18,24 +18,6 @@
       ]
     },
     {
-      "source": "/sat-lite.jpg",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=604800"
-        }
-      ]
-    },
-    {
-      "source": "/sat-hd.jpg",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=604800"
-        }
-      ]
-    },
-    {
       "source": "/vendor/:archivo*",
       "headers": [
         {

@@ -23,7 +23,6 @@ app.js                todo lo que hace la página
 store.js              la conexión con Supabase (y el modo de prueba)
 config.js             ← acá pegás los 2 datos de tu Supabase
 datos-ejemplo.json    datos del modo de prueba
-sat-lite.jpg, sat-hd.jpg   imagen satelital de respaldo si Esri no responde
 vendor/               Leaflet (mapa) y Supabase, incluidos para no depender de otros sitios
 api/ia.js             función del servidor para "Explicar con IA" (la clave nunca llega al navegador)
 supabase/01-esquema.sql         tablas, reglas de seguridad, fotos e historial
@@ -163,7 +162,7 @@ Para pausarla: `select cron.unschedule('limpiar-resueltas');`.
 ## Mis denuncias, avisos y uso sin internet
 
 - **Mis denuncias** (campana junto a la búsqueda, o en el menú): lista las denuncias hechas desde ese dispositivo con su estado. Cuando una pasa a *En proceso*, *Resuelta*, o la verifica la moderación o la IA, aparece un aviso. Se puede desactivar con el interruptor "Avisarme cuando cambien". Si el vecino lo permite, el aviso también llega como notificación del sistema mientras la página esté abierta (aunque sea en otra pestaña).
-- **Sin internet** (`sw.js`): la página abre igual, con las últimas denuncias, fotos y mapa que se vieron. Una denuncia hecha sin señal queda guardada en el teléfono y se envía sola cuando vuelve internet.
+- **Sin internet** (`sw.js`): la página abre igual, con las últimas denuncias y fotos que se vieron (las imágenes satelitales de Esri no se guardan: sus condiciones no lo permiten). Una denuncia hecha sin señal queda guardada en el teléfono y se envía sola cuando vuelve internet.
 
 ---
 

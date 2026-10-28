@@ -88,23 +88,27 @@ let toastT; function toast(msg){ const el=$("#toast"); el.textContent=msg; el.hi
 const ago = t => { const m = Math.round((Date.now()-t)/6e4); if (m<1) return "recién"; if (m<60) return `hace ${m} min`; const h=Math.round(m/60); if (h<24) return `hace ${h} h`; const d=Math.round(h/24); if (d<31) return `hace ${d} d`; return new Date(t).toLocaleDateString("es-PY",{day:"numeric",month:"short"}); };
 
 /* ---------- Mapa ---------- */
-// Imágenes satelitales de Esri (World Imagery) en teselas. Si el servicio no responde, se usa la imagen
-// fija incluida en la página: liviana (0,7 MB) en celulares y HD (2,9 MB) en computadoras o al acercarse mucho.
+// Imágenes satelitales de Esri (World Imagery) por el servicio oficial de ArcGIS Location Platform, con la clave
+// de config.js (limitada a la dirección del sitio). Si Esri no responde, se muestra el mapa de calles de OpenStreetMap.
 const MOBILE = matchMedia("(max-width:760px)");
 const SAVE_DATA = !!navigator.connection?.saveData;
 const LITE = MOBILE.matches || SAVE_DATA || (navigator.deviceMemory || 8) < 4;
 const SAT_BOUNDS = [[-25.591994,-54.722900],[-25.453195,-54.580078]];
 const map = L.map("map", {attributionControl:true, minZoom:13, maxZoom:19, zoomSnap:.5, preferCanvas:LITE, zoomControl:false, maxBounds:SAT_BOUNDS, maxBoundsViscosity:1}).setView(MOBILE.matches ? [-25.51,-54.625] : [-25.512,-54.638], MOBILE.matches ? 13 : 13.5);
 if (!MOBILE.matches) L.control.zoom({position:"bottomright"}).addTo(map);
-map.attributionControl.setPrefix(false).addAttribution("Imágenes © Esri, Maxar, Earthstar Geographics");
-let tileErrors = 0, satLayer = null;
-const tiles = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {maxNativeZoom:18, maxZoom:19, bounds:SAT_BOUNDS, crossOrigin:true}).addTo(map);
-tiles.on("tileerror", () => { if (++tileErrors === 6 && !satLayer) useStaticSat(); });
-function useStaticSat(){
-  map.removeLayer(tiles);
-  satLayer = L.imageOverlay(LITE ? "sat-lite.jpg" : "sat-hd.jpg", SAT_BOUNDS, {interactive:false, alt:"Imagen satelital de Ciudad del Este"}).addTo(map);
-  if (LITE && !SAVE_DATA && (navigator.deviceMemory || 4) >= 4)
-    map.on("zoomend", function hd(){ if (map.getZoom() >= 16){ satLayer.setUrl("sat-hd.jpg"); map.off("zoomend", hd); } });
+map.attributionControl.setPrefix(false);
+const CALLES = () => L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19, attribution:"© colaboradores de OpenStreetMap"});
+let tileErrors = 0, streetLayer = null;
+const ESRI_KEY = (window.CDE_CONFIG || {}).esriKey;
+const tiles = ESRI_KEY
+  ? L.tileLayer("https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=" + encodeURIComponent(ESRI_KEY),
+      {maxNativeZoom:18, maxZoom:19, bounds:SAT_BOUNDS, crossOrigin:true, attribution:"Powered by Esri · Imágenes © Esri, Maxar, Earthstar Geographics"}).addTo(map)
+  : null;
+if (tiles) tiles.on("tileerror", () => { if (++tileErrors === 6 && !streetLayer) useStreetMap(); });
+else useStreetMap();
+function useStreetMap(){
+  if (tiles) map.removeLayer(tiles);
+  streetLayer = CALLES().addTo(map);
 }
 L.marker(DEPOT, {keyboard:false, title:"Depósito municipal de obras (referencia para el traslado)", icon:L.divIcon({className:"", html:'<div class="depot"></div>', iconSize:[14,14], iconAnchor:[7,7]})}).addTo(map)
   .bindTooltip("Depósito municipal de obras (referencia)");

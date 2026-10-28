@@ -1,8 +1,9 @@
 // Service worker del Mapa Ciudadano CDE.
-// - La página abre aunque no haya internet, con lo último que se cargó (denuncias, fotos y mapa).
+// - La página abre aunque no haya internet, con lo último que se cargó (denuncias y fotos).
+//   Las imágenes satelitales de Esri no se guardan: sus condiciones de uso no lo permiten.
 // - Muestra los avisos del sistema y, al tocarlos, abre la denuncia.
-const PAGINA = "cde-pagina-v1", DATOS = "cde-datos-v1", IMAGENES = "cde-imagenes-v1";
-const BASE = ["./", "index.html", "config.js", "store.js", "app.js", "vendor/leaflet.js", "vendor/supabase.js", "sat-lite.jpg", "datos-ejemplo.json"];
+const PAGINA = "cde-pagina-v2", DATOS = "cde-datos-v2", IMAGENES = "cde-imagenes-v2";
+const BASE = ["./", "index.html", "config.js", "store.js", "app.js", "vendor/leaflet.js", "vendor/supabase.js", "datos-ejemplo.json"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(PAGINA).then(c => c.addAll(BASE)).then(() => self.skipWaiting()));
@@ -52,7 +53,7 @@ self.addEventListener("fetch", e => {
     if (url.pathname.startsWith("/storage/v1/object/public/")) return e.respondWith(guardadoPrimero(req));
     return;
   }
-  if (url.hostname === "server.arcgisonline.com" || url.hostname.endsWith("gstatic.com") || url.hostname === "fonts.googleapis.com")
+  if (url.hostname.endsWith("gstatic.com") || url.hostname === "fonts.googleapis.com")
     return e.respondWith(guardadoPrimero(req));
 });
 
