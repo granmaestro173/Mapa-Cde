@@ -12,12 +12,13 @@ y que además juntan agua de más de UMBRAL_GRANDE_KM2 (arroyos grandes), más l
 no estén en el mapa. Los cauces chicos de adentro de la ciudad no se usan. Sin esto, cualquier
 bajada del terreno donde se junta agua de lluvia parecía un arroyo y zonas sin ningún arroyo cerca salían inundables.
 
-Uso: python3 scripts/inundacion/calcular.py dem.tif wbm.tif [osm.json] [rutas.json]   (genera inundacion/riesgo-*.png e inundacion/datos.json)
+Uso: python3 scripts/inundacion/calcular.py dem.tif wbm.tif [osm.json] [rutas.json] [worldcover.tif]   (genera inundacion/riesgo-*.png e inundacion/datos.json)
 Necesita: pip install numpy tifffile imagecodecs pillow pysheds affine
 El DEM y la máscara se bajan de https://copernicus-dem-30m.s3.amazonaws.com/ (hoja Copernicus_DSM_COG_10_S26_00_W055_00_DEM).
 wbm.tif es la máscara de agua que viene con el mismo DEM (AUXFILES/*_WBM.tif): ríos y lagos no se pintan.
 """
 import json, math, sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np, tifffile
 if not hasattr(np, "in1d"): np.in1d = np.isin   # pysheds usa una función que numpy 2 quitó
 from PIL import Image
@@ -32,6 +33,9 @@ CALCULO = [[-25.70, -54.86], [-25.36, -54.52]]
 UMBRAL_KM2 = 0.4          # área que tiene que juntar un cauce (arroyos chicos incluidos)
 UMBRAL_GRANDE_KM2 = 5     # solo arroyos grandes: los cauces chicos de adentro de la ciudad no cuentan
 UMBRAL_SEGURO_KM2 = 25    # con esta área es un arroyo grande aunque no figure en OpenStreetMap
+VENTANA_SATELITE = 9      # píxeles de 10 m alrededor de cada punto del cauce (~90 m) para ver si hay casas o monte
+MIN_VERDE = 0.5           # parte mínima con monte, pasto o agua para que un cauce sea un arroyo a cielo abierto
+MIN_TRAMO = 25            # celdas (~450 m): los pedazos de cauce más cortos que quedan sueltos se borran
 CERCA_OSM = 3             # celdas (~90 m) de tolerancia entre el cauce del relieve y el trazado de OpenStreetMap
 NIVELES = [(1.5, "muy_alta"), (3, "alta"), (5, "media")]   # metros de HAND
 # Además de estar bajo, tiene que estar cerca de un arroyo o río real (metros en horizontal). Lo que queda lejos,
@@ -73,7 +77,29 @@ from scipy.ndimage import binary_dilation
 cerca = binary_dilation(osm | (wbm_calc == 3), iterations=CERCA_OSM)
 cauces_relieve = np.asarray(cauces, dtype=bool)
 acc_km2 = np.asarray(acc) * celda_km2
-cauces = (cauces_relieve & cerca & (acc_km2 > UMBRAL_GRANDE_KM2)) | (acc_km2 > UMBRAL_SEGURO_KM2) | (wbm_calc == 3)
+cauces = (cauces_relieve & cerca & (acc_km2 > UMBRAL_GRANDE_KM2)) | (wbm_calc == 3)
+if not n_osm: cauces |= acc_km2 > UMBRAL_SEGURO_KM2   # sin OpenStreetMap, al menos los arroyos muy grandes
+# Control con la imagen satelital (ESA WorldCover 10 m, de Sentinel-2): un arroyo a cielo abierto tiene una franja de
+# monte, pasto o agua. Donde el cauce calculado pasa por encima de casas (todo construido alrededor) no hay arroyo:
+# está entubado o el relieve se equivocó, y ese tramo se borra. Después se quitan los pedazos sueltos que quedan.
+n_satelite = 0
+if len(sys.argv) > 5 and os.path.exists(sys.argv[5]):
+    from cobertura import leer_ventana
+    from scipy.ndimage import uniform_filter, label
+    wc, wpaso, (wla0, wlo0) = leer_ventana(sys.argv[5], CALCULO[1][0], CALCULO[0][0], CALCULO[0][1], CALCULO[1][1])
+    verde = uniform_filter(np.isin(wc, [10, 20, 30, 60, 80, 90]).astype("float32"), size=VENTANA_SATELITE)
+    filas_c = y0 - (r0 + np.arange(dem.shape[0]) + .5) * paso; cols_c = x0 + (c0 + np.arange(dem.shape[1]) + .5) * paso
+    wi = np.clip(((wla0 - filas_c) / wpaso).astype(int), 0, wc.shape[0] - 1)
+    wj = np.clip(((cols_c - wlo0) / wpaso).astype(int), 0, wc.shape[1] - 1)
+    verde_dem = verde[np.ix_(wi, wj)]
+    antes = cauces.copy()
+    cauces = cauces & ((verde_dem >= MIN_VERDE) | (wbm_calc == 3))
+    lab, n = label(cauces, structure=np.ones((3, 3)))
+    tam = np.bincount(lab.ravel())
+    chicos = tam < MIN_TRAMO; chicos[0] = False
+    cauces[chicos[lab]] = False
+    n_satelite = int((antes & ~cauces).sum())
+    print("tramos de cauce borrados por pasar sobre casas:", n_satelite, "celdas")
 vf_b = ViewFinder(affine=af, shape=dem.shape, crs="EPSG:4326", nodata=False)
 # Distancia en metros de cada celda al arroyo o río más cercano.
 from scipy.ndimage import distance_transform_edt
@@ -164,7 +190,8 @@ json.dump({
   "zona": lim, "niveles": [{"hasta_m": t_, "nombre": n, "a_menos_de_m": DISTANCIA[n]} for t_, n in NIVELES], "umbral_cauce_km2": UMBRAL_GRANDE_KM2,
   "barrios": fichas, "cauces": lineas, "cota_base": COTA_BASE, "celdas": list(h.shape),
   "fuente": os.environ.get("DEM_FUENTE", "Copernicus DEM GLO-30 (ESA / Unión Europea)") + ". Método HAND con pysheds"
-            + (". Arroyos y ríos: © colaboradores de OpenStreetMap (ODbL)." if n_osm else "."),
+            + (". Arroyos y ríos: © colaboradores de OpenStreetMap (ODbL)" if n_osm else "")
+            + (". Control satelital: ESA WorldCover 10 m 2021 (CC BY 4.0)." if n_satelite else "."),
   "arroyos_osm": n_osm,
   "modelo": os.environ.get("DEM_MODELO", "superficie"),
   "aviso": "Estimación a partir del relieve; no reemplaza un estudio hidrológico ni el mapa oficial de riesgo."

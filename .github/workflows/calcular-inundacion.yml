@@ -52,8 +52,12 @@ jobs:
             curl -fsS --retry 2 -m 180 --data-urlencode "data=$R" -o /tmp/dem/rutas.json "$s" && break
             rm -f /tmp/dem/rutas.json
           done
+      - name: Bajar la cobertura del suelo satelital (ESA WorldCover 10 m)
+        run: |
+          curl -fsSL --retry 3 -o /tmp/dem/worldcover.tif "https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/ESA_WorldCover_10m_2021_v200_S27W057_Map.tif" \
+            || echo "::warning::No se pudo bajar WorldCover; los cauces no se controlan con la imagen satelital."
       - name: Calcular
-        run: python scripts/inundacion/calcular.py /tmp/dem/dem.tif /tmp/dem/wbm.tif /tmp/dem/osm.json /tmp/dem/rutas.json
+        run: python scripts/inundacion/calcular.py /tmp/dem/dem.tif /tmp/dem/wbm.tif /tmp/dem/osm.json /tmp/dem/rutas.json /tmp/dem/worldcover.tif
       - name: Guardar
         run: |
           git config user.name "github-actions[bot]"
