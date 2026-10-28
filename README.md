@@ -138,7 +138,7 @@ En el mapa, activá *Mapa de riesgo*, tocá una zona naranja o roja y vas a ver 
 
 ## Paso 5 · Verificación automática con IA (opcional, 5 min)
 
-Cada 5 minutos, Claude Haiku revisa las denuncias nuevas con foto y mira si la foto coincide con lo denunciado. Si coincide, la denuncia muestra **"✦ Verificado con IA"**. Si no, queda como *dudosa*: eso solo lo ve la moderación, que la encuentra primera en la cola del panel municipal. Cada denuncia se revisa **una sola vez**, y las que no tienen foto no se mandan a la IA. Cuesta unos USD 0,0004 por denuncia con foto.
+Cada 5 minutos, Claude Haiku revisa las denuncias nuevas con foto y mira si la foto coincide con lo denunciado. Si coincide, la denuncia muestra **"✦ Verificado con IA"**. Si no, queda como *dudosa*: eso solo lo ve la moderación, que la encuentra primera en la cola del panel municipal. Cada denuncia se revisa **una sola vez**, y solo se escanean las que tienen foto. Cuesta unos USD 0,0004 por denuncia con foto.
 
 1. Hacé primero el paso 4 (clave de Anthropic y variables `SUPABASE_URL` y `SUPABASE_ANON_KEY` en Vercel).
 2. Si tu página no es `https://mapa-cde-zspd.vercel.app`, abrí `supabase/05-verificacion-ia.sql` y cambiá esa dirección.

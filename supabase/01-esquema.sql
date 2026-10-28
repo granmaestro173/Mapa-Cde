@@ -288,7 +288,7 @@ grant execute on function public.quitar_voto(text, text) to authenticated;
 
 -- ---------- Verificación automática con IA ----------
 -- Cada denuncia nueva con foto la revisa Claude una vez: si la foto coincide con lo denunciado queda "verificada";
--- si no, "dudosa" (eso solo lo ve la moderación). Sin foto queda "sin_foto" y no se consulta a la IA.
+-- si no, "dudosa" (eso solo lo ve la moderación). Las denuncias sin foto no se escanean.
 alter table public.denuncias add column if not exists ia_estado text check (ia_estado in ('verificada','dudosa','sin_foto','error'));
 alter table public.denuncias add column if not exists ia_motivo text;
 alter table public.denuncias add column if not exists ia_revisada timestamptz;
@@ -324,7 +324,7 @@ language sql stable security definer set search_path = public as $$
 $$;
 revoke execute on function public.ia_clave_valida(text) from public, anon, authenticated;
 
--- Denuncias que todavía no revisó la IA. Las que no tienen foto esperan 10 minutos, por si la foto se está subiendo.
+-- Denuncias con foto que todavía no revisó la IA. Las que no tienen foto no se escanean.
 create or replace function public.ia_pendientes(p_clave text, p_limite int default 8)
 returns table (id text, categoria text, descripcion text, barrio text, foto text)
 language plpgsql stable security definer set search_path = public as $$
@@ -335,7 +335,7 @@ begin
            case when d.foto then (select o.name from storage.objects o where o.bucket_id = 'fotos' and o.name like d.id || '.%' order by o.name desc limit 1) end
       from public.denuncias d
      where d.ia_revisada is null and not d.demo and coalesce(d.moderacion, '') <> 'falsa'
-       and (d.foto or d.creada < now() - interval '10 minutes')
+       and d.foto
      order by d.creada
      limit least(greatest(coalesce(p_limite, 8), 1), 20);
 end $$;
