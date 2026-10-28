@@ -5,44 +5,26 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Mapa de calles propio · demo</title>
 <meta name="robots" content="noindex">
-<style> .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane > svg,.leaflet-pane > canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0;}.leaflet-container{overflow:hidden;}.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow{-webkit-user-select:none;-moz-user-select:none;user-select:none;-webkit-user-drag:none;}.leaflet-tile::selection{background:transparent;}.leaflet-safari .leaflet-tile{image-rendering:-webkit-optimize-contrast;}.leaflet-safari .leaflet-tile-container{width:1600px;height:1600px;-webkit-transform-origin:0 0;}.leaflet-marker-icon,.leaflet-marker-shadow{display:block;}.leaflet-container .leaflet-overlay-pane svg{max-width:none !important;max-height:none !important;}.leaflet-container .leaflet-marker-pane img,.leaflet-container .leaflet-shadow-pane img,.leaflet-container .leaflet-tile-pane img,.leaflet-container img.leaflet-image-layer,.leaflet-container .leaflet-tile{max-width:none !important;max-height:none !important;width:auto;padding:0;}.leaflet-container img.leaflet-tile{mix-blend-mode:plus-lighter;}.leaflet-container.leaflet-touch-zoom{-ms-touch-action:pan-x pan-y;touch-action:pan-x pan-y;}.leaflet-container.leaflet-touch-drag{-ms-touch-action:pinch-zoom;touch-action:none;touch-action:pinch-zoom;}.leaflet-container.leaflet-touch-drag.leaflet-touch-zoom{-ms-touch-action:none;touch-action:none;}.leaflet-container{-webkit-tap-highlight-color:transparent;}.leaflet-container a{-webkit-tap-highlight-color:rgba(51,181,229,0.4);}.leaflet-tile{filter:inherit;visibility:hidden;}.leaflet-tile-loaded{visibility:inherit;}.leaflet-zoom-box{width:0;height:0;-moz-box-sizing:border-box;box-sizing:border-box;z-index:800;}.leaflet-overlay-pane svg{-moz-user-select:none;}.leaflet-pane{z-index:400;}.leaflet-tile-pane{z-index:200;}.leaflet-overlay-pane{z-index:400;}.leaflet-shadow-pane{z-index:500;}.leaflet-marker-pane{z-index:600;}.leaflet-tooltip-pane{z-index:650;}.leaflet-popup-pane{z-index:700;}.leaflet-map-pane canvas{z-index:100;}.leaflet-map-pane svg{z-index:200;}.leaflet-vml-shape{width:1px;height:1px;}.lvml{behavior:url(#default#VML);display:inline-block;position:absolute;}.leaflet-control{position:relative;z-index:800;pointer-events:visiblePainted;pointer-events:auto;}.leaflet-top,.leaflet-bottom{position:absolute;z-index:1000;pointer-events:none;}.leaflet-top{top:0;}.leaflet-right{right:0;}.leaflet-bottom{bottom:0;}.leaflet-left{left:0;}.leaflet-control{float:left;clear:both;}.leaflet-right .leaflet-control{float:right;}.leaflet-top .leaflet-control{margin-top:10px;}.leaflet-bottom .leaflet-control{margin-bottom:10px;}.leaflet-left .leaflet-control{margin-left:10px;}.leaflet-right .leaflet-control{margin-right:10px;}.leaflet-fade-anim .leaflet-popup{opacity:0;-webkit-transition:opacity 0.2s linear;-moz-transition:opacity 0.2s linear;transition:opacity 0.2s linear;}.leaflet-fade-anim .leaflet-map-pane .leaflet-popup{opacity:1;}.leaflet-zoom-animated{-webkit-transform-origin:0 0;-ms-transform-origin:0 0;transform-origin:0 0;}svg.leaflet-zoom-animated{will-change:transform;}.leaflet-zoom-anim .leaflet-zoom-animated{-webkit-transition:-webkit-transform 0.25s cubic-bezier(0,0,0.25,1);-moz-transition:-moz-transform 0.25s cubic-bezier(0,0,0.25,1);transition:transform 0.25s cubic-bezier(0,0,0.25,1);}.leaflet-zoom-anim .leaflet-tile,.leaflet-pan-anim .leaflet-tile{-webkit-transition:none;-moz-transition:none;transition:none;}.leaflet-zoom-anim .leaflet-zoom-hide{visibility:hidden;}.leaflet-interactive{cursor:pointer;}.leaflet-grab{cursor:-webkit-grab;cursor:-moz-grab;cursor:grab;}.leaflet-crosshair,.leaflet-crosshair .leaflet-interactive{cursor:crosshair;}.leaflet-popup-pane,.leaflet-control{cursor:auto;}.leaflet-dragging .leaflet-grab,.leaflet-dragging .leaflet-grab .leaflet-interactive,.leaflet-dragging .leaflet-marker-draggable{cursor:move;cursor:-webkit-grabbing;cursor:-moz-grabbing;cursor:grabbing;}.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-image-layer,.leaflet-pane > svg path,.leaflet-tile-container{pointer-events:none;}.leaflet-marker-icon.leaflet-interactive,.leaflet-image-layer.leaflet-interactive,.leaflet-pane > svg path.leaflet-interactive,svg.leaflet-image-layer.leaflet-interactive path{pointer-events:visiblePainted;pointer-events:auto;}.leaflet-container{background:#ddd;outline-offset:1px;}.leaflet-container a{color:#0078A8;}.leaflet-zoom-box{border:2px dotted #38f;background:rgba(255,255,255,0.5);}.leaflet-container{font-family:"Helvetica Neue",Arial,Helvetica,sans-serif;font-size:12px;font-size:0.75rem;line-height:1.5;}.leaflet-bar{box-shadow:0 1px 5px rgba(0,0,0,0.65);border-radius:4px;}.leaflet-bar a{background-color:#fff;border-bottom:1px solid #ccc;width:26px;height:26px;line-height:26px;display:block;text-align:center;text-decoration:none;color:black;}.leaflet-bar a,.leaflet-control-layers-toggle{background-position:50% 50%;background-repeat:no-repeat;display:block;}.leaflet-bar a:hover,.leaflet-bar a:focus{background-color:#f4f4f4;}.leaflet-bar a:first-child{border-top-left-radius:4px;border-top-right-radius:4px;}.leaflet-bar a:last-child{border-bottom-left-radius:4px;border-bottom-right-radius:4px;border-bottom:none;}.leaflet-bar a.leaflet-disabled{cursor:default;background-color:#f4f4f4;color:#bbb;}.leaflet-touch .leaflet-bar a{width:30px;height:30px;line-height:30px;}.leaflet-touch .leaflet-bar a:first-child{border-top-left-radius:2px;border-top-right-radius:2px;}.leaflet-touch .leaflet-bar a:last-child{border-bottom-left-radius:2px;border-bottom-right-radius:2px;}.leaflet-control-zoom-in,.leaflet-control-zoom-out{font:bold 18px 'Lucida Console',Monaco,monospace;text-indent:1px;}.leaflet-touch .leaflet-control-zoom-in,.leaflet-touch .leaflet-control-zoom-out{font-size:22px;}.leaflet-control-layers{box-shadow:0 1px 5px rgba(0,0,0,0.4);background:#fff;border-radius:5px;}.leaflet-control-layers-toggle{background-image:url(images/layers.png);width:36px;height:36px;}.leaflet-retina .leaflet-control-layers-toggle{background-image:url(images/layers-2x.png);background-size:26px 26px;}.leaflet-touch .leaflet-control-layers-toggle{width:44px;height:44px;}.leaflet-control-layers .leaflet-control-layers-list,.leaflet-control-layers-expanded .leaflet-control-layers-toggle{display:none;}.leaflet-control-layers-expanded .leaflet-control-layers-list{display:block;position:relative;}.leaflet-control-layers-expanded{padding:6px 10px 6px 6px;color:#333;background:#fff;}.leaflet-control-layers-scrollbar{overflow-y:scroll;overflow-x:hidden;padding-right:5px;}.leaflet-control-layers-selector{margin-top:2px;position:relative;top:1px;}.leaflet-control-layers label{display:block;font-size:13px;font-size:1.08333em;}.leaflet-control-layers-separator{height:0;border-top:1px solid #ddd;margin:5px -10px 5px -6px;}.leaflet-default-icon-path{background-image:url(images/marker-icon.png);}.leaflet-container .leaflet-control-attribution{background:#fff;background:rgba(255,255,255,0.8);margin:0;}.leaflet-control-attribution,.leaflet-control-scale-line{padding:0 5px;color:#333;line-height:1.4;}.leaflet-control-attribution a{text-decoration:none;}.leaflet-control-attribution a:hover,.leaflet-control-attribution a:focus{text-decoration:underline;}.leaflet-attribution-flag{display:inline !important;vertical-align:baseline !important;width:1em;height:0.6669em;}.leaflet-left .leaflet-control-scale{margin-left:5px;}.leaflet-bottom .leaflet-control-scale{margin-bottom:5px;}.leaflet-control-scale-line{border:2px solid #777;border-top:none;line-height:1.1;padding:2px 5px 1px;white-space:nowrap;-moz-box-sizing:border-box;box-sizing:border-box;background:rgba(255,255,255,0.8);text-shadow:1px 1px #fff;}.leaflet-control-scale-line:not(:first-child){border-top:2px solid #777;border-bottom:none;margin-top:-2px;}.leaflet-control-scale-line:not(:first-child):not(:last-child){border-bottom:2px solid #777;}.leaflet-touch .leaflet-control-attribution,.leaflet-touch .leaflet-control-layers,.leaflet-touch .leaflet-bar{box-shadow:none;}.leaflet-touch .leaflet-control-layers,.leaflet-touch .leaflet-bar{border:2px solid rgba(0,0,0,0.2);background-clip:padding-box;}.leaflet-popup{position:absolute;text-align:center;margin-bottom:20px;}.leaflet-popup-content-wrapper{padding:1px;text-align:left;border-radius:12px;}.leaflet-popup-content{margin:13px 24px 13px 20px;line-height:1.3;font-size:13px;font-size:1.08333em;min-height:1px;}.leaflet-popup-content p{margin:17px 0;margin:1.3em 0;}.leaflet-popup-tip-container{width:40px;height:20px;position:absolute;left:50%;margin-top:-1px;margin-left:-20px;overflow:hidden;pointer-events:none;}.leaflet-popup-tip{width:17px;height:17px;padding:1px;margin:-10px auto 0;pointer-events:auto;-webkit-transform:rotate(45deg);-moz-transform:rotate(45deg);-ms-transform:rotate(45deg);transform:rotate(45deg);}.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:white;color:#333;box-shadow:0 3px 14px rgba(0,0,0,0.4);}.leaflet-container a.leaflet-popup-close-button{position:absolute;top:0;right:0;border:none;text-align:center;width:24px;height:24px;font:16px/24px Tahoma,Verdana,sans-serif;color:#757575;text-decoration:none;background:transparent;}.leaflet-container a.leaflet-popup-close-button:hover,.leaflet-container a.leaflet-popup-close-button:focus{color:#585858;}.leaflet-popup-scrolled{overflow:auto;}.leaflet-oldie .leaflet-popup-content-wrapper{-ms-zoom:1;}.leaflet-oldie .leaflet-popup-tip{width:24px;margin:0 auto;-ms-filter:"progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678,M12=0.70710678,M21=-0.70710678,M22=0.70710678)";filter:progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678,M12=0.70710678,M21=-0.70710678,M22=0.70710678);}.leaflet-oldie .leaflet-control-zoom,.leaflet-oldie .leaflet-control-layers,.leaflet-oldie .leaflet-popup-content-wrapper,.leaflet-oldie .leaflet-popup-tip{border:1px solid #999;}.leaflet-div-icon{background:#fff;border:1px solid #666;}.leaflet-tooltip{position:absolute;padding:6px;background-color:#fff;border:1px solid #fff;border-radius:3px;color:#222;white-space:nowrap;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;pointer-events:none;box-shadow:0 1px 3px rgba(0,0,0,0.4);}.leaflet-tooltip.leaflet-interactive{cursor:pointer;pointer-events:auto;}.leaflet-tooltip-top:before,.leaflet-tooltip-bottom:before,.leaflet-tooltip-left:before,.leaflet-tooltip-right:before{position:absolute;pointer-events:none;border:6px solid transparent;background:transparent;content:"";}.leaflet-tooltip-bottom{margin-top:6px;}.leaflet-tooltip-top{margin-top:-6px;}.leaflet-tooltip-bottom:before,.leaflet-tooltip-top:before{left:50%;margin-left:-6px;}.leaflet-tooltip-top:before{bottom:0;margin-bottom:-12px;border-top-color:#fff;}.leaflet-tooltip-bottom:before{top:0;margin-top:-12px;margin-left:-6px;border-bottom-color:#fff;}.leaflet-tooltip-left{margin-left:-6px;}.leaflet-tooltip-right{margin-left:6px;}.leaflet-tooltip-left:before,.leaflet-tooltip-right:before{top:50%;margin-top:-6px;}.leaflet-tooltip-left:before{right:0;margin-right:-12px;border-left-color:#fff;}.leaflet-tooltip-right:before{left:0;margin-left:-12px;border-right-color:#fff;}@media print{.leaflet-control{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style>
+<link rel="stylesheet" href="vendor/maplibre-gl.css">
 <style>
-:root{
-  --bg:#f6f4ef; --panel:#ffffff; --ink:#202124; --muted:#5f6368; --line:#dadce0; --accent:#1a73e8;
-  --land:#f2efe9; --block:#ebe7df; --park:#d6e8c9; --water:#aad3df; --water-ink:#4a7f99;
-  --road:#ffffff; --road-case:#d4cfc4; --main:#fde293; --main-case:#e3b55a; --trunk:#f9b26b; --trunk-case:#d9853a;
-  --label:#3c4043; --halo:#ffffff;
-  --shadow:0 1px 2px rgba(60,64,67,.3),0 2px 6px 2px rgba(60,64,67,.15);
-}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#202124; --panel:#2d2e31; --ink:#e8eaed; --muted:#9aa0a6; --line:#3c4043; --accent:#8ab4f8;
-  --land:#1d2327; --block:#22292e; --park:#1f3326; --water:#1d4157; --water-ink:#8fbcd4;
-  --road:#3b464d; --road-case:#2a3237; --main:#6b5a2e; --main-case:#4a3f22; --trunk:#7a4f2a; --trunk-case:#55371d;
-  --label:#d5d9dc; --halo:#1d2327;
-}}
+:root{--bg:#f6f4ef;--panel:#ffffff;--ink:#202124;--muted:#5f6368;--line:#dadce0;--accent:#1a73e8;
+  --shadow:0 1px 2px rgba(60,64,67,.3),0 2px 6px 2px rgba(60,64,67,.15)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#202124;--panel:#2d2e31;--ink:#e8eaed;--muted:#9aa0a6;--line:#3c4043;--accent:#8ab4f8}}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:"Roboto",system-ui,-apple-system,"Segoe UI",sans-serif}
-#map{position:fixed;inset:0;background:var(--land)}
-.leaflet-container{font-family:inherit;background:var(--land)}
-.leaflet-container .leaflet-control-attribution{background:color-mix(in srgb,var(--panel) 85%,transparent);color:var(--muted);font-size:10.5px}
-.leaflet-bar a{background:var(--panel);color:var(--ink);border-color:var(--line)}
-.leaflet-control-zoom{border:0!important;box-shadow:var(--shadow)!important;border-radius:8px!important;overflow:hidden}
-.leaflet-bar a{width:40px!important;height:40px!important;line-height:40px!important}
-.top{position:fixed;top:12px;left:12px;right:12px;z-index:1000;display:flex;gap:8px;align-items:center;pointer-events:none}
+#map{position:fixed;inset:0}
+.top{position:fixed;top:12px;left:12px;right:12px;z-index:5;display:flex;gap:8px;align-items:center;pointer-events:none}
 .card{pointer-events:auto;background:var(--panel);border-radius:24px;box-shadow:var(--shadow);padding:10px 16px;font-size:14px;display:flex;gap:8px;align-items:center;min-width:0}
 .card b{white-space:nowrap}.card span{color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .seg{pointer-events:auto;margin-left:auto;display:flex;background:var(--panel);border-radius:20px;box-shadow:var(--shadow);padding:3px}
 .seg button{border:0;background:none;color:var(--muted);font:500 13px/1 inherit;font-family:inherit;padding:9px 13px;border-radius:17px;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
-.estado{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:1000;background:var(--panel);box-shadow:var(--shadow);border-radius:18px;padding:8px 14px;font-size:13px;color:var(--muted)}
+.estado{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:5;background:var(--panel);box-shadow:var(--shadow);border-radius:18px;padding:8px 14px;font-size:13px;color:var(--muted)}
 .estado:empty{display:none}
-.lbl{white-space:nowrap;font-size:11px;font-weight:500;color:var(--label);letter-spacing:.1px;
-  text-shadow:0 0 2px var(--halo),0 0 2px var(--halo),0 0 3px var(--halo),0 0 3px var(--halo);pointer-events:none;
-  transform-origin:center;width:max-content;translate:-50% -50%}
-.lbl.main{font-size:12px;font-weight:700}
-.lbl.agua{color:var(--water-ink);font-style:italic;font-size:13px;letter-spacing:2px}
-.pin{display:grid;place-items:center;width:24px;height:24px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);background:var(--c);border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.45)}
+.pin{display:grid;place-items:center;width:24px;height:24px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);background:var(--c);border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.45);cursor:pointer}
 .pin i{width:7px;height:7px;border-radius:50%;background:#fff}
+.maplibregl-ctrl-group{border-radius:8px!important;box-shadow:var(--shadow)!important}
+.maplibregl-ctrl-attrib{font-size:10.5px}
 @media (max-width:480px){.card span{display:none}.seg button{padding:9px 10px}}
 </style>
 </head>
@@ -55,115 +37,98 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
     <button id="bSat" aria-pressed="false">Satélite</button>
   </div>
 </div>
-<div class="estado" id="estado">Cargando las calles de Ciudad del Este…</div>
-<script src="vendor/leaflet.js"></script>
+<div class="estado" id="estado">Cargando el mapa…</div>
+<script src="vendor/maplibre-gl.js"></script>
 <script src="config.js"></script>
 <script>
-// Demo: el mapa de calles dibujado por nosotros con datos de OpenStreetMap (licencia ODbL).
-// En la versión final los datos irían en un archivo propio del sitio; acá los entrega api/calles.js, que los guarda una semana.
-const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-const CENTRO = [-25.5095, -54.6135], CAJA = [-25.545, -54.665, -25.485, -54.595];
-const map = L.map("map", {zoomControl:false, minZoom:13, maxZoom:19, preferCanvas:true,
-  maxBounds:[[CAJA[0]-.02, CAJA[1]-.02],[CAJA[2]+.02, CAJA[3]+.02]]}).setView(CENTRO, 15);
-L.control.zoom({position:"bottomright"}).addTo(map);
-map.attributionControl.setPrefix(false);
-const lienzo = L.canvas({padding:.5});
+// Demo: mapa de calles con estilo propio (colores, grosores y nombres los definimos nosotros).
+// Los datos son de OpenStreetMap (ODbL) y llegan en "teselas vectoriales" del servicio gratuito OpenFreeMap,
+// que no pide registro ni tiene límite de visitas. El dibujo lo hace el navegador con MapLibre.
+const oscuro = matchMedia("(prefers-color-scheme: dark)").matches;
+const C = oscuro
+  ? {tierra:"#1d2327", parque:"#1f3326", agua:"#1d4157", aguaTxt:"#8fbcd4", edif:"#262e33", calle:"#3b464d", calleBorde:"#151b1f",
+     av:"#6b5a2e", avBorde:"#3a3120", ruta:"#7a4f2a", rutaBorde:"#45301b", txt:"#d5d9dc", halo:"#1d2327", barrio:"#9aa0a6"}
+  : {tierra:"#f2efe9", parque:"#d6e8c9", agua:"#aad3df", aguaTxt:"#4a7f99", edif:"#e4dfd6", calle:"#ffffff", calleBorde:"#d4cfc4",
+     av:"#fde293", avBorde:"#e3b55a", ruta:"#f9b26b", rutaBorde:"#d9853a", txt:"#3c4043", halo:"#ffffff", barrio:"#70757a"};
 
-// Ancho de cada tipo de calle según el zoom (en píxeles).
-const TIPOS = {
-  trunk:{w:[4,7,11,16], c:"--trunk", k:"--trunk-case", rank:5}, primary:{w:[3.5,6,10,15], c:"--main", k:"--main-case", rank:4},
-  secondary:{w:[3,5,8,13], c:"--main", k:"--main-case", rank:3}, tertiary:{w:[2,4,7,11], c:"--road", k:"--road-case", rank:2},
-  residential:{w:[.8,2.5,5,9], c:"--road", k:"--road-case", rank:1}, unclassified:{w:[.8,2.5,5,9], c:"--road", k:"--road-case", rank:1},
-  living_street:{w:[.6,2,4,7], c:"--road", k:"--road-case", rank:0}, pedestrian:{w:[.6,2,4,7], c:"--road", k:"--road-case", rank:0}
+// Grosor de cada tipo de calle según el zoom.
+const ancho = (z13, z16, z19, extra = [0, 0, 0]) => ["interpolate", ["exponential", 1.6], ["zoom"], 13, z13 + extra[0], 16, z16 + extra[1], 19, z19 + extra[2]];
+const tipo = (...c) => ["match", ["get", "class"], c, true, false];
+const CALLES = [
+  {id:"menor", f:tipo("minor", "service", "track", "path", "pedestrian"), w:[.6, 4, 16], c:C.calle, b:C.calleBorde, min:13.5},
+  {id:"terciaria", f:tipo("tertiary"), w:[1.2, 6, 20], c:C.calle, b:C.calleBorde, min:12},
+  {id:"avenida", f:tipo("primary", "secondary"), w:[2.2, 8, 26], c:C.av, b:C.avBorde, min:10},
+  {id:"ruta", f:tipo("trunk", "motorway"), w:[3, 10, 30], c:C.ruta, b:C.rutaBorde, min:8}
+];
+const fuente = ["Noto Sans Regular"], negrita = ["Noto Sans Bold"];
+
+const style = {
+  version:8,
+  glyphs:"https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
+  sources:{
+    osm:{type:"vector", url:"https://tiles.openfreemap.org/planet", attribution:"© colaboradores de OpenStreetMap · OpenFreeMap"},
+    ...((window.CDE_CONFIG || {}).esriKey ? {sat:{type:"raster", tileSize:256, maxzoom:18,
+      tiles:["https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=" + encodeURIComponent(CDE_CONFIG.esriKey)],
+      attribution:"Powered by Esri · Imágenes © Esri, Maxar, Earthstar Geographics"}} : {})
+  },
+  layers:[
+    {id:"fondo", type:"background", paint:{"background-color":C.tierra}},
+    {id:"parques", type:"fill", source:"osm", "source-layer":"park", paint:{"fill-color":C.parque}},
+    {id:"verde", type:"fill", source:"osm", "source-layer":"landcover", filter:tipo("grass", "wood"), paint:{"fill-color":C.parque, "fill-opacity":.6}},
+    {id:"agua", type:"fill", source:"osm", "source-layer":"water", paint:{"fill-color":C.agua}},
+    {id:"arroyos", type:"line", source:"osm", "source-layer":"waterway", paint:{"line-color":C.agua, "line-width":ancho(1, 2, 5)}},
+    {id:"edificios", type:"fill", source:"osm", "source-layer":"building", minzoom:15.5, paint:{"fill-color":C.edif, "fill-opacity":["interpolate", ["linear"], ["zoom"], 15.5, 0, 16.5, 1]}},
+    // Primero todos los bordes y después los rellenos, así los cruces quedan limpios.
+    ...CALLES.map(k => ({id:k.id + "-borde", type:"line", source:"osm", "source-layer":"transportation", minzoom:k.min, filter:k.f,
+      layout:{"line-cap":"round", "line-join":"round"}, paint:{"line-color":k.b, "line-width":ancho(...k.w, [.9, 1.6, 3])}})),
+    ...CALLES.map(k => ({id:k.id, type:"line", source:"osm", "source-layer":"transportation", minzoom:k.min, filter:k.f,
+      layout:{"line-cap":"round", "line-join":"round"}, paint:{"line-color":k.c, "line-width":ancho(...k.w)}})),
+    {id:"puente-frontera", type:"line", source:"osm", "source-layer":"boundary", filter:["==", ["get", "admin_level"], 2],
+      paint:{"line-color":C.barrio, "line-width":1.2, "line-dasharray":[3, 2], "line-opacity":.6}},
+    {id:"nombres-agua", type:"symbol", source:"osm", "source-layer":"water_name",
+      layout:{"text-field":["get", "name"], "text-font":fuente, "text-size":13, "text-letter-spacing":.2},
+      paint:{"text-color":C.aguaTxt, "text-halo-color":C.halo, "text-halo-width":1}},
+    {id:"nombres-calles", type:"symbol", source:"osm", "source-layer":"transportation_name", minzoom:14,
+      layout:{"symbol-placement":"line", "text-field":["get", "name"], "text-size":["interpolate", ["linear"], ["zoom"], 14, 10, 18, 13],
+        "text-font":["match", ["get", "class"], ["trunk", "primary", "secondary", "motorway"], ["literal", negrita], ["literal", fuente]], "text-max-angle":30, "symbol-spacing":300},
+      paint:{"text-color":C.txt, "text-halo-color":C.halo, "text-halo-width":1.6}},
+    {id:"barrios", type:"symbol", source:"osm", "source-layer":"place", filter:tipo("suburb", "neighbourhood", "quarter"), minzoom:13, maxzoom:17,
+      layout:{"text-field":["get", "name"], "text-font":negrita, "text-size":12, "text-transform":"uppercase", "text-letter-spacing":.12, "text-max-width":8},
+      paint:{"text-color":C.barrio, "text-halo-color":C.halo, "text-halo-width":1.5}},
+    {id:"ciudades", type:"symbol", source:"osm", "source-layer":"place", filter:tipo("city", "town"),
+      layout:{"text-field":["get", "name"], "text-font":negrita, "text-size":["interpolate", ["linear"], ["zoom"], 10, 13, 14, 18]},
+      paint:{"text-color":C.txt, "text-halo-color":C.halo, "text-halo-width":2}},
+    ...((window.CDE_CONFIG || {}).esriKey ? [{id:"satelite", type:"raster", source:"sat", layout:{visibility:"none"}}] : [])
+  ]
 };
-const ancho = (t, z) => { const w = TIPOS[t].w, i = Math.max(0, Math.min(3, (z-13)/2)), a = Math.floor(i), b = Math.min(3, a+1); return w[a] + (w[b]-w[a])*(i-a); };
 
-const capaCalles = L.layerGroup().addTo(map), capaNombres = L.layerGroup().addTo(map);
-let calles = [], nombres = [];
-
-function estilo(){
-  const z = map.getZoom();
-  for (const c of calles){
-    const w = ancho(c.t, z);
-    c.borde.setStyle({color:css(TIPOS[c.t].k), weight:w + (z >= 15 ? 2 : 1)});
-    c.relleno.setStyle({color:css(TIPOS[c.t].c), weight:w});
-  }
-  for (const n of nombres){
-    const ver = z >= n.desde;
-    if (ver && !capaNombres.hasLayer(n.m)) capaNombres.addLayer(n.m); else if (!ver && capaNombres.hasLayer(n.m)) capaNombres.removeLayer(n.m);
-  }
-}
-
-// Nombre de la calle sobre su tramo más largo, girado en el sentido de la calle.
-function nombre(texto, pts, clase, desde){
-  let mejor = null, largo = 0;
-  for (let i = 1; i < pts.length; i++){
-    const dy = pts[i][0]-pts[i-1][0], dx = (pts[i][1]-pts[i-1][1]) * Math.cos(pts[i][0]*Math.PI/180), d = Math.hypot(dx, dy);
-    if (d > largo){ largo = d; mejor = i; }
-  }
-  if (!mejor || largo < .0012) return;
-  const a = pts[mejor-1], b = pts[mejor];
-  let ang = -Math.atan2(b[0]-a[0], (b[1]-a[1]) * Math.cos(a[0]*Math.PI/180)) * 180/Math.PI;
-  if (ang > 90) ang -= 180; if (ang < -90) ang += 180;
-  const div = document.createElement("div"); div.className = "lbl " + clase; div.textContent = texto; div.style.rotate = ang + "deg";
-  nombres.push({desde, m:L.marker([(a[0]+b[0])/2, (a[1]+b[1])/2], {icon:L.divIcon({className:"", html:div.outerHTML, iconSize:null}), interactive:false})});
-}
-
-async function cargar(){
-  const res = await fetch("api/calles");
-  if (!res.ok) throw new Error("servidor " + res.status);
-  const datos = await res.json();
-  const ways = datos.elements.filter(e => e.type === "way" && e.geometry);
-  for (const e of ways){
-    const pts = e.geometry.map(p => [p.lat, p.lon]), t = e.tags || {};
-    if (t.leisure === "park") L.polygon(pts, {renderer:lienzo, stroke:false, fillColor:css("--park"), fillOpacity:1, interactive:false}).addTo(capaCalles);
-    else if (t.natural === "water") L.polygon(pts, {renderer:lienzo, stroke:false, fillColor:css("--water"), fillOpacity:1, interactive:false}).addTo(capaCalles);
-    else if (t.waterway) {
-      L.polyline(pts, {renderer:lienzo, color:css("--water"), weight:t.waterway === "river" ? 26 : 3, lineCap:"round", interactive:false}).addTo(capaCalles);
-      if (t.name) nombre(t.name, pts, "agua", 14);
-    }
-  }
-  const viales = ways.filter(e => TIPOS[e.tags?.highway]).sort((a, b) => TIPOS[a.tags.highway].rank - TIPOS[b.tags.highway].rank);
-  // Primero todos los bordes, después los rellenos: así los cruces quedan limpios.
-  for (const e of viales) calles.push({t:e.tags.highway, e, borde:L.polyline(e.geometry.map(p => [p.lat, p.lon]), {renderer:lienzo, lineCap:"round", lineJoin:"round", interactive:false}).addTo(capaCalles)});
-  for (const c of calles) c.relleno = L.polyline(c.e.geometry.map(p => [p.lat, p.lon]), {renderer:lienzo, lineCap:"round", lineJoin:"round", interactive:false}).addTo(capaCalles);
-  const vistos = new Map();
-  for (const c of [...calles].reverse()){
-    const n = c.e.tags.name, r = TIPOS[c.t].rank; if (!n) continue;
-    const pts = c.e.geometry.map(p => [p.lat, p.lon]);
-    const cerca = (vistos.get(n) || []).some(p => Math.hypot(p[0]-pts[0][0], p[1]-pts[0][1]) < .004);
-    if (cerca) continue; vistos.set(n, [...(vistos.get(n) || []), pts[0]]);
-    nombre(n, pts, r >= 3 ? "main" : "", r >= 4 ? 14 : r >= 2 ? 15 : 16);
-  }
-  estilo();
-  document.getElementById("estado").textContent = "";
-}
-map.on("zoomend", estilo);
+const map = new maplibregl.Map({container:"map", style, center:[-54.6135, -25.5095], zoom:15, minZoom:12, maxZoom:19,
+  maxBounds:[[-54.75, -25.62], [-54.55, -25.43]], attributionControl:{compact:true}, dragRotate:false, pitchWithRotate:false});
+map.touchZoomRotate.disableRotation();
+map.addControl(new maplibregl.NavigationControl({showCompass:false}), "bottom-right");
+map.on("load", () => { document.getElementById("estado").textContent = ""; });
+map.on("error", e => { if (!map.loaded()) document.getElementById("estado").textContent = "No se pudo cargar el mapa. Probá recargar."; console.warn(e.error); });
 
 // Denuncias de ejemplo, para ver cómo quedan los marcadores encima.
 const COLOR = {bache:"#d9622b", inundacion:"#2a7fd4", animal:"#8d6a4c", semaforo:"#d99a00", inseguro:"#7b52c4", asalto:"#d23a4b", basura:"#4f8a3a", alumbrado:"#17999a"};
 fetch("datos-ejemplo.json").then(r => r.json()).then(d => {
-  for (const r of d.denuncias) if (r.status !== "resuelta")
-    L.marker([r.lat, r.lng], {icon:L.divIcon({className:"", html:`<div class="pin" style="--c:${COLOR[r.cat]}"><i></i></div>`, iconSize:[24,24], iconAnchor:[12,24]}), title:r.desc}).addTo(map);
+  for (const r of d.denuncias) if (r.status !== "resuelta"){
+    const el = document.createElement("div"); el.className = "pin"; el.style.setProperty("--c", COLOR[r.cat]); el.title = r.desc; el.innerHTML = "<i></i>";
+    new maplibregl.Marker({element:el, anchor:"bottom"}).setLngLat([r.lng, r.lat]).addTo(map);
+  }
 }).catch(() => {});
 
-// Satélite de Esri (solo para comparar, igual que en la página real).
-const KEY = (window.CDE_CONFIG || {}).esriKey;
-const sat = KEY ? L.tileLayer("https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=" + encodeURIComponent(KEY),
-  {maxNativeZoom:18, maxZoom:19, attribution:"Powered by Esri · Imágenes © Esri, Maxar, Earthstar Geographics"}) : null;
-const atrib = "© colaboradores de OpenStreetMap";
-map.attributionControl.addAttribution(atrib);
+// Botón Calles / Satélite: el satélite de Esri se pone encima y los nombres de las calles quedan visibles.
 function modo(satelite){
   document.getElementById("bSat").setAttribute("aria-pressed", satelite);
   document.getElementById("bCalles").setAttribute("aria-pressed", !satelite);
-  if (satelite && sat){ sat.addTo(map); map.removeLayer(capaCalles); }
-  else { if (sat) map.removeLayer(sat); capaCalles.addTo(map); }
+  if (!map.getLayer("satelite")) return;
+  map.setLayoutProperty("satelite", "visibility", satelite ? "visible" : "none");
+  if (satelite) for (const id of ["nombres-agua", "nombres-calles", "barrios", "ciudades"]) map.moveLayer(id);
 }
 document.getElementById("bCalles").onclick = () => modo(false);
 document.getElementById("bSat").onclick = () => modo(true);
-if (!sat) document.getElementById("bSat").hidden = true;
-
-cargar().catch(err => { document.getElementById("estado").textContent = "No se pudieron cargar las calles (" + err.message + "). Probá recargar."; });
+if (!(window.CDE_CONFIG || {}).esriKey) document.getElementById("bSat").hidden = true;
 </script>
 </body>
 </html>
