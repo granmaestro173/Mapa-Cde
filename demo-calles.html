@@ -19,13 +19,16 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
 .seg{pointer-events:auto;margin-left:auto;display:flex;background:var(--panel);border-radius:20px;box-shadow:var(--shadow);padding:3px}
 .seg button{border:0;background:none;color:var(--muted);font:500 13px/1 inherit;font-family:inherit;padding:9px 13px;border-radius:17px;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.opac{position:fixed;left:50%;top:66px;transform:translateX(-50%);z-index:5;background:var(--panel);box-shadow:var(--shadow);border-radius:18px;padding:6px 14px;font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:center}
+.opac[hidden]{display:none}.opac input{width:140px;accent-color:var(--accent)}
 .estado{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:5;background:var(--panel);box-shadow:var(--shadow);border-radius:18px;padding:8px 14px;font-size:13px;color:var(--muted)}
 .estado:empty{display:none}
 .pin{display:grid;place-items:center;width:24px;height:24px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);background:var(--c);border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.45);cursor:pointer}
 .pin i{width:7px;height:7px;border-radius:50%;background:#fff}
 .maplibregl-ctrl-group{border-radius:8px!important;box-shadow:var(--shadow)!important}
 .maplibregl-ctrl-attrib{font-size:10.5px}
-@media (max-width:480px){.card span{display:none}.seg button{padding:9px 10px}}
+@media (max-width:480px){.card span{display:none}.seg button{padding:9px 8px;font-size:12px}.card b{font-size:13px}}
+@media (max-width:400px){.card{display:none}}
 </style>
 </head>
 <body>
@@ -35,8 +38,10 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family
   <div class="seg" role="group" aria-label="Tipo de mapa">
     <button id="bCalles" aria-pressed="true">Calles</button>
     <button id="bSat" aria-pressed="false">Satélite</button>
+    <button id="bSup" aria-pressed="false">Superponer</button>
   </div>
 </div>
+<label class="opac" id="opac" hidden>Calles <input type="range" id="rOpac" min="0" max="100" value="85" aria-label="Transparencia de las calles"></label>
 <div class="estado" id="estado">Cargando el mapa…</div>
 <script src="vendor/maplibre-gl.js"></script>
 <script src="config.js"></script>
@@ -73,6 +78,7 @@ const style = {
   },
   layers:[
     {id:"fondo", type:"background", paint:{"background-color":C.tierra}},
+    ...((window.CDE_CONFIG || {}).esriKey ? [{id:"satelite", type:"raster", source:"sat", layout:{visibility:"none"}}] : []),
     {id:"parques", type:"fill", source:"osm", "source-layer":"park", paint:{"fill-color":C.parque}},
     {id:"verde", type:"fill", source:"osm", "source-layer":"landcover", filter:tipo("grass", "wood"), paint:{"fill-color":C.parque, "fill-opacity":.6}},
     {id:"agua", type:"fill", source:"osm", "source-layer":"water", paint:{"fill-color":C.agua}},
@@ -98,7 +104,6 @@ const style = {
     {id:"ciudades", type:"symbol", source:"osm", "source-layer":"place", filter:tipo("city", "town"),
       layout:{"text-field":["get", "name"], "text-font":negrita, "text-size":["interpolate", ["linear"], ["zoom"], 10, 13, 14, 18]},
       paint:{"text-color":C.txt, "text-halo-color":C.halo, "text-halo-width":2}},
-    ...((window.CDE_CONFIG || {}).esriKey ? [{id:"satelite", type:"raster", source:"sat", layout:{visibility:"none"}}] : [])
   ]
 };
 
@@ -107,7 +112,7 @@ const map = new maplibregl.Map({container:"map", style, center:[-54.6135, -25.50
 map.touchZoomRotate.disableRotation();
 map.addControl(new maplibregl.NavigationControl({showCompass:false}), "bottom-right");
 map.on("load", () => { document.getElementById("estado").textContent = ""; });
-map.on("error", e => { if (!map.loaded()) document.getElementById("estado").textContent = "No se pudo cargar el mapa. Probá recargar."; console.warn(e.error); });
+map.on("error", e => { if (!map.loaded() && e.sourceId !== "sat" && !e.tile) document.getElementById("estado").textContent = "No se pudo cargar el mapa. Probá recargar."; console.warn(e.error); });
 
 // Denuncias de ejemplo, para ver cómo quedan los marcadores encima.
 const COLOR = {bache:"#d9622b", inundacion:"#2a7fd4", animal:"#8d6a4c", semaforo:"#d99a00", inseguro:"#7b52c4", asalto:"#d23a4b", basura:"#4f8a3a", alumbrado:"#17999a"};
@@ -118,17 +123,42 @@ fetch("datos-ejemplo.json").then(r => r.json()).then(d => {
   }
 }).catch(() => {});
 
-// Botón Calles / Satélite: el satélite de Esri se pone encima y los nombres de las calles quedan visibles.
-function modo(satelite){
-  document.getElementById("bSat").setAttribute("aria-pressed", satelite);
-  document.getElementById("bCalles").setAttribute("aria-pressed", !satelite);
-  if (!map.getLayer("satelite")) return;
-  map.setLayoutProperty("satelite", "visibility", satelite ? "visible" : "none");
-  if (satelite) for (const id of ["nombres-agua", "nombres-calles", "barrios", "ciudades"]) map.moveLayer(id);
+// Tres vistas: Calles (nuestro mapa), Satélite (solo la imagen de Esri) y Superponer
+// (nuestras calles encima del satélite, al estilo de las rutas de Esri, para comprobar que coinciden).
+const SUPERFICIES = ["parques", "verde", "agua", "arroyos", "edificios"];
+const NOMBRES = ["nombres-agua", "nombres-calles", "barrios", "ciudades"];
+const HIBRIDO = {menor:"#ffffff", terciaria:"#ffffff", avenida:"#ffe08a", ruta:"#ffb35c"};
+let vista = "calles";
+function pintar(){
+  const sat = vista !== "calles", sup = vista === "superponer", op = document.getElementById("rOpac").value / 100;
+  const ver = (id, si) => map.setLayoutProperty(id, "visibility", si ? "visible" : "none");
+  if (map.getLayer("satelite")) ver("satelite", sat);
+  for (const id of SUPERFICIES) ver(id, !sat);
+  for (const k of CALLES){
+    ver(k.id, vista !== "satelite"); ver(k.id + "-borde", vista !== "satelite");
+    map.setPaintProperty(k.id, "line-color", sup ? HIBRIDO[k.id] : k.c);
+    map.setPaintProperty(k.id, "line-opacity", sup ? op : 1);
+    map.setPaintProperty(k.id + "-borde", "line-color", sup ? "#000000" : k.b);
+    map.setPaintProperty(k.id + "-borde", "line-opacity", sup ? op * .45 : 1);
+    // Encima del satélite las calles van más finas, para ver la calle real debajo.
+    map.setPaintProperty(k.id, "line-width", sup ? ancho(...k.w.map(x => x * .45)) : ancho(...k.w));
+    map.setPaintProperty(k.id + "-borde", "line-width", sup ? ancho(...k.w.map(x => x * .45), [.8, 1.2, 1.6]) : ancho(...k.w, [.9, 1.6, 3]));
+  }
+  for (const id of NOMBRES){
+    ver(id, vista !== "satelite");
+    map.setPaintProperty(id, "text-color", sup ? "#ffffff" : id === "nombres-agua" ? C.aguaTxt : id === "barrios" ? C.barrio : C.txt);
+    map.setPaintProperty(id, "text-halo-color", sup ? "rgba(0,0,0,.75)" : C.halo);
+  }
+  ver("puente-frontera", !sat);
+  document.getElementById("opac").hidden = !sup;
+  for (const [b, v] of [["bCalles", "calles"], ["bSat", "satelite"], ["bSup", "superponer"]]) document.getElementById(b).setAttribute("aria-pressed", vista === v);
 }
-document.getElementById("bCalles").onclick = () => modo(false);
-document.getElementById("bSat").onclick = () => modo(true);
-if (!(window.CDE_CONFIG || {}).esriKey) document.getElementById("bSat").hidden = true;
+const cambiar = v => { vista = v; if (map.isStyleLoaded()) pintar(); else map.once("load", pintar); };
+document.getElementById("bCalles").onclick = () => cambiar("calles");
+document.getElementById("bSat").onclick = () => cambiar("satelite");
+document.getElementById("bSup").onclick = () => cambiar("superponer");
+document.getElementById("rOpac").oninput = () => vista === "superponer" && pintar();
+if (!(window.CDE_CONFIG || {}).esriKey) document.getElementById("bSat").hidden = document.getElementById("bSup").hidden = true;
 </script>
 </body>
 </html>
