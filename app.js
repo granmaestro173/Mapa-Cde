@@ -118,7 +118,8 @@ function iconFor(r, sel){
 // Una denuncia resuelta sigue 10 minutos en el mapa, por si se marcó por error y hay que cancelarlo; después sale del mapa.
 const RES_GRACIA = 10*60*1000;
 const resReciente = r => r.status === "resuelta" && !!r.resolvedAt && Date.now() - r.resolvedAt < RES_GRACIA;
-const enMapa = r => r.status !== "resuelta" || resReciente(r) || state.showRes;
+// "Mostrar resueltas" muestra las de las últimas 2 semanas; las más viejas se borran solas (06-limpiar-resueltas.sql).
+const enMapa = r => r.status !== "resuelta" || resReciente(r) || state.showRes && Date.now() - (r.resolvedAt || r.t) < 14*DAY;
 function visibleReports(){
   return allReports().filter(r => state.cats.has(r.cat) && inPeriod(r) && enMapa(r) && (!state.onlyPhoto || hasPhoto(r)) && nearOK(r));
 }

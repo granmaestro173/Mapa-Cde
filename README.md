@@ -32,6 +32,8 @@ supabase/03-borrar-ejemplos.sql para sacar los ejemplos cuando pase a uso real
 supabase/04-quitar-voto.sql     solo si creaste la base antes de esta función: permite deshacer un voto
 supabase/05-verificacion-ia.sql la IA revisa las fotos nuevas cada 5 minutos (paso 5)
 api/verificar.js                función del servidor que hace esa revisión
+supabase/06-limpiar-resueltas.sql borra cada día las denuncias resueltas hace más de 2 semanas (paso 6)
+api/limpiar.js                  función del servidor que borra sus fotos
 scripts/generar-ejemplos.mjs    regenera los datos de ejemplo (opcional)
 ```
 
@@ -147,6 +149,15 @@ Cada 5 minutos, Claude Haiku revisa las denuncias nuevas con foto y mira si la f
 
 Para ver que funciona: hacé una denuncia con foto y esperá unos minutos. En Supabase, **Integrations → Cron** (o *Database → Cron Jobs*) muestra cada ejecución de `verificar-con-ia`. Para pausarla: `select cron.unschedule('verificar-con-ia');`.
 
+## Paso 6 · Limpieza de denuncias resueltas (opcional, 2 min)
+
+Una denuncia marcada como resuelta queda 10 minutos en el mapa, por si fue un error y hay que cancelarlo. Después sale del mapa; con el filtro "Mostrar resueltas" se ven las de las últimas 2 semanas. Todos los días a las 4:15 de la mañana se **borran** las resueltas hace más de 2 semanas, con sus votos y sus fotos. Se conservan las que tienen una obra municipal (para auditar el gasto) y los datos de ejemplo. El historial deja constancia de cuántas se borraron.
+
+1. Necesita `IA_CLAVE`, `SUPABASE_URL` y `SUPABASE_ANON_KEY` en Vercel (paso 5).
+2. Supabase → **SQL Editor** → pegá todo `06-limpiar-resueltas.sql` → **Run**. Si tu página no es `https://mapa-cde-zspd.vercel.app`, cambiá antes esa dirección.
+
+Para pausarla: `select cron.unschedule('limpiar-resueltas');`.
+
 ---
 
 ## Antes de usarlo de verdad
@@ -177,15 +188,14 @@ Para ver que funciona: hacé una denuncia con foto y esperá unos minutos. En Su
 1. Vercel → tu proyecto → **Settings → Domains** → agregá la dirección nueva. Dejá la vieja un tiempo para que sigan andando los links compartidos.
 2. Supabase → **Authentication → URL Configuration**: cambiá *Site URL* y *Redirect URLs* (con `/**` al final).
 3. Google Cloud → **Clients** → *Authorized JavaScript origins*: la dirección nueva (solo si usás Google).
-4. Supabase → **SQL Editor**, para que la revisión con IA llame a la dirección nueva (cambiá `NUEVA-DIRECCION`):
+4. Supabase → **SQL Editor**, para que la revisión con IA y la limpieza llamen a la dirección nueva (cambiá `NUEVA-DIRECCION`):
 
 ```sql
-select cron.alter_job((select jobid from cron.job where jobname = 'verificar-con-ia'),
-  command := replace((select command from cron.job where jobname = 'verificar-con-ia'),
-                     'https://mapa-cde-zspd.vercel.app', 'https://NUEVA-DIRECCION'));
+select cron.alter_job(jobid, command := replace(command, 'https://mapa-cde-zspd.vercel.app', 'https://NUEVA-DIRECCION'))
+  from cron.job where jobname in ('verificar-con-ia', 'limpiar-resueltas');
 ```
 
-   Y cambiá también la dirección en `supabase/05-verificacion-ia.sql`, por si lo volvés a ejecutar.
+   Y cambiá también la dirección en `supabase/05-verificacion-ia.sql` y `06-limpiar-resueltas.sql`, por si los volvés a ejecutar.
 
 ---
 
