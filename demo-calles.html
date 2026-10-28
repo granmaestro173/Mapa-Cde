@@ -102,11 +102,22 @@ const style = {
   ]
 };
 
-const map = new maplibregl.Map({container:"map", style, fadeDuration:0, renderWorldCopies:false, pixelRatio:Math.min(devicePixelRatio || 1, matchMedia("(pointer: coarse)").matches ? 1.5 : 2), maxTileCacheSize:80, maxPitch:0, center:[-54.6135, -25.5095], zoom:15, minZoom:13, maxZoom:19,
+const map = new maplibregl.Map({container:"map", style, fadeDuration:0, renderWorldCopies:false, pixelRatio:Math.min(devicePixelRatio || 1, 1.5), maxTileCacheSize:80, maxPitch:0, center:[-54.6135, -25.5095], zoom:15, minZoom:13, maxZoom:19,
   maxBounds:[[-54.75, -25.62], [-54.55, -25.43]], attributionControl:{compact:true}, dragRotate:false, pitchWithRotate:false});
 map.touchZoomRotate.disableRotation();
 map.addControl(new maplibregl.NavigationControl({showCompass:false}), "bottom-right");
-map.on("load", () => { document.getElementById("estado").textContent = ""; });
+map.on("load", () => { document.getElementById("estado").textContent = sinPlacaDeVideo() ?
+  "Tu navegador está dibujando el mapa sin la placa de video y por eso va lento. Activá la aceleración por hardware en la configuración del navegador." : ""; });
+
+// Este tipo de mapa lo dibuja la placa de video. Si el navegador la tiene desactivada, lo dibuja el procesador y se traba.
+function sinPlacaDeVideo(){
+  try {
+    const c = document.createElement("canvas");
+    if (!c.getContext("webgl", {failIfMajorPerformanceCaveat:true})) return true;
+    const gl = document.createElement("canvas").getContext("webgl"), ext = gl && gl.getExtension("WEBGL_debug_renderer_info");
+    return !!ext && /swiftshader|llvmpipe|software|basic render/i.test(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL));
+  } catch { return false; }
+}
 map.on("error", e => { if (!map.loaded() && e.sourceId !== "sat" && !e.tile) document.getElementById("estado").textContent = "No se pudo cargar el mapa. Probá recargar."; console.warn(e.error); });
 
 // Denuncias de ejemplo, para ver cómo quedan los marcadores encima.
