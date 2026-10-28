@@ -366,6 +366,7 @@ function openDetail(id){
       ${iaNote(r)}
       ${resNote(r)}
       ${photoBlock(r)}
+      ${iaDesc(r)}
       <p style="margin:0;font-size:15px">${esc(r.desc)}</p>
       <div class="steps">${["Recibida","En proceso","Resuelta"].map((s,i)=>`<span class="${i<=stIdx?"done":""}">${s}</span>`).join("")}</div>
       <div class="ai">
@@ -394,6 +395,9 @@ function resNote(r){
   const min = Math.max(1, Math.ceil((RES_GRACIA - (Date.now() - r.resolvedAt)) / 60000));
   return `<div class="note" id="resNote">✓ Marcada como resuelta. Se quita del mapa en ${min} ${min===1?"minuto":"minutos"}${state.muni ? "; si fue un error, tocá «Cancelar \"resuelta\"»" : ""}.</div>`;
 }
+// Lo que la IA vio en la foto, arriba de lo que escribió el vecino. Si la IA dudó, solo lo ve la moderación.
+const iaDesc = r => r.iaDesc && (r.iaCheck === "verificada" || state.staff)
+  ? `<div class="ia-desc"><span class="ai-tag">✦ La IA ve</span>${esc(r.iaDesc)}</div>` : "";
 const iaNote = r => state.staff && r.iaWhy && r.iaCheck !== "sin_foto" ? `<div class="note">✦ Revisión con IA: ${esc(r.iaWhy)}</div>` : "";
 function modChip(r){
   if (r.mod==="verificada") return '<span class="chip ok">✓ Verificado manualmente</span>';

@@ -291,6 +291,7 @@ grant execute on function public.quitar_voto(text, text) to authenticated;
 -- si no, "dudosa" (eso solo lo ve la moderación). Las denuncias sin foto no se escanean.
 alter table public.denuncias add column if not exists ia_estado text check (ia_estado in ('verificada','dudosa','sin_foto','error'));
 alter table public.denuncias add column if not exists ia_motivo text;
+alter table public.denuncias add column if not exists ia_resumen text;   -- lo que la IA ve en la foto, en una frase corta
 alter table public.denuncias add column if not exists ia_revisada timestamptz;
 create index if not exists denuncias_ia_pendientes_idx on public.denuncias (creada) where ia_revisada is null;
 
@@ -308,9 +309,9 @@ language plpgsql as $$
 begin
   if not public.desde_la_app() or current_setting('cde.rpc', true) = '1' then return new; end if;
   if tg_op = 'INSERT' then
-    new.ia_estado := null; new.ia_motivo := null; new.ia_revisada := null;
+    new.ia_estado := null; new.ia_motivo := null; new.ia_resumen := null; new.ia_revisada := null;
   else
-    new.ia_estado := old.ia_estado; new.ia_motivo := old.ia_motivo; new.ia_revisada := old.ia_revisada;
+    new.ia_estado := old.ia_estado; new.ia_motivo := old.ia_motivo; new.ia_resumen := old.ia_resumen; new.ia_revisada := old.ia_revisada;
   end if;
   return new;
 end $$;
@@ -342,19 +343,20 @@ end $$;
 revoke execute on function public.ia_pendientes(text, int) from public;
 grant execute on function public.ia_pendientes(text, int) to anon, authenticated;
 
-create or replace function public.ia_guardar(p_clave text, p_id text, p_estado text, p_motivo text)
+drop function if exists public.ia_guardar(text, text, text, text);
+create or replace function public.ia_guardar(p_clave text, p_id text, p_estado text, p_motivo text, p_resumen text default null)
 returns void language plpgsql security definer set search_path = public as $$
 begin
   if not public.ia_clave_valida(p_clave) then raise exception 'Clave inválida.' using errcode = '42501'; end if;
   if p_estado not in ('verificada','dudosa','sin_foto','error') then raise exception 'Resultado inválido.'; end if;
   perform set_config('cde.rpc', '1', true);
   update public.denuncias
-     set ia_estado = p_estado, ia_motivo = left(p_motivo, 300), ia_revisada = now()
+     set ia_estado = p_estado, ia_motivo = left(p_motivo, 300), ia_resumen = left(p_resumen, 140), ia_revisada = now()
    where id = p_id;
   perform set_config('cde.rpc', '0', true);
 end $$;
-revoke execute on function public.ia_guardar(text, text, text, text) from public;
-grant execute on function public.ia_guardar(text, text, text, text) to anon, authenticated;
+revoke execute on function public.ia_guardar(text, text, text, text, text) from public;
+grant execute on function public.ia_guardar(text, text, text, text, text) to anon, authenticated;
 
 -- Avisa que la foto ya se subió. Solo el autor de la denuncia, y solo si el archivo existe de verdad.
 create or replace function public.confirmar_foto(p_denuncia text) returns void
