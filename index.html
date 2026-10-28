@@ -324,6 +324,16 @@ main{height:100%;display:block}
 .icon-btn svg{width:22px;height:22px}
 .avatar-btn img,.avatar-btn .ini{width:32px;height:32px;border-radius:50%;object-fit:cover;display:grid;place-items:center}
 .avatar-btn .ini{background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:15px}
+.bell-btn{position:relative}
+@media (max-width:400px){.searchbox .lupa{display:none}}
+.bell-btn .badge{position:absolute;top:4px;right:3px;min-width:16px;height:16px;border-radius:8px;background:#d93025;color:#fff;font-size:10px;font-weight:700;display:grid;place-items:center;padding:0 4px;border:2px solid var(--panel)}
+.avlist{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.av{display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left;border:0;border-bottom:1px solid var(--line);background:var(--panel);color:var(--ink);padding:10px 12px;font:inherit;font-size:13.5px;cursor:pointer}
+.av:last-child{border-bottom:0}
+.av:hover{background:var(--panel-2)}
+.av small{color:var(--muted);font-size:12px;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.av.nuevo{background:color-mix(in srgb,var(--accent) 8%,var(--panel))}
+.av.nuevo span::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-right:7px;vertical-align:1px}
 .acct{display:flex;align-items:center;gap:12px}
 .acct img,.acct .ini{width:48px;height:48px;border-radius:50%;object-fit:cover;display:grid;place-items:center;flex:none}
 .acct .ini{background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:20px}
@@ -556,6 +566,7 @@ main{height:100%;display:block}
     <a href="#municipalidad" data-view="municipalidad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 10l9-6 9 6"/><path d="M5 10v9h14v-9M9 19v-5h6v5"/></svg>Municipalidad</a>
   </div>
   <button class="mi" id="btnNew" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z"/><path d="M12 6.5v5M9.5 9h5"/></svg>Nueva denuncia</button>
+  <button class="mi" id="btnMisDenuncias" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></svg>Mis denuncias y avisos</button>
   <button class="mi" id="btnAccount" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Ingresar</button>
   <div class="note">Imágenes satelitales © Esri, Maxar, Earthstar Geographics.</div>
 </nav>
@@ -576,7 +587,8 @@ main{height:100%;display:block}
       <button class="icon-btn" id="btnMenu" type="button" aria-label="Abrir menú" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
       <input id="q" type="search" placeholder="Buscar barrio o denuncia" autocomplete="off" aria-label="Buscar barrio o denuncia" aria-controls="qres">
       <span class="live" id="livePill" title="Estado de la conexión"><i></i><span>Conectando…</span></span>
-      <span class="icon-btn" aria-hidden="true" style="color:var(--muted)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg></span>
+      <span class="icon-btn lupa" aria-hidden="true" style="color:var(--muted)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg></span>
+      <button class="icon-btn bell-btn" id="btnAvisos" type="button" aria-label="Mis denuncias y avisos" title="Mis denuncias y avisos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></svg><span class="badge" id="avisosBadge" hidden>0</span></button>
       <button class="icon-btn avatar-btn" id="btnAvatar" type="button" aria-label="Ingresar" title="Ingresar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></button>
       <div class="results" id="qres" hidden></div>
     </div>
@@ -749,7 +761,7 @@ main{height:100%;display:block}
 <script src="vendor/leaflet.js"></script>
 <script src="vendor/supabase.js"></script>
 <script src="config.js?v=2"></script>
-<script src="store.js?v=3"></script>
-<script src="app.js?v=9"></script>
+<script src="store.js?v=4"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>

@@ -160,6 +160,13 @@ Para pausarla: `select cron.unschedule('limpiar-resueltas');`.
 
 ---
 
+## Mis denuncias, avisos y uso sin internet
+
+- **Mis denuncias** (campana junto a la búsqueda, o en el menú): lista las denuncias hechas desde ese dispositivo con su estado. Cuando una pasa a *En proceso*, *Resuelta*, o la verifica la moderación o la IA, aparece un aviso. Se puede desactivar con el interruptor "Avisarme cuando cambien". Si el vecino lo permite, el aviso también llega como notificación del sistema mientras la página esté abierta (aunque sea en otra pestaña).
+- **Sin internet** (`sw.js`): la página abre igual, con las últimas denuncias, fotos y mapa que se vieron. Una denuncia hecha sin señal queda guardada en el teléfono y se envía sola cuando vuelve internet.
+
+---
+
 ## Antes de usarlo de verdad
 
 - **Sacar los datos de ejemplo:** ejecutá `supabase/03-borrar-ejemplos.sql` en el SQL Editor. También podés ocultarlos sin borrarlos con *Capas → Datos de ejemplo*.

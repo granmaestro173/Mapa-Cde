@@ -747,12 +747,18 @@ async function submitReport(e){
   const rec = {cat, lat:+pickLatLng[0].toFixed(5), lng:+pickLatLng[1].toFixed(5), desc:desc.slice(0,500), barrio:nearestBarrio(pickLatLng),
     sev:+($("#fSev").value || ai.gravedad || 3), ai:{src:ai.src, conf:ai.confianza, area_m2:ai.area_m2||null}, photoTaken:formState.photo ? formState.photoTaken : null};
   const btn = $("#btnSend"); btn.disabled = true; btn.textContent = "Enviando…";
+  const photo = formState.photo ? {blob:formState.photoBlob, dataUrl:formState.photo, file:formState.photoFile} : null;
   try {
-    const {report, warn} = await Store.createReport(rec, formState.photo ? {blob:formState.photoBlob, dataUrl:formState.photo, file:formState.photoFile} : null);
-    live.set(report.id, report);
+    if (!navigator.onLine) throw new Error("Sin conexión.");
+    const {report, warn} = await Store.createReport(rec, photo);
+    live.set(report.id, report); registrarMia(report);
     clearPick(); refresh(); openDetail(report.id);
     toast(warn || "Denuncia enviada. ¡Gracias por avisar!");
   } catch(err){
+    if (sinSenal(err) && await guardarSinSenal(rec, photo).then(() => true, () => false)){
+      clearPick(); refresh();
+      return toast("Estás sin señal: la denuncia quedó guardada en este dispositivo y se envía sola cuando vuelva internet.");
+    }
     btn.disabled = false; btn.textContent = "Enviar denuncia";
     toast(err.message || "No se pudo enviar la denuncia.");
     if (err.needLogin) openLogin();
@@ -1024,6 +1030,7 @@ let rT = null;
 function refresh(){
   clearTimeout(rT);
   rT = setTimeout(() => {
+    revisarAvisos(); abrirPendiente();
     renderPeriodSegs(); renderSide(); renderPins();
     if (!$("#view-estadisticas").hidden) renderStats();
     if (!$("#view-municipalidad").hidden) renderMuni();
@@ -1095,6 +1102,126 @@ function applyUser(u){
   if (!$("#view-municipalidad").hidden) renderMuni();
   if (state.sel && !drawer.hidden && findReport(state.sel)) openDetail(state.sel);
 }
+
+/* ---------- Mis denuncias y avisos: le cuenta al vecino cuando su denuncia avanza ---------- */
+// Se guarda en este dispositivo el último estado conocido de cada denuncia propia; si cambia, se avisa.
+const AV = {mias:"cde-mias", avisos:"cde-avisos", activos:"cde-avisos-activos"};
+const leerLS = (k, def) => { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch(e){ return def; } };
+const guardarLS = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} };
+let mias = leerLS(AV.mias, {});          // id -> último estado visto ("estado|moderación|ia")
+let avisos = leerLS(AV.avisos, []);      // [{id, t, texto, leido}]
+let avisosActivos = leerLS(AV.activos, true);
+const huella = r => [r.status, r.mod || "", r.iaCheck === "verificada" ? "ia" : ""].join("|");
+const esMia = r => !!mias[r.id] || r.mine || (!!r.autor && r.autor === Store.user?.id);
+function registrarMia(r){ mias[r.id] = huella(r); guardarLS(AV.mias, mias); }
+function textoAviso(r, antes){
+  const [st, md, ia] = antes.split("|"), que = `Tu denuncia de ${CATS[r.cat].one.toLowerCase()} en ${r.barrio}`;
+  if (r.status !== st) return r.status === "resuelta" ? `¡${que} fue resuelta!` : r.status === "en_proceso" ? `${que} está en proceso.` : `${que} volvió a "Recibida".`;
+  if (r.mod !== md) return r.mod === "verificada" ? `${que} fue verificada por la moderación.` : r.mod === "falsa" ? `${que} fue marcada como falsa.` : "";
+  if (r.iaCheck === "verificada" && !ia) return `${que} fue verificada con IA.`;
+  return "";
+}
+// Se llama cada vez que llegan datos nuevos (al cargar, en tiempo real o al volver la señal).
+function revisarAvisos(){
+  let cambios = false;
+  for (const r of live.values()){
+    if (!esMia(r)) continue;
+    const antes = mias[r.id], ahora = huella(r);
+    if (antes === ahora) continue;
+    mias[r.id] = ahora; cambios = true;
+    const texto = antes ? textoAviso(r, antes) : "";
+    if (texto && avisosActivos) avisar(r.id, texto);
+  }
+  if (cambios) guardarLS(AV.mias, mias);
+}
+function avisar(id, texto){
+  avisos.unshift({id, t:Date.now(), texto, leido:false});
+  avisos = avisos.slice(0, 40); guardarLS(AV.avisos, avisos); renderCampana();
+  // Con la página a la vista, un mensaje; si está en segundo plano, un aviso del sistema (si el vecino lo permitió).
+  if (!document.hidden || !("Notification" in window) || Notification.permission !== "granted") return toast(texto);
+  const op = {body:texto, tag:"cde-" + id, data:{id}, lang:"es"};
+  (navigator.serviceWorker?.ready || Promise.reject()).then(reg => reg.showNotification("Mapa Ciudadano CDE", op))
+    .catch(() => { try { new Notification("Mapa Ciudadano CDE", op).onclick = () => { window.focus(); openDetail(id); }; } catch(e) {} });
+}
+function renderCampana(){
+  const n = avisosActivos ? avisos.filter(a => !a.leido).length : 0, b = $("#btnAvisos");
+  $("#avisosBadge").hidden = !n; $("#avisosBadge").textContent = n > 9 ? "9+" : n;
+  b.setAttribute("aria-label", n ? `Mis denuncias: ${n} aviso${n===1?"":"s"} nuevo${n===1?"":"s"}` : "Mis denuncias y avisos"); b.title = b.getAttribute("aria-label");
+}
+const ESTADO_CHIP = {recibida:["Recibida",""], en_proceso:["En proceso","warn"], resuelta:["Resuelta","ok"]};
+function openAvisos(){
+  const propias = [...live.values()].filter(esMia).sort((a,b) => b.t - a.t);
+  const nuevos = new Set(avisos.filter(a => !a.leido).map(a => a.t));
+  avisos.forEach(a => a.leido = true); guardarLS(AV.avisos, avisos); renderCampana();
+  const permiso = !("Notification" in window) ? "Este navegador no permite avisos del sistema; los vas a ver acá."
+    : Notification.permission === "granted" ? "También te llegan como aviso del sistema mientras la página esté abierta."
+    : Notification.permission === "denied" ? "Los avisos del sistema están bloqueados en el navegador; los vas a ver acá."
+    : `<button class="lnk" type="button" id="avPermiso">Recibirlos también como aviso del sistema</button>`;
+  showDrawer(`
+    <div class="drawer-head"><div><div class="eyebrow">Seguimiento</div><h2>Mis denuncias</h2></div><button class="x" type="button" aria-label="Cerrar" data-close>×</button></div>
+    <div class="drawer-body">
+      <label class="tg"><span>Avisarme cuando cambien<small>${avisosActivos ? permiso : "Avisos desactivados"}</small></span><input type="checkbox" class="switch" id="avActivos" ${avisosActivos ? "checked" : ""}></label>
+      ${pendientes.length ? `<div class="warnbox"><b>${pendientes.length} denuncia${pendientes.length===1?"":"s"} sin enviar.</b> Se guardaron sin señal y se envían solas cuando vuelva internet.</div>` : ""}
+      ${avisosActivos && avisos.length ? `<div><div class="eyebrow" style="margin-bottom:6px">Avisos</div><div class="avlist">${avisos.slice(0, 12).map(a => `<button type="button" class="av ${nuevos.has(a.t) ? "nuevo" : ""}" data-av="${esc(a.id)}"><span>${esc(a.texto)}</span><small>${ago(a.t)}</small></button>`).join("")}</div></div>` : ""}
+      <div><div class="eyebrow" style="margin-bottom:6px">Tus denuncias</div>
+      ${propias.length ? `<div class="avlist">${propias.map(r => `<button type="button" class="av" data-av="${esc(r.id)}"><span><b>${CATS[r.cat].one}</b> · ${esc(r.barrio)}</span><small><span class="chip ${ESTADO_CHIP[r.status][1]}">${ESTADO_CHIP[r.status][0]}</span> ${ago(r.t)}</small></button>`).join("")}</div>`
+        : `<p class="note" style="margin:0">Todavía no hiciste denuncias desde este dispositivo.${Store.user && Store.user.anon ? " Si querés seguirlas desde otro celular, iniciá sesión antes de denunciar." : ""}</p>`}</div>
+    </div>`);
+  $("#avActivos").addEventListener("change", e => {
+    avisosActivos = e.target.checked; guardarLS(AV.activos, avisosActivos); renderCampana();
+    toast(avisosActivos ? "Avisos activados." : "Avisos desactivados. Podés volver a activarlos acá cuando quieras.");
+    openAvisos();
+  });
+  $("#avPermiso")?.addEventListener("click", async () => { await Notification.requestPermission().catch(() => {}); openAvisos(); });
+}
+drawer.addEventListener("click", e => { const a = e.target.closest("[data-av]"); if (a && findReport(a.dataset.av)) openDetail(a.dataset.av); });
+$("#btnAvisos").addEventListener("click", openAvisos);
+$("#btnMisDenuncias").addEventListener("click", openAvisos);
+// Abrir una denuncia desde un aviso del sistema (?denuncia=ID) cuando ya cargaron los datos.
+let abrirCuandoLlegue = new URLSearchParams(location.search).get("denuncia");
+navigator.serviceWorker?.addEventListener("message", e => { if (e.data?.abrir){ abrirCuandoLlegue = e.data.abrir; abrirPendiente(); } });
+function abrirPendiente(){ if (abrirCuandoLlegue && findReport(abrirCuandoLlegue)){ openDetail(abrirCuandoLlegue); abrirCuandoLlegue = null; history.replaceState(null, "", location.pathname + location.hash); } }
+
+/* ---------- Sin internet: la denuncia se guarda en el teléfono y se envía sola cuando vuelve la señal ---------- */
+const Cola = {
+  db:null,
+  abrir(){ return this.db ||= new Promise((ok, mal) => { const q = indexedDB.open("cde-sin-senal", 1); q.onupgradeneeded = () => q.result.createObjectStore("pendientes", {keyPath:"k", autoIncrement:true}); q.onsuccess = () => ok(q.result); q.onerror = () => mal(q.error); }); },
+  async hacer(modo, fn){ const db = await this.abrir(); return new Promise((ok, mal) => { const t = db.transaction("pendientes", modo), q = fn(t.objectStore("pendientes")); t.oncomplete = () => ok(q.result); t.onerror = () => mal(t.error); }); },
+  agregar(item){ return this.hacer("readwrite", st => st.add(item)); },
+  todos(){ return this.hacer("readonly", st => st.getAll()); },
+  quitar(k){ return this.hacer("readwrite", st => st.delete(k)); }
+};
+let pendientes = [], enviando = false;
+const sinSenal = err => !navigator.onLine || /Sin conexión|Failed to fetch|NetworkError|Load failed|network/i.test(err?.message || "");
+async function guardarSinSenal(rec, photo){
+  await Cola.agregar({rec, photo, t:Date.now()});
+  pendientes = await Cola.todos(); renderCampana();
+}
+async function enviarPendientes(){
+  if (enviando || !navigator.onLine) return;
+  enviando = true;
+  try {
+    pendientes = await Cola.todos().catch(() => []);
+    for (const p of pendientes){
+      try {
+        const {report} = await Store.createReport(p.rec, p.photo);
+        await Cola.quitar(p.k); live.set(report.id, report); registrarMia(report);
+        avisar(report.id, `Tu denuncia de ${CATS[report.cat].one.toLowerCase()} guardada sin señal ya se envió.`);
+      } catch(err){ if (sinSenal(err)) break; }
+    }
+    pendientes = await Cola.todos().catch(() => []); refresh();
+  } finally { enviando = false; }
+}
+function estadoRed(){
+  if (navigator.onLine){ setLive("off", "Conectando…"); Store.recargar?.(); enviarPendientes(); }
+  else setLive("off", "Sin conexión");
+}
+window.addEventListener("online", estadoRed);
+window.addEventListener("offline", estadoRed);
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost"))
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+Cola.todos().then(l => { pendientes = l; renderCampana(); enviarPendientes(); }).catch(() => {});
+renderCampana();
 
 /* ---------- IA opcional: Claude explica zonas y redacta el informe, a través de la función del servidor ---------- */
 const IA = {

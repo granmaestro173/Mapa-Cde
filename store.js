@@ -10,7 +10,7 @@ const fromRow = d => ({
   id:d.id, cat:d.categoria, lat:+d.lat, lng:+d.lng, t:Date.parse(d.creada), desc:d.descripcion, barrio:d.barrio || "—",
   status:d.estado, sev:d.gravedad, ai:d.clasificacion || {}, mod:d.moderacion || "", hasPhoto:!!d.foto, photoOrig:!!d.foto_original,
   photoTaken:d.foto_tomada ? Date.parse(d.foto_tomada) : null, votes:d.votos || 0, flags:d.marcas || 0, demo:!!d.demo,
-  resolvedAt:d.resuelta_en ? Date.parse(d.resuelta_en) : null, iaCheck:d.ia_estado || "", iaWhy:d.ia_motivo || "", iaDesc:d.ia_resumen || "", mine:false
+  resolvedAt:d.resuelta_en ? Date.parse(d.resuelta_en) : null, iaCheck:d.ia_estado || "", iaWhy:d.ia_motivo || "", iaDesc:d.ia_resumen || "", autor:d.autor || null, mine:false
 });
 const num = v => v == null || v === "" ? null : +v;
 const fromObra = o => ({
@@ -107,6 +107,7 @@ function supabaseStore(cfg, on){
       if (ev === "SIGNED_IN" || ev === "SIGNED_OUT" || ev === "USER_UPDATED") setTimeout(() => { loadUser(s).catch(() => {}); if (ev !== "USER_UPDATED") subscribe(); }, 0);
     });
   };
+  S.recargar = () => loadAll();
   S.accessToken = async () => { try { return (await ensureSession()).access_token; } catch(e){ return null; } };
   S.signInEmail = async email => {
     const {error} = await sb.auth.signInWithOtp({email, options:{emailRedirectTo:location.origin + location.pathname, shouldCreateUser:true}});
