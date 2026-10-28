@@ -47,8 +47,13 @@ jobs:
             rm -f /tmp/dem/osm.json
           done
           [ -f /tmp/dem/osm.json ] || echo "::warning::No se pudieron bajar los arroyos de OpenStreetMap; solo se usan los cauces grandes."
+          R='[out:json][timeout:120];way["highway"~"^(motorway|trunk|primary|motorway_link|trunk_link)$"](-25.70,-54.86,-25.36,-54.52);out geom;'
+          for s in https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
+            curl -fsS --retry 2 -m 180 --data-urlencode "data=$R" -o /tmp/dem/rutas.json "$s" && break
+            rm -f /tmp/dem/rutas.json
+          done
       - name: Calcular
-        run: python scripts/inundacion/calcular.py /tmp/dem/dem.tif /tmp/dem/wbm.tif /tmp/dem/osm.json
+        run: python scripts/inundacion/calcular.py /tmp/dem/dem.tif /tmp/dem/wbm.tif /tmp/dem/osm.json /tmp/dem/rutas.json
       - name: Guardar
         run: |
           git config user.name "github-actions[bot]"

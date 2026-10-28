@@ -11,7 +11,7 @@ Solo cuentan como cauce los que existen de verdad: los arroyos y ríos de OpenSt
 y los cauces que juntan agua de más de UMBRAL_SEGURO_KM2 (esos son arroyos aunque no estén en el mapa). Sin esto, cualquier
 bajada del terreno donde se junta agua de lluvia parecía un arroyo y zonas sin ningún arroyo cerca salían inundables.
 
-Uso: python3 scripts/inundacion/calcular.py dem.tif wbm.tif [osm.json]   (genera inundacion/riesgo-*.png e inundacion/datos.json)
+Uso: python3 scripts/inundacion/calcular.py dem.tif wbm.tif [osm.json] [rutas.json]   (genera inundacion/riesgo-*.png e inundacion/datos.json)
 Necesita: pip install numpy tifffile imagecodecs pillow pysheds affine
 El DEM y la máscara se bajan de https://copernicus-dem-30m.s3.amazonaws.com/ (hoja Copernicus_DSM_COG_10_S26_00_W055_00_DEM).
 wbm.tif es la máscara de agua que viene con el mismo DEM (AUXFILES/*_WBM.tif): ríos y lagos no se pintan.
@@ -31,7 +31,10 @@ CALCULO = [[-25.70, -54.86], [-25.36, -54.52]]
 UMBRAL_KM2 = 0.4          # área que tiene que juntar un cauce (arroyos chicos incluidos)
 UMBRAL_SEGURO_KM2 = 10    # con esta área es un arroyo aunque no figure en OpenStreetMap
 CERCA_OSM = 3             # celdas (~90 m) de tolerancia entre el cauce del relieve y el trazado de OpenStreetMap
-NIVELES = [(1.5, "muy_alta"), (4, "alta"), (8, "media")]   # metros de HAND
+NIVELES = [(1.5, "muy_alta"), (3, "alta"), (5, "media")]   # metros de HAND
+# Además de estar bajo, tiene que estar cerca de un arroyo o río real (metros en horizontal). Lo que queda lejos,
+# dentro de la ciudad, no se marca aunque el terreno sea bajo: ahí el agua es de desagüe pluvial, no de crecida.
+DISTANCIA = {"muy_alta": 150, "alta": 250, "media": 400}
 
 dem_path = sys.argv[1]
 t = tifffile.TiffFile(dem_path); p = t.pages[0]
@@ -69,7 +72,26 @@ cerca = binary_dilation(osm | (wbm_calc == 3), iterations=CERCA_OSM)
 cauces_relieve = np.asarray(cauces, dtype=bool)
 cauces = (cauces_relieve & cerca) | (np.asarray(acc) > UMBRAL_SEGURO_KM2 / celda_km2) | (wbm_calc == 3)
 vf_b = ViewFinder(affine=af, shape=dem.shape, crs="EPSG:4326", nodata=False)
-print("arroyos de OpenStreetMap", n_osm, "· celdas de cauce", int(cauces_relieve.sum()), "->", int(cauces.sum()))
+# Distancia en metros de cada celda al arroyo o río más cercano.
+from scipy.ndimage import distance_transform_edt
+dist_cauce = distance_transform_edt(~(cauces | osm), sampling=(lat_m, lng_m))
+# Rutas principales (OpenStreetMap): van sobre terraplén, más altas que el relieve de 30 m, y no se pintan.
+rutas = np.zeros(dem.shape, dtype=bool)
+def trazar(destino, elementos):
+    n = 0
+    for el in elementos:
+        g = el.get("geometry") or []
+        if len(g) < 2: continue
+        n += 1
+        for a_, b_ in zip(g, g[1:]):
+            pasos = max(2, int(max(abs(a_["lat"] - b_["lat"]), abs(a_["lon"] - b_["lon"])) / paso * 2) + 1)
+            for k in range(pasos + 1):
+                i_ = fila(a_["lat"] + (b_["lat"] - a_["lat"]) * k / pasos) - r0
+                j_ = col(a_["lon"] + (b_["lon"] - a_["lon"]) * k / pasos) - c0
+                if 0 <= i_ < dem.shape[0] and 0 <= j_ < dem.shape[1]: destino[i_, j_] = True
+    return n
+n_rutas = trazar(rutas, json.load(open(sys.argv[4])).get("elements", [])) if len(sys.argv) > 4 and os.path.exists(sys.argv[4]) else 0
+print("arroyos de OpenStreetMap", n_osm, "· rutas", n_rutas, "· celdas de cauce", int(cauces_relieve.sum()), "->", int(cauces.sum()))
 hand = np.asarray(grid.compute_hand(fdir, Raster(dem, viewfinder=vf), Raster(cauces, viewfinder=vf_b)), dtype="float64")
 hand[hand < 0] = 0
 
@@ -84,8 +106,9 @@ lim = [[float(y0 - (r0 + zr1) * paso), float(x0 + (c0 + zc0) * paso)], [float(y0
 # Se escala x3 con suavizado para que no se vean los cuadraditos, y con 32 colores pesa poco.
 colores = {"muy_alta": (13, 71, 161, 170), "alta": (30, 136, 229, 135), "media": (100, 181, 246, 100)}
 clase = np.full(h.shape, "", dtype=object)
+dc = dist_cauce[zr0:zr1, zc0:zc1]; ruta = rutas[zr0:zr1, zc0:zc1]
 for tope, nombre in reversed(NIVELES):
-    clase[(h <= tope) & ~agua] = nombre
+    clase[(h <= tope) & (dc <= DISTANCIA[nombre]) & ~agua & ~ruta] = nombre
 for nombre, color in colores.items():
     img = np.zeros(h.shape + (4,), dtype=np.uint8); img[clase == nombre] = color
     grande = Image.fromarray(img, "RGBA").resize((h.shape[1] * 3, h.shape[0] * 3), Image.BILINEAR)
@@ -135,7 +158,7 @@ for b in barrios:
 fichas.sort(key=lambda f: -f["indice"])
 
 json.dump({
-  "zona": lim, "niveles": [{"hasta_m": t_, "nombre": n} for t_, n in NIVELES], "umbral_cauce_km2": UMBRAL_KM2,
+  "zona": lim, "niveles": [{"hasta_m": t_, "nombre": n, "a_menos_de_m": DISTANCIA[n]} for t_, n in NIVELES], "umbral_cauce_km2": UMBRAL_KM2,
   "barrios": fichas, "cauces": lineas, "cota_base": COTA_BASE, "celdas": list(h.shape),
   "fuente": os.environ.get("DEM_FUENTE", "Copernicus DEM GLO-30 (ESA / Unión Europea)") + ". Método HAND con pysheds"
             + (". Arroyos y ríos: © colaboradores de OpenStreetMap (ODbL)." if n_osm else "."),
