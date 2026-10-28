@@ -2,7 +2,7 @@
 // - La página abre aunque no haya internet, con lo último que se cargó (denuncias y fotos).
 //   Las imágenes satelitales de Esri no se guardan: sus condiciones de uso no lo permiten.
 // - Muestra los avisos del sistema y, al tocarlos, abre la denuncia.
-const PAGINA = "cde-pagina-v2", DATOS = "cde-datos-v2", IMAGENES = "cde-imagenes-v2";
+const PAGINA = "cde-pagina-v3", DATOS = "cde-datos-v3", IMAGENES = "cde-imagenes-v3";
 const BASE = ["./", "index.html", "config.js", "store.js", "app.js", "vendor/leaflet.js", "vendor/supabase.js", "datos-ejemplo.json"];
 
 self.addEventListener("install", e => {
@@ -45,6 +45,8 @@ self.addEventListener("fetch", e => {
   const url = new URL(req.url);
   if (url.origin === location.origin){
     if (url.pathname.startsWith("/api/")) return;
+    // Las zonas inundables se recalculan: siempre se piden de nuevo (si no hay señal, se usa lo último guardado).
+    if (url.pathname.startsWith("/inundacion/")) return e.respondWith(redPrimero(req, DATOS));
     if (/\.(jpg|png|webp)$/.test(url.pathname) || url.pathname.startsWith("/vendor/")) return e.respondWith(guardadoPrimero(req));
     return e.respondWith(redPrimero(req, PAGINA, {ignoreSearch:true}));
   }
