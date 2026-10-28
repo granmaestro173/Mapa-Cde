@@ -295,7 +295,7 @@ function renderSide(){
     : rs.slice().sort((a,b)=>b.t-a.t).slice(0,7);
   $("#feedTitle").textContent = nearActive() ? `Más cercanas · a menos de ${fmtDist(state.near.r)}` : "Últimas denuncias";
   const feed = $("#feed"), prevIds = new Set($$("button", feed).map(b=>b.dataset.id));
-  feed.innerHTML = latest.map(r => `<button type="button" data-id="${esc(r.id)}" class="${prevIds.size && !prevIds.has(r.id) ? "new":""}"><span class="sw" style="--c:${cvar(r.cat)}"></span><span class="d"><b>${CATS[r.cat].one}</b> · ${esc(r.barrio)}</span><span class="t">${nearActive() ? `<span class="dist">${fmtDist(r._d)}</span> · ` : ""}${ago(r.t)}</span></button>`).join("") || `<div class="empty">${nearActive() ? "No hay denuncias en esta zona con los filtros elegidos." : "Todavía no hay denuncias."}</div>`;
+  feed.innerHTML = latest.map(r => `<button type="button" data-id="${esc(r.id)}" class="${prevIds.size && !prevIds.has(r.id) ? "new":""}"><span class="sw" style="--c:${cvar(r.cat)}"></span><span class="d"><b>${CATS[r.cat].one}</b> · ${esc(r.barrio)}</span><span class="t">${r.iaCheck === "verificada" ? '<span class="iav" title="Verificado con IA">✦</span> ' : ""}${nearActive() ? `<span class="dist">${fmtDist(r._d)}</span> · ` : ""}${ago(r.t)}</span></button>`).join("") || `<div class="empty">${nearActive() ? "No hay denuncias en esta zona con los filtros elegidos." : "Todavía no hay denuncias."}</div>`;
 }
 $("#cats").addEventListener("click", e => {
   const b = e.target.closest("[data-cat]"); if (!b) return;
@@ -351,7 +351,8 @@ function openDetail(id){
       <button class="x" type="button" aria-label="Cerrar" data-close>×</button>
     </div>
     <div class="drawer-body">
-      <div class="rowbtns"><span class="chip c" style="--c:${cvar(r.cat)}">${esc(r.barrio)}</span><span class="chip">${ago(r.t)}</span>${state.near.c ? `<span class="chip">a ${fmtDist(distM(state.near.c,[r.lat,r.lng]))} de vos</span>` : ""}${src}${modChip(r)}</div>
+      <div class="rowbtns"><span class="chip c" style="--c:${cvar(r.cat)}">${esc(r.barrio)}</span><span class="chip">${ago(r.t)}</span>${state.near.c ? `<span class="chip">a ${fmtDist(distM(state.near.c,[r.lat,r.lng]))} de vos</span>` : ""}${src}${modChip(r)}${iaChip(r)}</div>
+      ${iaNote(r)}
       ${photoBlock(r)}
       <p style="margin:0;font-size:15px">${esc(r.desc)}</p>
       <div class="steps">${["Recibida","En proceso","Resuelta"].map((s,i)=>`<span class="${i<=stIdx?"done":""}">${s}</span>`).join("")}</div>
@@ -368,6 +369,13 @@ function openDetail(id){
       <div class="note mono">${r.lat.toFixed(5)}, ${r.lng.toFixed(5)} · ${new Date(r.t).toLocaleString("es-PY")}</div>
     </div>`);
 }
+// Resultado de la revisión automática con IA. El público ve solo "Verificado con IA"; las dudas las ve la moderación.
+function iaChip(r){
+  if (r.iaCheck === "verificada") return `<span class="chip ia" title="${esc(r.iaWhy)}">✦ Verificado con IA</span>`;
+  if (state.staff && r.iaCheck === "dudosa") return '<span class="chip warn">✦ IA: dudosa</span>';
+  return "";
+}
+const iaNote = r => state.staff && r.iaWhy && r.iaCheck !== "sin_foto" ? `<div class="note">✦ Revisión con IA: ${esc(r.iaWhy)}</div>` : "";
 function modChip(r){
   if (r.mod==="verificada") return '<span class="chip ok">✓ Verificada por la municipalidad</span>';
   if (r.mod==="falsa") return '<span class="chip bad">✕ Marcada como falsa</span>';
@@ -790,8 +798,8 @@ $("#access").addEventListener("click", async e => {
 function renderModq(){
   const fakes = rawReportsAll().filter(r => r.mod === "falsa").sort((a,b) => b.t - a.t);
   $("#modfake").innerHTML = state.staff ? (fakes.map(r => `<button type="button" data-open="${esc(r.id)}"><span><b>${CATS[r.cat].one}</b> · ${esc(r.barrio)} · ${ago(r.t)}</span><span class="flag bad">✕ falsa</span></button>`).join("") || `<div class="empty">Ninguna por ahora.</div>`) : `<div class="empty">Solo visible para la municipalidad.</div>`;
-  const q = allReports().filter(r => (r.flags||0) > 0 && !r.mod).sort((a,b) => (b.flags||0)-(a.flags||0)).slice(0,12);
-  $("#modq").innerHTML = q.map(r => `<button type="button" data-open="${esc(r.id)}"><span><b>${CATS[r.cat].one}</b> · ${esc(r.barrio)} ${hasPhoto(r) ? "· con foto" : "· sin foto"}</span><span class="flag ${r.flags>=3?"bad":"warn"}">⚑ ${r.flags}</span></button>`).join("") || `<div class="empty">No hay denuncias marcadas por vecinos.</div>`;
+  const q = allReports().filter(r => ((r.flags||0) > 0 || r.iaCheck === "dudosa") && !r.mod).sort((a,b) => (b.iaCheck === "dudosa") - (a.iaCheck === "dudosa") || (b.flags||0)-(a.flags||0)).slice(0,12);
+  $("#modq").innerHTML = q.map(r => `<button type="button" data-open="${esc(r.id)}"><span><b>${CATS[r.cat].one}</b> · ${esc(r.barrio)} ${hasPhoto(r) ? "· con foto" : "· sin foto"}</span>${r.iaCheck === "dudosa" ? '<span class="flag warn">✦ IA dudosa</span>' : ""}${r.flags ? `<span class="flag ${r.flags>=3?"bad":"warn"}">⚑ ${r.flags}</span>` : ""}</button>`).join("") || `<div class="empty">No hay denuncias marcadas por vecinos ni por la IA.</div>`;
 }
 $("#modfake").addEventListener("click", e => { const b = e.target.closest("[data-open]"); if (!b) return; const r = findReport(b.dataset.open); if (!r) return; location.hash = "mapa"; setTimeout(() => { map.setView([r.lat,r.lng], 16); openDetail(r.id); }, 60); });
 $("#modq").addEventListener("click", e => { const b = e.target.closest("[data-open]"); if (!b) return; const r = findReport(b.dataset.open); if (!r) return; location.hash = "mapa"; setTimeout(() => { map.setView([r.lat,r.lng], 16); openDetail(r.id); }, 60); });

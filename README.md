@@ -30,6 +30,8 @@ supabase/01-esquema.sql         tablas, reglas de seguridad, fotos e historial
 supabase/02-datos-ejemplo.sql   145 denuncias y 10 obras de ejemplo para el jurado
 supabase/03-borrar-ejemplos.sql para sacar los ejemplos cuando pase a uso real
 supabase/04-quitar-voto.sql     solo si creaste la base antes de esta función: permite deshacer un voto
+supabase/05-verificacion-ia.sql la IA revisa las fotos nuevas cada 5 minutos (paso 5)
+api/verificar.js                función del servidor que hace esa revisión
 scripts/generar-ejemplos.mjs    regenera los datos de ejemplo (opcional)
 ```
 
@@ -134,6 +136,19 @@ En el mapa, activá *Mapa de riesgo*, tocá una zona naranja o roja y vas a ver 
 
 ---
 
+## Paso 5 · Verificación automática con IA (opcional, 5 min)
+
+Cada 5 minutos, Claude Haiku revisa las denuncias nuevas con foto y mira si la foto coincide con lo denunciado. Si coincide, la denuncia muestra **"✦ Verificado con IA"**. Si no, queda como *dudosa*: eso solo lo ve la moderación, que la encuentra primera en la cola del panel municipal. Cada denuncia se revisa **una sola vez**, y las que no tienen foto no se mandan a la IA. Cuesta unos USD 0,0004 por denuncia con foto.
+
+1. Hacé primero el paso 4 (clave de Anthropic y variables `SUPABASE_URL` y `SUPABASE_ANON_KEY` en Vercel).
+2. Si tu página no es `https://mapa-cde-zspd.vercel.app`, abrí `supabase/05-verificacion-ia.sql` y cambiá esa dirección.
+3. Supabase → **SQL Editor** → pegá todo `05-verificacion-ia.sql` → **Run**. Al final aparece una clave larga en la columna `copiar_en_vercel_como_IA_CLAVE`.
+4. Vercel → **Settings → Environment Variables** → agregá `IA_CLAVE` con esa clave → **Redeploy**.
+
+Para ver que funciona: hacé una denuncia con foto y esperá unos minutos. En Supabase, **Integrations → Cron** (o *Database → Cron Jobs*) muestra cada ejecución de `verificar-con-ia`. Para pausarla: `select cron.unschedule('verificar-con-ia');`.
+
+---
+
 ## Antes de usarlo de verdad
 
 - **Sacar los datos de ejemplo:** ejecutá `supabase/03-borrar-ejemplos.sql` en el SQL Editor. También podés ocultarlos sin borrarlos con *Capas → Datos de ejemplo*.
@@ -153,6 +168,7 @@ En el mapa, activá *Mapa de riesgo*, tocá una zona naranja o roja y vas a ver 
 - Las denuncias marcadas como **falsas** desaparecen para el público, pero la moderación las sigue viendo.
 - El **historial** lo escribe la base sola (estados, moderación, obras, precios), con huella SHA-256 encadenada. Desde la página nadie puede editarlo ni borrarlo, y el botón **Verificar integridad** comprueba toda la cadena.
 - La clave de la IA vive solo en Vercel, la función exige una sesión del mapa y tiene un tope de consultas por persona.
+- El resultado de la verificación con IA solo lo puede escribir la función del servidor, con una clave que vive en un esquema privado de la base y en Vercel. Ni vecinos ni la municipalidad pueden ponerle a mano la etiqueta "Verificado con IA".
 
 ---
 

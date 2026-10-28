@@ -286,6 +286,76 @@ end $$;
 revoke execute on function public.quitar_voto(text, text) from public, anon;
 grant execute on function public.quitar_voto(text, text) to authenticated;
 
+-- ---------- Verificación automática con IA ----------
+-- Cada denuncia nueva con foto la revisa Claude una vez: si la foto coincide con lo denunciado queda "verificada";
+-- si no, "dudosa" (eso solo lo ve la moderación). Sin foto queda "sin_foto" y no se consulta a la IA.
+alter table public.denuncias add column if not exists ia_estado text check (ia_estado in ('verificada','dudosa','sin_foto','error'));
+alter table public.denuncias add column if not exists ia_motivo text;
+alter table public.denuncias add column if not exists ia_revisada timestamptz;
+create index if not exists denuncias_ia_pendientes_idx on public.denuncias (creada) where ia_revisada is null;
+
+-- La clave que comparten Supabase y la función de Vercel. Vive en un esquema privado: ni vecinos ni visitantes la leen.
+create schema if not exists privado;
+revoke all on schema privado from public, anon, authenticated;
+create table if not exists privado.ajustes (clave text primary key, valor text not null);
+insert into privado.ajustes (clave, valor)
+values ('ia_clave', replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', ''))
+on conflict (clave) do nothing;
+
+-- Nadie puede escribir el resultado de la IA desde la página: solo la función ia_guardar.
+create or replace function public.denuncias_proteger_ia() returns trigger
+language plpgsql as $$
+begin
+  if not public.desde_la_app() or current_setting('cde.rpc', true) = '1' then return new; end if;
+  if tg_op = 'INSERT' then
+    new.ia_estado := null; new.ia_motivo := null; new.ia_revisada := null;
+  else
+    new.ia_estado := old.ia_estado; new.ia_motivo := old.ia_motivo; new.ia_revisada := old.ia_revisada;
+  end if;
+  return new;
+end $$;
+drop trigger if exists denuncias_proteger_ia on public.denuncias;
+create trigger denuncias_proteger_ia before insert or update on public.denuncias
+  for each row execute function public.denuncias_proteger_ia();
+
+create or replace function public.ia_clave_valida(p_clave text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select coalesce(p_clave, '') <> '' and exists (select 1 from privado.ajustes where clave = 'ia_clave' and valor = p_clave);
+$$;
+revoke execute on function public.ia_clave_valida(text) from public, anon, authenticated;
+
+-- Denuncias que todavía no revisó la IA. Las que no tienen foto esperan 10 minutos, por si la foto se está subiendo.
+create or replace function public.ia_pendientes(p_clave text, p_limite int default 8)
+returns table (id text, categoria text, descripcion text, barrio text, foto text)
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.ia_clave_valida(p_clave) then raise exception 'Clave inválida.' using errcode = '42501'; end if;
+  return query
+    select d.id, d.categoria, d.descripcion, d.barrio,
+           case when d.foto then (select o.name from storage.objects o where o.bucket_id = 'fotos' and o.name like d.id || '.%' order by o.name desc limit 1) end
+      from public.denuncias d
+     where d.ia_revisada is null and not d.demo and coalesce(d.moderacion, '') <> 'falsa'
+       and (d.foto or d.creada < now() - interval '10 minutes')
+     order by d.creada
+     limit least(greatest(coalesce(p_limite, 8), 1), 20);
+end $$;
+revoke execute on function public.ia_pendientes(text, int) from public;
+grant execute on function public.ia_pendientes(text, int) to anon, authenticated;
+
+create or replace function public.ia_guardar(p_clave text, p_id text, p_estado text, p_motivo text)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.ia_clave_valida(p_clave) then raise exception 'Clave inválida.' using errcode = '42501'; end if;
+  if p_estado not in ('verificada','dudosa','sin_foto','error') then raise exception 'Resultado inválido.'; end if;
+  perform set_config('cde.rpc', '1', true);
+  update public.denuncias
+     set ia_estado = p_estado, ia_motivo = left(p_motivo, 300), ia_revisada = now()
+   where id = p_id;
+  perform set_config('cde.rpc', '0', true);
+end $$;
+revoke execute on function public.ia_guardar(text, text, text, text) from public;
+grant execute on function public.ia_guardar(text, text, text, text) to anon, authenticated;
+
 -- Avisa que la foto ya se subió. Solo el autor de la denuncia, y solo si el archivo existe de verdad.
 create or replace function public.confirmar_foto(p_denuncia text) returns void
 language plpgsql security definer set search_path = public as $$
