@@ -378,7 +378,7 @@ function iaChip(r){
 }
 const iaNote = r => state.staff && r.iaWhy && r.iaCheck !== "sin_foto" ? `<div class="note">✦ Revisión con IA: ${esc(r.iaWhy)}</div>` : "";
 function modChip(r){
-  if (r.mod==="verificada") return '<span class="chip ok">✓ Verificada por la municipalidad</span>';
+  if (r.mod==="verificada") return '<span class="chip ok">✓ Verificado manualmente</span>';
   if (r.mod==="falsa") return '<span class="chip bad">✕ Marcada como falsa</span>';
   if ((r.flags||0) >= 3 && (r.flags||0) > (r.votes||0)) return '<span class="chip warn">⚑ En revisión</span>';
   return "";
