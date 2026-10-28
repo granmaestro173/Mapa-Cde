@@ -66,6 +66,7 @@ h1,h2,h3{font-family:var(--f-display);font-weight:700;letter-spacing:.01em;margi
 .tabs a{padding:6px 12px;border-radius:6px;text-decoration:none;color:var(--muted);font-weight:500;white-space:nowrap}
 .tabs a[aria-current="page"]{background:var(--panel);color:var(--ink);box-shadow:var(--shadow)}
 .top-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.live[hidden]{display:none!important}
 .live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);white-space:nowrap}
 .live i{width:8px;height:8px;border-radius:50%;background:var(--muted)}
 .live.on i{background:var(--ok);box-shadow:0 0 0 0 var(--ok);animation:pulse 2s infinite}
@@ -633,7 +634,7 @@ main{height:100%;display:block}
     <div class="searchbox" role="search">
       <button class="icon-btn" id="btnMenu" type="button" aria-label="Abrir menú" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
       <input id="q" type="search" placeholder="Buscar barrio o denuncia" autocomplete="off" aria-label="Buscar barrio o denuncia" aria-controls="qres">
-      <span class="live" id="livePill" title="Estado de la conexión"><i></i><span>Conectando…</span></span>
+      <span class="live" id="livePill" title="Estado de la conexión" hidden><i></i><span>Conectando…</span></span>
       <span class="icon-btn lupa" aria-hidden="true" style="color:var(--muted)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg></span>
       <button class="icon-btn bell-btn" id="btnAvisos" type="button" aria-label="Mis denuncias y avisos" title="Mis denuncias y avisos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></svg><span class="badge" id="avisosBadge" hidden>0</span></button>
       <button class="icon-btn avatar-btn" id="btnAvatar" type="button" aria-label="Ingresar" title="Ingresar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></button>
