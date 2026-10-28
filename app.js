@@ -825,7 +825,7 @@ $("#params").addEventListener("change", e => {
 
 const ROLES = {vecino:"Vecino", moderador:"Moderación", municipal:"Municipalidad", admin:"Administración"};
 function renderAccess(){
-  const u = Store.user, logout = `<button class="btn small" id="btnLogout" type="button" style="margin-left:auto">Salir</button>`;
+  const u = Store.user, logout = `<button class="btn small" id="btnLogout" type="button" style="margin-left:auto">Cerrar sesión</button>`;
   if (state.staff) $("#access").innerHTML = `<span class="chip" style="color:var(--ok)">● ${ROLES[u.rol]}</span><span class="who">${esc(u.nombre || u.email || "")}</span><span class="note">${state.muni ? "Podés cambiar estados, cargar obras y ajustar precios. Todo queda en el historial." : "Podés verificar denuncias o marcarlas como falsas."}</span>${logout}`;
   else if (u && !u.anon) $("#access").innerHTML = `<span class="chip">Vista pública</span><span class="note">Ingresaste como ${esc(u.email || "vecino")}. Tu cuenta todavía no tiene permisos de moderación ni municipales: pedile al administrador del mapa que te habilite.</span>${logout}`;
   else $("#access").innerHTML = `<span class="chip">Vista pública</span><span class="note">Cualquier vecino puede ver montos, contratistas y fechas. Solo la municipalidad puede cargar o editar.</span><button class="btn small primary" id="btnLogin" type="button" style="margin-left:auto">Ingresar</button>`;
@@ -1046,13 +1046,13 @@ function openLogin(){
     <div class="drawer-body">
       ${Store.mode === "supabase" ? `
       ${u && !u.anon ? "" : `<p class="note" style="margin:0">Para denunciar no hace falta cuenta. Ingresá si sos de la municipalidad o de la moderación, o si querés seguir tus denuncias desde otro celular.</p>`}
-      ${u && !u.anon ? `<div class="acct">${avatarHtml(u)}<div><b>${esc(u.nombre || u.email || "")}</b><div class="note">${esc(u.email || "")} · ${ROLES[u.rol] || "Vecino"}</div></div></div><button class="btn" type="button" id="lgOut">Salir</button>` : `
+      ${u && !u.anon ? `<div class="acct">${avatarHtml(u)}<div><b>${esc(u.nombre || u.email || "")}</b><div class="note">${esc(u.email || "")} · ${ROLES[u.rol] || "Vecino"}</div></div></div><button class="btn" type="button" id="lgOut">Cerrar sesión</button>` : `
       <form class="field" id="lgForm"><label for="lgEmail">Tu email</label><input class="inp" id="lgEmail" type="email" autocomplete="email" required placeholder="nombre@ejemplo.com">
         <label for="lgPass" style="margin-top:8px">Contraseña <span class="note">(si el administrador te dio una)</span></label><input class="inp" id="lgPass" type="password" autocomplete="current-password">
         <button class="btn primary" type="submit" style="margin-top:8px" id="lgSubmit">Enviarme un enlace para entrar</button><small>Sin contraseña te llega un correo con un enlace: tocalo desde este mismo celular o computadora.</small></form>
       ${CFG.google ? `<button class="btn" type="button" id="lgGoogle">Iniciar sesión con Google</button>` : ""}`}`
       : `<p class="note" style="margin:0">Estás en el <b>modo de prueba</b> (sin base de datos configurada). Elegí un rol para recorrer la página; nada se guarda.</p>
-      <div class="rowbtns"><button class="btn primary" type="button" data-role="municipal">Entrar como municipalidad</button><button class="btn" type="button" data-role="moderador">Entrar como moderación</button>${state.staff ? `<button class="btn" type="button" id="lgOut">Salir</button>` : ""}</div>`}
+      <div class="rowbtns"><button class="btn primary" type="button" data-role="municipal">Entrar como municipalidad</button><button class="btn" type="button" data-role="moderador">Entrar como moderación</button>${state.staff ? `<button class="btn" type="button" id="lgOut">Cerrar sesión</button>` : ""}</div>`}
       <div class="note" id="lgMsg"></div>
     </div>`);
   $("#lgPass")?.addEventListener("input", e => { $("#lgSubmit").textContent = e.target.value ? "Entrar" : "Enviarme un enlace para entrar"; });
