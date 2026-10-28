@@ -28,6 +28,7 @@ const fromParam = p => ({k:p.clave, n:p.nombre, v:+p.valor, o:p.orden});
 // Mensajes de error de la base en palabras claras.
 function nice(err){
   const m = err?.message || String(err || "");
+  if (/Tu cuenta está suspendida/.test(m)) return new Error(m.slice(m.indexOf("Tu cuenta está suspendida")));
   if (/row-level security|permission denied|42501/i.test(m)) return new Error("Tu cuenta no tiene permiso para hacer esto.");
   if (/Failed to fetch|NetworkError|network/i.test(m)) return new Error("Sin conexión. Revisá internet y probá de nuevo.");
   return new Error(m.replace(/^.*?:\s*/, "") || "Error inesperado.");
@@ -170,6 +171,21 @@ function supabaseStore(cfg, on){
     if (error) throw nice(error);
     return data;
   };
+  // Suspensiones (moderación). La base valida el rol y deja constancia en el historial.
+  S.suspender = async (usuario, dias, motivo, ocultar, denuncia) => {
+    const {data, error} = await sb.rpc("suspender_usuario", {p_usuario:usuario, p_dias:dias, p_motivo:motivo, p_ocultar:!!ocultar, p_denuncia:denuncia || null});
+    if (error) throw nice(error);
+    if (ocultar) await loadAll();
+    return data || 0;
+  };
+  S.levantarSuspension = async usuario => { const {error} = await sb.rpc("levantar_suspension", {p_usuario:usuario}); if (error) throw nice(error); };
+  S.suspendidos = async () => { const {data, error} = await sb.rpc("suspendidos"); if (error) throw nice(error); return data || []; };
+  S.miSuspension = async () => {
+    if (!S.user) return null;
+    const {data, error} = await sb.rpc("mi_suspension");
+    if (error) return null;
+    return data?.[0] || null;
+  };
   S.photoUrl = (r, alt) => `${base}/storage/v1/object/public/fotos/${encodeURIComponent(r.id)}.${alt ? "jpg" : "webp"}`;
   S.originalUrl = async r => {
     const {data, error} = await sb.storage.from("originales").list("", {search:r.id, limit:5});
@@ -242,7 +258,7 @@ function localStore(cfg, on){
   S.signOut = async () => { S.user = null; on.user(null); emit(); };
   S.createReport = async (rec, photo) => {
     const id = "D-" + Math.random().toString(16).slice(2, 8).toUpperCase();
-    const r = {id, cat:rec.cat, lat:rec.lat, lng:rec.lng, t:Date.now(), desc:rec.desc, barrio:rec.barrio, status:"recibida", sev:rec.sev, ai:rec.ai, mod:"", hasPhoto:!!photo, photo:photo?.dataUrl || null, photoOrig:false, photoTaken:rec.photoTaken, votes:0, flags:0, demo:false, resolvedAt:null, mine:true};
+    const r = {id, cat:rec.cat, lat:rec.lat, lng:rec.lng, t:Date.now(), desc:rec.desc, barrio:rec.barrio, status:"recibida", sev:rec.sev, ai:rec.ai, mod:"", hasPhoto:!!photo, photo:photo?.dataUrl || null, photoOrig:false, photoTaken:rec.photoTaken, votes:0, flags:0, demo:false, resolvedAt:null, mine:true, autor:S.user?.id || "vecino-local"};
     reports.set(id, r);
     return {report:r, warn:null};
   };
@@ -265,6 +281,20 @@ function localStore(cfg, on){
     if (!voted.delete(id + kind)) return null;
     const r = reports.get(id); if (kind === "confirma") return r.votes = Math.max(0, r.votes - 1); return r.flags = Math.max(0, r.flags - 1);
   };
+  const susp = new Map();
+  S.suspender = async (usuario, dias, motivo, ocultar, denuncia) => {
+    if (!["moderador","municipal"].includes(S.user?.rol)) throw new Error("Tu cuenta no tiene permiso para hacer esto.");
+    susp.set(usuario, {usuario, nombre:"usuario " + String(usuario).slice(0, 8), hasta:dias ? new Date(Date.now() + dias*864e5).toISOString() : null, motivo, por_nombre:S.user.nombre, denuncia, creada:new Date().toISOString(),
+      denuncias:[...reports.values()].filter(r => r.autor === usuario).length});
+    let n = 0;
+    if (ocultar) for (const r of reports.values()) if (r.autor === usuario && r.mod !== "falsa"){ r.mod = "falsa"; n++; }
+    await log("Suspensión de usuario " + String(usuario).slice(0, 8), (dias ? dias + " días" : "Permanente") + " · Motivo: " + motivo);
+    setTimeout(emit, 0);
+    return n;
+  };
+  S.levantarSuspension = async usuario => { susp.delete(usuario); await log("Suspensión levantada", "usuario " + String(usuario).slice(0, 8)); };
+  S.suspendidos = async () => [...susp.values()];
+  S.miSuspension = async () => null;
   S.photoUrl = r => r.photo || "";
   S.originalUrl = async () => { throw new Error("En el modo de prueba no se guardan originales."); };
   S.saveObra = async (o, prev, changes) => {

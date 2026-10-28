@@ -388,7 +388,8 @@ function openDetail(id){
   const muniBtns = state.staff ? `<div class="card" style="padding:12px;gap:8px"><div class="eyebrow">${state.muni ? "Acciones municipales" : "Moderación"}</div>
       <div class="rowbtns">${r.mod!=="verificada"?`<button class="btn small" data-mod="verificada" type="button">✓ Verificar</button>`:""}${r.mod!=="falsa"?`<button class="btn small flag-btn" data-mod="falsa" type="button">✕ Marcar como falsa</button>`:""}${r.mod?`<button class="btn small" data-mod="" type="button">Quitar marca</button>`:""}</div>
       ${state.muni ? `<div class="rowbtns">${r.status!=="en_proceso"?`<button class="btn small" data-status="en_proceso" type="button">Marcar en proceso</button>`:""}${r.status!=="resuelta"?`<button class="btn small" data-status="resuelta" type="button">Marcar resuelta</button>`:""}${resReciente(r)?`<button class="btn small primary" data-undo-res type="button">↶ Cancelar "resuelta"</button>`:""}
-      ${!o && ["bache","semaforo","alumbrado","inundacion","basura"].includes(r.cat) ? `<button class="btn small primary" data-new-obra="${esc(id)}" type="button">Asignar obra</button>`:""}</div>` : ""}</div>` : "";
+      ${!o && ["bache","semaforo","alumbrado","inundacion","basura"].includes(r.cat) ? `<button class="btn small primary" data-new-obra="${esc(id)}" type="button">Asignar obra</button>`:""}</div>` : ""}
+      ${suspHtml(r)}</div>` : "";
   showDrawer(`
     <div class="rd-head">
       <div class="rd-mark" style="--c:${cvar(r.cat)}" aria-hidden="true">${ICONS[r.cat]}</div>
@@ -417,6 +418,75 @@ function openDetail(id){
       <div class="note mono">${r.lat.toFixed(5)}, ${r.lng.toFixed(5)} · ${new Date(r.t).toLocaleString("es-PY")}</div>
     </div>`);
 }
+/* ---------- Suspensión de usuarios (moderación) ---------- */
+// Un usuario suspendido no puede denunciar ni votar: lo bloquea la base (07-suspensiones.sql). Todo queda en el historial.
+let suspendidos = new Map();   // usuario -> suspensión vigente (solo se carga para la moderación)
+const fmtHasta = h => h ? "hasta el " + new Date(h).toLocaleDateString("es-PY", {day:"numeric", month:"long", year:"numeric"}) : "de forma permanente";
+async function cargarSuspendidos(){
+  if (!state.staff || !Store.suspendidos) return;
+  try { suspendidos = new Map((await Store.suspendidos()).map(x => [x.usuario, x])); } catch(e) { suspendidos = new Map(); }
+}
+function suspHtml(r){
+  if (!r.autor || r.autor === Store.user?.id) return "";
+  const s = suspendidos.get(r.autor);
+  return s
+    ? `<div class="susp-box"><b>Usuario suspendido ${fmtHasta(s.hasta)}</b><span>Motivo: ${esc(s.motivo)}</span><button class="btn small" type="button" data-unsuspend="${esc(r.autor)}">Levantar suspensión</button></div>`
+    : `<div class="rowbtns"><button class="btn small flag-btn" type="button" data-suspend="${esc(r.id)}">⛔ Suspender al usuario que la hizo</button></div>`;
+}
+function openSuspender(r){
+  const otras = rawReportsAll().filter(x => x.autor === r.autor).length;
+  showDrawer(`
+    <div class="drawer-head"><div><div class="eyebrow">Moderación</div><h2>Suspender usuario</h2></div><button class="x" type="button" aria-label="Cerrar" data-back="${esc(r.id)}">×</button></div>
+    <form class="drawer-body" id="suspForm" novalidate>
+      <p class="note" style="margin:0">Quien hizo la denuncia <span class="mono">${esc(r.id)}</span> no va a poder hacer denuncias ni votar mientras dure la suspensión. ${otras > 1 ? `Tiene ${otras} denuncias en el mapa.` : ""}</p>
+      <label class="field"><span class="lab">Motivo</span><textarea class="inp" id="suspMotivo" rows="3" maxlength="300" placeholder="Por ejemplo: denuncias falsas repetidas, spam, contenido ofensivo" required></textarea><small>El usuario lo ve cuando intenta denunciar.</small></label>
+      <div class="field"><span class="lab">Plazo</span><div class="seg" id="suspPlazo" role="group" aria-label="Plazo" style="grid-template-columns:repeat(3,1fr)">
+        <button type="button" data-dias="7" aria-pressed="true">7 días</button><button type="button" data-dias="30" aria-pressed="false">30 días</button><button type="button" data-dias="" aria-pressed="false">Permanente</button></div></div>
+      <label class="tg"><span>Ocultar todas sus denuncias<small>Las marca como falsas: salen del mapa y de las estadísticas. Para casos de spam.</small></span><input type="checkbox" class="switch" id="suspOcultar"></label>
+      <div class="rowbtns"><button class="btn" type="button" data-back="${esc(r.id)}">Cancelar</button><button class="btn primary" type="submit">Suspender</button></div>
+    </form>`);
+  $("#suspPlazo").addEventListener("click", e => { const b = e.target.closest("[data-dias]"); if (!b) return; for (const x of $("#suspPlazo").children) x.setAttribute("aria-pressed", x === b); });
+  $("#suspForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const motivo = $("#suspMotivo").value.trim();
+    if (motivo.length < 3){ toast("Escribí el motivo de la suspensión."); $("#suspMotivo").focus(); return; }
+    const d = $("#suspPlazo [aria-pressed=true]").dataset.dias, dias = d ? +d : null, ocultar = $("#suspOcultar").checked;
+    const btn = e.submitter; if (btn) btn.disabled = true;
+    try {
+      const n = await Store.suspender(r.autor, dias, motivo, ocultar, r.id);
+      await cargarSuspendidos();
+      toast(`Usuario suspendido ${dias ? `por ${dias} días` : "de forma permanente"}.${n ? ` Se ocultaron ${n} denuncia${n === 1 ? "" : "s"}.` : ""}`);
+      refresh(); if (!$("#view-municipalidad").hidden) renderModq();
+      findReport(r.id) ? openDetail(r.id) : closeDrawer();
+    } catch(err){ toast("No se pudo suspender: " + (err.message || err)); if (btn) btn.disabled = false; }
+  });
+}
+async function levantar(usuario, volverA){
+  try {
+    await Store.levantarSuspension(usuario);
+    await cargarSuspendidos();
+    toast("Suspensión levantada.");
+    if (!$("#view-municipalidad").hidden) renderModq();
+    if (volverA) openDetail(volverA);
+  } catch(err){ toast("No se pudo levantar: " + (err.message || err)); }
+}
+document.addEventListener("click", e => {
+  const s = e.target.closest("[data-suspend]"); if (s){ const r = findReport(s.dataset.suspend); if (r) openSuspender(r); return; }
+  const u = e.target.closest("[data-unsuspend]"); if (u){ levantar(u.dataset.unsuspend, u.closest("#drawer") ? state.sel : null); return; }
+  const b = e.target.closest("[data-back]"); if (b){ openDetail(b.dataset.back); }
+});
+// Si la cuenta de quien usa la página está suspendida, se le avisa antes de que llene el formulario.
+let miSusp = null;
+async function revisarMiSuspension(){ try { miSusp = Store.miSuspension ? await Store.miSuspension() : null; } catch(e) { miSusp = null; } }
+function avisoSuspension(){
+  showDrawer(`
+    <div class="drawer-head"><div><div class="eyebrow">Cuenta suspendida</div><h2>No podés hacer denuncias por ahora</h2></div><button class="x" type="button" aria-label="Cerrar" data-close>×</button></div>
+    <div class="drawer-body">
+      <div class="susp-box"><b>Tu cuenta está suspendida ${fmtHasta(miSusp.hasta)}.</b><span>Motivo: ${esc(miSusp.motivo)}</span></div>
+      <p class="note" style="margin:0">Mientras dure la suspensión podés seguir viendo el mapa, pero no hacer denuncias ni votar. Si creés que es un error, escribile a la municipalidad.</p>
+    </div>`);
+}
+
 // Resultado de la revisión automática con IA. El público ve "Verificado con IA" o "No verificado"; las dudas las ve la moderación.
 function iaChip(r){
   if (r.iaCheck === "verificada") return `<span class="chip ia" title="${esc(r.iaWhy)}">✦ Verificado con IA</span>`;
@@ -532,6 +602,7 @@ async function unvote(r, kind, k){
 const formState = {photo:null, photoBlob:null, photoFile:null, photoTaken:null, ai:null, dup:null, ignoreDup:false};
 function openForm(){
   location.hash = "mapa";
+  if (miSusp && (!miSusp.hasta || Date.parse(miSusp.hasta) > Date.now())) return avisoSuspension();
   state.sel = null; renderPins();
   Object.assign(formState, {photo:null, photoBlob:null, photoFile:null, photoTaken:null, ai:null, dup:null, ignoreDup:false});
   showDrawer(`
@@ -915,8 +986,10 @@ function renderModq(){
   const fakes = rawReportsAll().filter(r => r.mod === "falsa").sort((a,b) => b.t - a.t);
   $("#modfake").innerHTML = state.staff ? (fakes.map(r => `<button type="button" data-open="${esc(r.id)}"><span><b>${CATS[r.cat].one}</b> · ${esc(r.barrio)} · ${ago(r.t)}</span><span class="flag bad">✕ falsa</span></button>`).join("") || `<div class="empty">Ninguna por ahora.</div>`) : `<div class="empty">Solo visible para la municipalidad.</div>`;
   const q = allReports().filter(r => ((r.flags||0) > 0 || r.iaCheck === "dudosa") && !r.mod).sort((a,b) => (b.iaCheck === "dudosa") - (a.iaCheck === "dudosa") || (b.flags||0)-(a.flags||0)).slice(0,12);
+  $("#modsusp").innerHTML = state.staff ? ([...suspendidos.values()].map(x => `<div class="susp-row"><span><b>${esc(x.nombre)}</b> · ${fmtHasta(x.hasta)}<small>${esc(x.motivo)} · por ${esc(x.por_nombre || "Moderación")}${x.denuncia ? ` · desde <button class="lnk" type="button" data-open="${esc(x.denuncia)}">${esc(x.denuncia)}</button>` : ""}</small></span><button class="btn small" type="button" data-unsuspend="${esc(x.usuario)}">Levantar</button></div>`).join("") || `<div class="empty">Nadie está suspendido.</div>`) : `<div class="empty">Solo visible para la moderación.</div>`;
   $("#modq").innerHTML = q.map(r => `<button type="button" data-open="${esc(r.id)}"><span><b>${CATS[r.cat].one}</b> · ${esc(r.barrio)} ${hasPhoto(r) ? "· con foto" : "· sin foto"}</span>${r.iaCheck === "dudosa" ? '<span class="flag warn">✦ IA dudosa</span>' : ""}${r.flags ? `<span class="flag ${r.flags>=3?"bad":"warn"}">⚑ ${r.flags}</span>` : ""}</button>`).join("") || `<div class="empty">No hay denuncias marcadas por vecinos ni por la IA.</div>`;
 }
+$("#modsusp").addEventListener("click", e => { const b = e.target.closest("[data-open]"); if (!b) return; const r = findReport(b.dataset.open); if (!r) return toast("Esa denuncia ya no está en el mapa."); location.hash = "mapa"; setTimeout(() => { map.setView([r.lat,r.lng], 16); openDetail(r.id); }, 60); });
 $("#modfake").addEventListener("click", e => { const b = e.target.closest("[data-open]"); if (!b) return; const r = findReport(b.dataset.open); if (!r) return; location.hash = "mapa"; setTimeout(() => { map.setView([r.lat,r.lng], 16); openDetail(r.id); }, 60); });
 $("#modq").addEventListener("click", e => { const b = e.target.closest("[data-open]"); if (!b) return; const r = findReport(b.dataset.open); if (!r) return; location.hash = "mapa"; setTimeout(() => { map.setView([r.lat,r.lng], 16); openDetail(r.id); }, 60); });
 function renderMuni(){
@@ -1166,6 +1239,8 @@ function applyUser(u){
   state.muni = ["municipal","admin"].includes(u?.rol);
   $("#btnAccount").lastChild.textContent = u && !u.anon ? (state.staff ? ROLES[u.rol] : "Mi cuenta") : "Ingresar";
   renderAvatar(u);
+  revisarMiSuspension();
+  cargarSuspendidos().then(() => { if (!$("#view-municipalidad").hidden) renderModq(); if (state.staff && state.sel && !drawer.hidden && findReport(state.sel)) openDetail(state.sel); });
   if (!$("#view-municipalidad").hidden) renderMuni();
   if (state.sel && !drawer.hidden && findReport(state.sel)) openDetail(state.sel);
 }

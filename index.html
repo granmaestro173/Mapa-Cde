@@ -147,6 +147,10 @@ main{flex:1;min-height:0;display:flex;flex-direction:column}
 .pin.fake{opacity:.35;filter:grayscale(1)}
 .pin.oculta{opacity:.5;outline:2px dashed var(--muted);outline-offset:2px}
 .pin i{width:7px;height:7px;border-radius:50%;background:#fff}
+.susp-box{display:flex;flex-direction:column;gap:4px;align-items:flex-start;border:1.5px solid var(--bad);border-radius:8px;padding:8px 10px;font-size:13px;background:color-mix(in srgb,var(--bad) 7%,var(--panel))}
+.susp-box span{color:var(--muted)}
+.susp-row{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+.susp-row small{display:block;color:var(--muted);margin-top:2px}
 /* Selector de vista del mapa */
 .vista-sec{display:flex;flex-direction:column;gap:6px;margin:4px 0 8px}
 .vista-sec .seg{grid-template-columns:repeat(3,1fr)}
@@ -771,6 +775,9 @@ main{height:100%;display:block}
             <div class="eyebrow" style="margin-top:10px">Descartadas como falsas</div>
             <div class="sub">No aparecen en el mapa ni en las estadísticas. Abrí una para revisarla o quitarle la marca.</div>
             <div class="modq" id="modfake"></div>
+            <div class="eyebrow" style="margin-top:10px">Usuarios suspendidos</div>
+            <div class="sub">No pueden hacer denuncias ni votar hasta que termine el plazo o se levante la suspensión.</div>
+            <div class="modq" id="modsusp"></div>
           </div>
           <div class="card">
             <h3>Historial de cambios</h3>
@@ -789,7 +796,7 @@ main{height:100%;display:block}
 <script src="vendor/leaflet.js"></script>
 <script src="vendor/supabase.js"></script>
 <script src="config.js?v=3"></script>
-<script src="store.js?v=4"></script>
-<script src="app.js?v=13"></script>
+<script src="store.js?v=5"></script>
+<script src="app.js?v=14"></script>
 </body>
 </html>
