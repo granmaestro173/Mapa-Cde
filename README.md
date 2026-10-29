@@ -39,6 +39,7 @@ supabase/09-cancelar.sql        3 minutos para cancelar una denuncia recién env
 supabase/10-nivel-inundacion.sql  nivel de agua que la IA ve en las fotos de inundación (paso 7)
 supabase/11-ejemplos-al-dia.sql   corre todos los días las fechas de los ejemplos para que no envejezcan
 supabase/12-mi-historial.sql      quien hizo una denuncia rechazada por la IA la ve en su historial
+supabase/13-informe-semanal.sql   "Reporte de esta semana" escrito por la IA cada lunes, al fondo del panel Explorar
 scripts/generar-ejemplos.mjs    regenera los datos de ejemplo (opcional)
 ```
 

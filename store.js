@@ -139,6 +139,8 @@ function supabaseStore(cfg, on){
   };
   S.recargar = () => loadAll();
   S.accessToken = async () => { try { return (await ensureSession()).access_token; } catch(e){ return null; } };
+  // Último "Reporte de esta semana" (13-informe-semanal.sql). Si la base todavía no lo tiene, no hay reporte.
+  S.informe = async () => { const {data, error} = await sb.from("informes").select("*").order("semana", {ascending:false}).limit(1).maybeSingle(); return error ? null : data; };
   S.signInEmail = async email => {
     const {error} = await sb.auth.signInWithOtp({email, options:{emailRedirectTo:location.origin + location.pathname, shouldCreateUser:true, captchaToken:await captcha()}});
     if (error) throw nice(error);
@@ -303,6 +305,7 @@ function localStore(cfg, on){
     emit(); on.obras([...obras.values()]);
   };
   S.accessToken = async () => null;
+  S.informe = async () => null;
   S.signInEmail = async () => { throw new Error("En el modo de prueba no hay cuentas reales."); };
   S.signInGoogle = S.signInEmail; S.signInPassword = S.signInEmail;
   S.signInAs = async rol => { S.user = {id:"prueba", email:"", anon:false, rol, nombre:rol === "municipal" ? "Municipalidad CDE (prueba)" : "Moderación (prueba)"}; on.user(S.user); emit(); };

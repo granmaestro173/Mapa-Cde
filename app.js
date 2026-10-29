@@ -1853,5 +1853,22 @@ const Store = window.CDEStore.create(CFG, {
 renderPeriodSegs(); renderSide(); renderPins(); route();
 Store.start();
 IA.listo = IA.check();
+// Reporte de esta semana: lo escribe Haiku cada lunes (api/semanal.js) y queda al fondo del panel Explorar.
+const fechaCorta = t => new Date(t).toLocaleDateString("es-PY", {weekday:"short", day:"numeric", month:"short"});
+function renderInforme(inf){
+  const el = $("#informe");
+  if (!inf){ el.hidden = true; return; }
+  const d = inf.datos || {}, lineas = String(inf.texto).split(/\n+/).map(l => l.trim()).filter(Boolean);
+  let html = "", lista = [];
+  const cerrar = () => { if (lista.length){ html += `<ul>${lista.map(l => `<li>${esc(l)}</li>`).join("")}</ul>`; lista = []; } };
+  for (const l of lineas){ if (/^[-•*]\s+/.test(l)) lista.push(l.replace(/^[-•*]\s+/, "")); else { cerrar(); html += `<p>${/^Para esta semana:/i.test(l) ? `<b>Para esta semana:</b>${esc(l.replace(/^Para esta semana:/i, ""))}` : esc(l)}</p>`; } }
+  cerrar();
+  el.innerHTML = `<div><div class="eyebrow">Escrito por IA (Claude Haiku) · del ${fechaCorta(inf.desde)} al ${fechaCorta(inf.hasta)}</div><h3 id="informeT">Reporte de esta semana</h3></div>
+    ${d.denuncias_nuevas != null ? `<div class="nums"><div><b>${d.denuncias_nuevas}</b>denuncias</div><div><b>${d.resueltas_en_la_semana ?? 0}</b>resueltas</div><div><b>${d.sin_resolver_en_total ?? 0}</b>sin resolver</div></div>` : ""}
+    ${html}<div class="note">Se escribe uno nuevo cada lunes con los últimos 7 días.</div>`;
+  el.hidden = false;
+}
+const cargarInforme = () => Store.informe().then(renderInforme, () => {});
+cargarInforme(); setInterval(() => { if (!document.hidden) cargarInforme(); }, 3 * 60 * 60 * 1000);
 IA.listo.then(() => { if (IA.enabled) $("#aiReportSub").textContent = "Claude lee las estadísticas del período y sugiere dónde actuar primero."; });
 })();

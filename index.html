@@ -166,6 +166,13 @@ main{flex:1;min-height:0;display:flex;flex-direction:column}
 .inundkey{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:4px}.inundkey span{display:flex;align-items:center;gap:4px}.inundkey i{width:10px;height:10px;border-radius:3px}
 #legend>div+div{margin-top:8px}
 .layers{max-height:calc(100% - 100px);overflow-y:auto}
+.informe{border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;font-size:13px}
+.informe h3{margin:0;font-size:15px}
+.informe .nums{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.informe .nums div{background:var(--panel-2);border-radius:8px;padding:6px 8px;display:flex;flex-direction:column;font-size:11px;color:var(--muted)}
+.informe .nums b{font-size:18px;color:var(--ink)}
+.informe p{margin:0}
+.informe ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
 .clima{border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
 .clima.n1{border-color:var(--warn)}.clima.n2,.clima.n3{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 6%,var(--panel))}
 .clima .btn{align-self:flex-start}
@@ -743,6 +750,7 @@ main{height:100%;display:block}
         <div class="eyebrow" style="margin-bottom:2px" id="feedTitle">Últimas denuncias</div>
         <div class="feed" id="feed"></div>
       </div>
+      <section class="informe" id="informe" hidden aria-labelledby="informeT"></section>
     </aside>
 
     <aside class="drawer" id="drawer" hidden></aside>
@@ -848,7 +856,7 @@ main{height:100%;display:block}
 <script src="vendor/leaflet.js"></script>
 <script src="vendor/supabase.js"></script>
 <script src="config.js?v=4"></script>
-<script src="store.js?v=10"></script>
-<script src="app.js?v=38"></script>
+<script src="store.js?v=11"></script>
+<script src="app.js?v=39"></script>
 </body>
 </html>
