@@ -519,22 +519,38 @@ $("#lluviaX").addEventListener("click", () => { $("#lluviaBanner").hidden = true
 // Alerta por barrio: con lluvia fuerte prevista, avisa en la campana qué barrios tienen denuncias recientes de inundación.
 // Se avisa una sola vez por cada pronóstico (día y barrios); si cambian los barrios o el día, llega un aviso nuevo.
 let lluviaPrevista = null;
+const NIV_AGUA = {leve:1, moderada:2, alta:3};
 function barriosExpuestos(){
   const cuenta = {};
   for (const r of allReports()){
     if (r.cat !== "inundacion" || r.mod === "falsa" || r.iaCheck === "dudosa" || Date.now() - r.t > 30*DAY || !r.barrio) continue;
-    cuenta[r.barrio] = (cuenta[r.barrio] || 0) + 1;
+    const b = cuenta[r.barrio] ||= {barrio:r.barrio, denuncias:0, sin_resolver:0, ultima:0, agua:0};
+    b.denuncias++; if (r.status !== "resuelta") b.sin_resolver++;
+    b.ultima = Math.max(b.ultima, r.t); b.agua = Math.max(b.agua, NIV_AGUA[r.iaNivel] || 0);
   }
-  return Object.entries(cuenta).sort((a, b) => b[1] - a[1]).slice(0, 4);
+  return Object.values(cuenta).sort((a, b) => b.denuncias - a.denuncias || b.ultima - a.ultima).slice(0, 4);
 }
-function alertaBarrios(){
-  if (!lluviaPrevista || !avisosActivos) return;
+let alertaEnCurso = false;
+// El texto lo redacta Haiku (api/ia.js); si la IA no está o no responde, va un texto fijo con los mismos datos.
+async function alertaBarrios(){
+  if (!lluviaPrevista || !avisosActivos || alertaEnCurso) return;
   const bs = barriosExpuestos(); if (!bs.length) return;
-  const {n, mm, dia} = lluviaPrevista, clave = dia + "|" + bs.map(b => b[0]).join(",");
+  const {n, mm, dia} = lluviaPrevista, clave = dia + "|" + bs.map(b => b.barrio).join(",");
+  if (leerLS("cde-alerta-lluvia", "") === clave) return;
+  alertaEnCurso = true;
+  let texto = `${["", "Atención", "Alerta", "Alerta"][n]} de lluvia: se esperan ${mm} mm el ${diaC(dia)}. Barrios más expuestos por inundaciones denunciadas este mes: `
+    + bs.map(b => `${b.barrio} (${b.denuncias})`).join(", ") + ". Evitá calles anegadas y no cruces raudales.";
+  await IA.listo;
+  if (IA.enabled && Store.mode === "supabase"){
+    const datos = {lluvia_mm:mm, dia:diaC(dia), intensidad:["", "fuerte", "muy fuerte", "extrema"][n],
+      barrios:bs.map(b => ({barrio:b.barrio, denuncias_ultimo_mes:b.denuncias, sin_resolver:b.sin_resolver, dias_desde_la_ultima:Math.floor((Date.now() - b.ultima) / DAY),
+        agua_mas_alta_en_fotos:["sin dato", "leve", "moderada", "alta"][b.agua]}))};
+    try { texto = (await IA.ask("alerta", datos)).replace(/\s+/g, " ").slice(0, 400); } catch(e) {}
+  }
+  alertaEnCurso = false;
   if (leerLS("cde-alerta-lluvia", "") === clave) return;
   guardarLS("cde-alerta-lluvia", clave);
-  avisar("lluvia", `${["", "Atención", "Alerta", "Alerta"][n]} de lluvia: se esperan ${mm} mm el ${diaC(dia)}. Barrios más expuestos por inundaciones denunciadas este mes: `
-    + bs.map(([b, c]) => `${b} (${c})`).join(", ") + ". Evitá calles anegadas y no cruces raudales.");
+  avisar("lluvia", texto);
 }
 // Pronóstico de lluvia (Open-Meteo) y caudal del Paraná (GloFAS vía Open-Meteo). Se piden al abrir y cada hora.
 const DIAS_C = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
@@ -1836,5 +1852,6 @@ const Store = window.CDEStore.create(CFG, {
 
 renderPeriodSegs(); renderSide(); renderPins(); route();
 Store.start();
-IA.check().then(() => { if (IA.enabled) $("#aiReportSub").textContent = "Claude lee las estadísticas del período y sugiere dónde actuar primero."; });
+IA.listo = IA.check();
+IA.listo.then(() => { if (IA.enabled) $("#aiReportSub").textContent = "Claude lee las estadísticas del período y sugiere dónde actuar primero."; });
 })();
