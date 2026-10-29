@@ -964,9 +964,9 @@ function openForm(){
     $("#fCam").value = ""; $("#fPhoto").value = "";
     $("#fThumb").removeAttribute("src"); $("#fPrev").hidden = true;
     $("#fPhotoInfo").textContent = "Foto descartada.";
-    sugIntento++; if (formState.ai?.src === "foto") { formState.ai = null; $("#aiOut").innerHTML = ""; }
+    sugIntento++; if (formState.ai?.src === "foto" || $("#btnAnalyze").disabled) { formState.ai = null; $("#aiOut").innerHTML = ""; botonSug(); }
   });
-  $("#fCat").addEventListener("change", checkDuplicate);
+  $("#fCat").addEventListener("change", () => { botonSug(); checkDuplicate(); });
   $("#reportForm").addEventListener("submit", submitReport);
 }
 $("#btnNew").addEventListener("click", openForm);
@@ -1190,28 +1190,38 @@ function mostrarSugerencia(res){
   }
   out.innerHTML = `<div class="ai"><span class="ai-tag${res.src === "foto" ? "" : " sim"}">${res.src === "foto" ? "Sugerencia de la IA" : "Sugerencia automática"}</span>
     <div><b>${CATS[res.categoria].one}</b> · gravedad ${res.gravedad}/5</div>${res.resumen ? `<div>${esc(res.resumen)}</div>` : ""}
-    <div class="note">${res.src === "foto" ? "Según lo que se ve en tu foto." : "Según las palabras de tu descripción."} Vos elegís: usala o elegí otra arriba.</div>
-    <div class="rowbtns"><button class="btn small primary" type="button" id="btnUsarSug">Usar sugerencia</button></div></div>`;
-  $("#btnUsarSug").addEventListener("click", () => {
-    $("#fCat").value = res.categoria; $("#fSev").value = String(res.gravedad);
-    $("#btnUsarSug").replaceWith(Object.assign(document.createElement("span"), {className:"note", textContent:"Usada. Podés cambiarla arriba."}));
-    checkDuplicate();
-  });
+    <div class="note">${res.src === "foto" ? "Según lo que se ve en tu foto." : "Según las palabras de tu descripción."} Vos elegís: usala o elegí otra arriba.</div></div>`;
+  botonSug();
+}
+// Un solo botón: "Sugerir categoría" → "Usar sugerencia" cuando hay una → "Sugerencia usada" (o "Analizando…" mientras espera).
+function botonSug(cargando){
+  const b = $("#btnAnalyze"); if (!b) return;
+  const sug = CATS[formState.ai?.categoria] ? formState.ai : null, usada = sug && $("#fCat").value === sug.categoria;
+  b.disabled = !!cargando || !!usada;
+  b.classList.toggle("primary", !!sug && !usada && !cargando);
+  b.textContent = cargando ? "Mirando la foto…" : usada ? "Sugerencia usada" : sug ? "Usar sugerencia" : "Sugerir categoría";
+}
+function usarSugerencia(){
+  const res = formState.ai;
+  $("#fCat").value = res.categoria; $("#fSev").value = String(res.gravedad);
+  botonSug(); checkDuplicate();
 }
 let sugIntento = 0;
 async function sugerirDesdeFoto(){
   if (!IA.enabled || Store.mode !== "supabase" || !formState.photo) return false;
   const n = ++sugIntento, out = $("#aiOut");
+  formState.ai = null; botonSug(true);
   out.innerHTML = `<div class="ai"><span class="ai-tag">Sugerencia de la IA</span><div class="note">Mirando la foto para sugerirte una categoría…</div></div>`;
   try {
     const sug = await IA.sugerir(formState.photo, $("#fDesc")?.value.trim() || "");
     if (n === sugIntento && $("#aiOut")) mostrarSugerencia({...sug, src:"foto", confianza:null});
   } catch(err){
-    if (n === sugIntento && $("#aiOut")) out.innerHTML = `<div class="note">No se pudo sugerir desde la foto (${esc(err.message)}). Elegí la categoría vos.</div>`;
+    if (n === sugIntento && $("#aiOut")){ out.innerHTML = `<div class="note">No se pudo sugerir desde la foto (${esc(err.message)}). Elegí la categoría vos.</div>`; botonSug(); }
   }
   return true;
 }
 async function analyze(){
+  if (CATS[formState.ai?.categoria]) return usarSugerencia();
   if (await sugerirDesdeFoto()) return;
   const desc = $("#fDesc").value.trim();
   if (!desc){ toast("Sacá una foto o escribí una descripción para sugerir la categoría."); $("#fDesc").focus(); return; }
