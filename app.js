@@ -406,6 +406,7 @@ function crecida(){
 // Se pinta con los mismos azules de las zonas inundables, con un borde blanco para distinguirla. Se rehace cuando cambian las denuncias.
 const INUND_R = 150, INUND_PLAZO = 730 * 864e5;
 const NIV_DEN = ["", "leve", "moderada", "alta"], COL_DEN = ["", "#64b5f6", "#1e88e5", "#0d47a1"];
+const ALFA_DEN = [0, 140, 255, 255];   // el leve (celeste) más transparente
 const nivelCant = n => n >= 6 ? 3 : n >= 3 ? 2 : 1;
 function zonasDenunciadas(rs){
   const p = rs.map((_, i) => i), raiz = i => p[i] === i ? i : (p[i] = raiz(p[i]));
@@ -480,7 +481,7 @@ function pintarDenunciadasSat(zonas){
   const chico = document.createElement("canvas"); chico.width = w; chico.height = h;
   const g = chico.getContext("2d"), img = g.createImageData(w, h);
   const rgb = COL_DEN.map(c => c ? [1, 3, 5].map(k => parseInt(c.slice(k, k + 2), 16)) : null);
-  for (let i = 0; i < w * h; i++) if (nivel[i]) img.data.set([...rgb[nivel[i]], 255], i * 4);
+  for (let i = 0; i < w * h; i++) if (nivel[i]) img.data.set([...rgb[nivel[i]], ALFA_DEN[nivel[i]]], i * 4);
   g.putImageData(img, 0, 0);
   const cv = document.createElement("canvas"); cv.width = w * 3; cv.height = h * 3;
   const g3 = cv.getContext("2d"); g3.imageSmoothingEnabled = true; g3.drawImage(chico, 0, 0, w * 3, h * 3);
