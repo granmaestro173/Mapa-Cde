@@ -426,7 +426,7 @@ function denunciadas(){
   if (clave !== inund.denunK){
     inund.denunK = clave;
     const zonas = inund.zonas = zonasDenunciadas(rs).sort((a, b) => a.nivel - b.nivel);
-    if (sat){ pintarDenunciadasSat(zonas); inund.denun.addTo(map); inund.denun.getElement().classList.add("pixelada"); textoDenunciadas(rs); return; }
+    if (sat){ pintarDenunciadasSat(zonas); inund.denun.addTo(map); textoDenunciadas(rs); return; }
     const cos = Math.cos(-25.5 * Math.PI / 180), dLat = INUND_R / 111320 * 1.5, dLng = dLat / cos;
     const s = Math.min(...rs.map(r => r.lat)) - dLat, n = Math.max(...rs.map(r => r.lat)) + dLat;
     const o = Math.min(...rs.map(r => r.lng)) - dLng, e = Math.max(...rs.map(r => r.lng)) + dLng;
@@ -443,7 +443,6 @@ function denunciadas(){
     else inund.denun = L.imageOverlay(cv.toDataURL(), b, {opacity:.85, className:"inund-denun"});
   }
   inund.denun.addTo(map);
-  inund.denun.getElement().classList.toggle("pixelada", sat);
   textoDenunciadas(rs);
 }
 function textoDenunciadas(rs){
@@ -455,45 +454,36 @@ function textoDenunciadas(rs){
 // del punto más bajo junto a la denuncia, que es por donde corre y se junta el agua. No se pinta el río ni los lagos.
 const SAT_R = 200, SAT_SOBRE = 1.5;
 function pintarDenunciadasSat(zonas){
-  const {w, h, px} = inund.cota, [[s, o], [n, e]] = inund.datos.zona, F = 3;   // 3×3 subceldas por celda del relieve
+  // Mismo estilo que las zonas inundables (riesgo-*.png): un píxel por celda del relieve, color liso,
+  // agrandado 3 veces con suavizado.
+  const {w, h, px} = inund.cota, [[s, o], [n, e]] = inund.datos.zona;
   // Cota en metros: del relieve completo si está; si no, de cota.png (que solo distingue hasta 158 m).
   const rel = inund.relieve && inund.relieve.w === w && inund.relieve.h === h ? inund.relieve.px : null;
   const cota = i => rel ? (rel[i * 4] * 256 + rel[i * 4 + 1]) / 10 : px[i * 4] === 255 ? Infinity : inund.datos.cota_base + px[i * 4] / 4;
-  // Altura dentro de la celda, interpolada entre los centros de las celdas vecinas, para un borde más fino.
-  const cotaEn = (X, Y) => {
-    const gx = Math.min(w - 1, Math.max(0, X - .5)), gy = Math.min(h - 1, Math.max(0, Y - .5));
-    const x0 = Math.floor(gx), y0 = Math.floor(gy), x1 = Math.min(w - 1, x0 + 1), y1 = Math.min(h - 1, y0 + 1), tx = gx - x0, ty = gy - y0;
-    const a = cota(y0 * w + x0), b = cota(y0 * w + x1), c = cota(y1 * w + x0), d = cota(y1 * w + x1);
-    if (![a, b, c, d].every(isFinite)) return cota(Math.min(h - 1, Math.floor(Y)) * w + Math.min(w - 1, Math.floor(X)));
-    return (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty;
-  };
-  const W = w * F, H = h * F, cos = Math.cos(-25.5 * Math.PI / 180), mx = (e - o) / W * 111320 * cos, my = (n - s) / H * 111320;
-  const nivel = new Uint8Array(W * H), hondo = new Float32Array(W * H);
+  const cos = Math.cos(-25.5 * Math.PI / 180), mx = (e - o) / w * 111320 * cos, my = (n - s) / h * 111320;
+  const nivel = new Uint8Array(w * h);
   for (const z of zonas) for (const r of z.rs){
-    const X = (r.lng - o) / (e - o) * w, Y = (n - r.lat) / (n - s) * h, cx = Math.floor(X), cy = Math.floor(Y);
+    const cx = Math.floor((r.lng - o) / (e - o) * w), cy = Math.floor((n - r.lat) / (n - s) * h);
     if (cx < 0 || cy < 0 || cx >= w || cy >= h) continue;
     let base = Infinity;
     for (let y = Math.max(0, cy - 1); y <= Math.min(h - 1, cy + 1); y++) for (let x = Math.max(0, cx - 1); x <= Math.min(w - 1, cx + 1); x++) base = Math.min(base, cota(y * w + x));
-    // Sin dato de relieve en ese lugar, solo se marca alrededor de la denuncia (~45 m).
-    const lejos = base === Infinity ? 1.5 * mx * F : SAT_R, tope = base + SAT_SOBRE;
-    const sx = X * F, sy = Y * F, rx = Math.ceil(lejos / mx), ry = Math.ceil(lejos / my);
-    for (let y = Math.max(0, Math.floor(sy) - ry); y <= Math.min(H - 1, Math.floor(sy) + ry); y++) for (let x = Math.max(0, Math.floor(sx) - rx); x <= Math.min(W - 1, Math.floor(sx) + rx); x++){
-      const dist2 = ((x + .5 - sx) * mx) ** 2 + ((y + .5 - sy) * my) ** 2;
-      if (dist2 > lejos ** 2) continue;
-      const c = Math.floor(y / F) * w + Math.floor(x / F);
-      if (px[c * 4 + 1] > 127 || px[c * 4 + 2] > 127) continue;
-      if (base !== Infinity && dist2 > 900 && cotaEn((x + .5) / F, (y + .5) / F) > tope) continue;   // a menos de 30 m siempre se marca
-      const i = y * W + x; if (z.nivel > nivel[i]) nivel[i] = z.nivel;
-      // Más hondo (más abajo del punto de la denuncia) = más opaco; así se ve la textura del terreno.
-      const p = base === Infinity ? .7 : Math.max(.45, Math.min(1, .45 + (tope - cotaEn((x + .5) / F, (y + .5) / F)) / (SAT_SOBRE * 2)));
-      if (p > hondo[i]) hondo[i] = p;
+    // Sin dato de relieve en ese lugar, solo se marca la celda de la denuncia y las vecinas.
+    const lejos = base === Infinity ? 1.5 * Math.max(mx, my) : SAT_R, tope = base + SAT_SOBRE;
+    const rx = Math.ceil(lejos / mx), ry = Math.ceil(lejos / my);
+    for (let y = Math.max(0, cy - ry); y <= Math.min(h - 1, cy + ry); y++) for (let x = Math.max(0, cx - rx); x <= Math.min(w - 1, cx + rx); x++){
+      if (((x - cx) * mx) ** 2 + ((y - cy) * my) ** 2 > lejos ** 2) continue;
+      const i = y * w + x;
+      if (px[i * 4 + 1] > 127 || px[i * 4 + 2] > 127 || (base !== Infinity && cota(i) > tope && !(x === cx && y === cy))) continue;
+      if (z.nivel > nivel[i]) nivel[i] = z.nivel;
     }
   }
-  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
-  const g = cv.getContext("2d"), img = g.createImageData(W, H);
+  const chico = document.createElement("canvas"); chico.width = w; chico.height = h;
+  const g = chico.getContext("2d"), img = g.createImageData(w, h);
   const rgb = COL_DEN.map(c => c ? [1, 3, 5].map(k => parseInt(c.slice(k, k + 2), 16)) : null);
-  for (let i = 0; i < W * H; i++) if (nivel[i]) img.data.set([...rgb[nivel[i]], Math.round(hondo[i] * 255)], i * 4);
+  for (let i = 0; i < w * h; i++) if (nivel[i]) img.data.set([...rgb[nivel[i]], 255], i * 4);
   g.putImageData(img, 0, 0);
+  const cv = document.createElement("canvas"); cv.width = w * 3; cv.height = h * 3;
+  const g3 = cv.getContext("2d"); g3.imageSmoothingEnabled = true; g3.drawImage(chico, 0, 0, w * 3, h * 3);
   if (inund.denun){ inund.denun.setUrl(cv.toDataURL()); inund.denun.setBounds(L.latLngBounds(inund.datos.zona)); }
   else inund.denun = L.imageOverlay(cv.toDataURL(), inund.datos.zona, {opacity:.85, className:"inund-denun"});
 }
