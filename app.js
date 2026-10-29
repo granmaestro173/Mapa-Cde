@@ -516,6 +516,26 @@ $("#btnVerInund").addEventListener("click", mostrarInund);
 $("#lluviaVer").addEventListener("click", () => { $("#lluviaBanner").hidden = true; mostrarInund(); });
 $("#lluviaX").addEventListener("click", () => { $("#lluviaBanner").hidden = true; try { sessionStorage.setItem("cde-lluvia-visto", $("#lluviaTxt").textContent); } catch(e) {} });
 
+// Alerta por barrio: con lluvia fuerte prevista, avisa en la campana qué barrios tienen denuncias recientes de inundación.
+// Se avisa una sola vez por cada pronóstico (día y barrios); si cambian los barrios o el día, llega un aviso nuevo.
+let lluviaPrevista = null;
+function barriosExpuestos(){
+  const cuenta = {};
+  for (const r of allReports()){
+    if (r.cat !== "inundacion" || r.mod === "falsa" || r.iaCheck === "dudosa" || Date.now() - r.t > 30*DAY || !r.barrio) continue;
+    cuenta[r.barrio] = (cuenta[r.barrio] || 0) + 1;
+  }
+  return Object.entries(cuenta).sort((a, b) => b[1] - a[1]).slice(0, 4);
+}
+function alertaBarrios(){
+  if (!lluviaPrevista || !avisosActivos) return;
+  const bs = barriosExpuestos(); if (!bs.length) return;
+  const {n, mm, dia} = lluviaPrevista, clave = dia + "|" + bs.map(b => b[0]).join(",");
+  if (leerLS("cde-alerta-lluvia", "") === clave) return;
+  guardarLS("cde-alerta-lluvia", clave);
+  avisar("lluvia", `${["", "Atención", "Alerta", "Alerta"][n]} de lluvia: se esperan ${mm} mm el ${diaC(dia)}. Barrios más expuestos por inundaciones denunciadas este mes: `
+    + bs.map(([b, c]) => `${b} (${c})`).join(", ") + ". Evitá calles anegadas y no cruces raudales.");
+}
 // Pronóstico de lluvia (Open-Meteo) y caudal del Paraná (GloFAS vía Open-Meteo). Se piden al abrir y cada hora.
 const DIAS_C = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
 const diaC = s => { const f = new Date(s + "T12:00:00"); return DIAS_C[f.getDay()] + " " + f.getDate(); };
@@ -537,6 +557,8 @@ async function clima(){
     let visto = ""; try { visto = sessionStorage.getItem("cde-lluvia-visto") || ""; } catch(e) {}
     $("#lluviaTxt").textContent = txt;
     $("#lluviaBanner").hidden = !n || visto === txt;
+    lluviaPrevista = n ? {n, mm:Math.round(max), dia:p.daily.time[iMax]} : null;
+    alertaBarrios();
   } catch(e){
     $("#climaT").textContent = "No se pudo cargar el pronóstico";
     $("#inundLluvia").textContent = "No se pudo cargar el pronóstico de lluvia. Elegí un escenario.";
@@ -1673,6 +1695,7 @@ function revisarAvisos(){
   }
   if (cambios) guardarLS(AV.mias, mias);
   if (arch) guardarLS("cde-historial", archivo);
+  alertaBarrios();
 }
 function avisar(id, texto){
   avisos.unshift({id, t:Date.now(), texto, leido:false});
@@ -1725,13 +1748,14 @@ function openAvisos(){
   $("#avPermiso")?.addEventListener("click", async () => { await Notification.requestPermission().catch(() => {}); openAvisos(); });
   $("#misTabs").addEventListener("click", e => { const b = e.target.closest("[data-mt]"); if (b){ pestanaMias = b.dataset.mt; openAvisos(); } });
 }
-drawer.addEventListener("click", e => { const a = e.target.closest("[data-av]"); if (a && findReport(a.dataset.av)) openDetail(a.dataset.av); });
+drawer.addEventListener("click", e => { const a = e.target.closest("[data-av]"); if (!a) return; if (a.dataset.av === "lluvia"){ closeDrawer(); mostrarInund(); } else if (findReport(a.dataset.av)) openDetail(a.dataset.av); });
 $("#btnAvisos").addEventListener("click", openAvisos);
 $("#btnMisDenuncias").addEventListener("click", openAvisos);
 // Abrir una denuncia desde un aviso del sistema (?denuncia=ID) cuando ya cargaron los datos.
 let abrirCuandoLlegue = new URLSearchParams(location.search).get("denuncia");
 navigator.serviceWorker?.addEventListener("message", e => { if (e.data?.abrir){ abrirCuandoLlegue = e.data.abrir; abrirPendiente(); } });
-function abrirPendiente(){ if (abrirCuandoLlegue && findReport(abrirCuandoLlegue)){ openDetail(abrirCuandoLlegue); abrirCuandoLlegue = null; history.replaceState(null, "", location.pathname + location.hash); } }
+function abrirPendiente(){ if (abrirCuandoLlegue === "lluvia"){ abrirCuandoLlegue = null; history.replaceState(null, "", location.pathname + location.hash); mostrarInund(); return; }
+  if (abrirCuandoLlegue && findReport(abrirCuandoLlegue)){ openDetail(abrirCuandoLlegue); abrirCuandoLlegue = null; history.replaceState(null, "", location.pathname + location.hash); } }
 
 /* ---------- Sin internet: la denuncia se guarda en el teléfono y se envía sola cuando vuelve la señal ---------- */
 const Cola = {
