@@ -155,6 +155,11 @@ wbm_z = tifffile.imread(sys.argv[2])[r0:r1, c0:c1][zr0:zr1, zc0:zc1]
 cod[..., 1][wbm_z == 3] = 255
 cod[..., 2][wbm_z == 2] = 255
 Image.fromarray(cod, "RGB").save(os.path.join(SALIDA, "cota.png"), optimize=True)
+# Relieve completo de la misma grilla, para marcar en el satélite las inundaciones denunciadas siguiendo el terreno:
+# cota en decímetros repartida en dos bytes (rojo = parte alta, verde = parte baja).
+dm = np.clip(np.round(np.nan_to_num(z, nan=0) * 10), 0, 65535).astype(np.uint16)
+rel = np.zeros(h.shape + (3,), dtype=np.uint8); rel[..., 0] = dm >> 8; rel[..., 1] = dm & 255
+Image.fromarray(rel, "RGB").save(os.path.join(SALIDA, "relieve.png"), optimize=True)
 
 # Cauces como líneas (para dibujarlos encima)
 red = grid.extract_river_network(fdir, Raster(cauces & (wbm_calc != 3), viewfinder=vf_b))

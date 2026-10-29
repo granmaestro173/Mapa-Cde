@@ -139,6 +139,7 @@ function setVista(v, recordar = true){
   map.getContainer().dataset.vista = v;
   if (typeof renderVistaUI === "function") renderVistaUI();
   if (typeof renderPins === "function" && markers.size) renderPins();
+  document.dispatchEvent(new Event("cde-vista"));
 }
 L.marker(DEPOT, {keyboard:false, title:"Depósito municipal de obras (referencia para el traslado)", icon:L.divIcon({className:"", html:'<div class="depot"></div>', iconSize:[14,14], iconAnchor:[7,7]})}).addTo(map)
   .bindTooltip("Depósito municipal de obras (referencia)");
@@ -419,11 +420,13 @@ function zonasDenunciadas(rs){
 }
 function denunciadas(){
   const rs = inund.on ? allReports().filter(r => r.cat === "inundacion" && r.iaCheck !== "dudosa" && Date.now() - r.t < INUND_PLAZO) : [];
-  const clave = rs.map(r => r.id + r.lat + r.lng + (r.iaNivel || "")).join();
+  const sat = vista !== "calles" && !!inund.cota;
+  const clave = sat + rs.map(r => r.id + r.lat + r.lng + (r.iaNivel || "")).join();
   if (!rs.length){ if (inund.denun) map.removeLayer(inund.denun); inund.denunK = clave; inund.zonas = []; $("#inundDenunTxt").textContent = ""; return; }
   if (clave !== inund.denunK){
     inund.denunK = clave;
     const zonas = inund.zonas = zonasDenunciadas(rs).sort((a, b) => a.nivel - b.nivel);
+    if (sat){ pintarDenunciadasSat(zonas); inund.denun.addTo(map); textoDenunciadas(rs); return; }
     const cos = Math.cos(-25.5 * Math.PI / 180), dLat = INUND_R / 111320 * 1.5, dLng = dLat / cos;
     const s = Math.min(...rs.map(r => r.lat)) - dLat, n = Math.max(...rs.map(r => r.lat)) + dLat;
     const o = Math.min(...rs.map(r => r.lng)) - dLng, e = Math.max(...rs.map(r => r.lng)) + dLng;
@@ -440,9 +443,45 @@ function denunciadas(){
     else inund.denun = L.imageOverlay(cv.toDataURL(), b, {opacity:.85, className:"inund-denun"});
   }
   inund.denun.addTo(map);
+  textoDenunciadas(rs);
+}
+function textoDenunciadas(rs){
   const cuenta = [3, 2, 1].map(v => [v, inund.zonas.filter(z => z.nivel === v).length]).filter(x => x[1]);
   $("#inundDenunTxt").textContent = `Denunciadas: ${cuenta.map(([v, c]) => c + (c > 1 ? " zonas" : " zona") + " con inundación " + NIV_DEN[v]).join(", ")} · ${rs.length} denuncia${rs.length > 1 ? "s" : ""} en 2 años.`;
 }
+// En el satélite la zona denunciada se marca celda por celda sobre la grilla del relieve (la misma de las zonas
+// inundables, ~30 m): dentro de 200 m de cada denuncia se pintan solo las celdas que no están más de 1,5 m por encima
+// del punto más bajo junto a la denuncia, que es por donde corre y se junta el agua. No se pinta el río ni los lagos.
+const SAT_R = 200, SAT_SOBRE = 1.5;
+function pintarDenunciadasSat(zonas){
+  const {w, h, px} = inund.cota, [[s, o], [n, e]] = inund.datos.zona, E = 1;   // un píxel por celda, igual que la crecida del río
+  // Cota en metros: del relieve completo si está; si no, de cota.png (que solo distingue hasta 158 m).
+  const rel = inund.relieve && inund.relieve.w === w && inund.relieve.h === h ? inund.relieve.px : null;
+  const cota = i => rel ? (rel[i * 4] * 256 + rel[i * 4 + 1]) / 10 : px[i * 4] === 255 ? Infinity : inund.datos.cota_base + px[i * 4] / 4;
+  const cos = Math.cos(-25.5 * Math.PI / 180), mx = (e - o) / w * 111320 * cos, my = (n - s) / h * 111320;
+  const nivel = new Uint8Array(w * h);
+  for (const z of zonas) for (const r of z.rs){
+    const cx = Math.floor((r.lng - o) / (e - o) * w), cy = Math.floor((n - r.lat) / (n - s) * h);
+    if (cx < 0 || cy < 0 || cx >= w || cy >= h) continue;
+    let base = Infinity;
+    for (let y = Math.max(0, cy - 1); y <= Math.min(h - 1, cy + 1); y++) for (let x = Math.max(0, cx - 1); x <= Math.min(w - 1, cx + 1); x++) base = Math.min(base, cota(y * w + x));
+    // Sin dato de relieve en ese lugar, solo se marca la celda de la denuncia y las vecinas.
+    const lejos = base === Infinity ? 1.5 * Math.max(mx, my) : SAT_R;
+    const tope = base + SAT_SOBRE, rx = Math.ceil(lejos / mx), ry = Math.ceil(lejos / my);
+    for (let y = Math.max(0, cy - ry); y <= Math.min(h - 1, cy + ry); y++) for (let x = Math.max(0, cx - rx); x <= Math.min(w - 1, cx + rx); x++){
+      if (((x - cx) * mx) ** 2 + ((y - cy) * my) ** 2 > lejos ** 2) continue;
+      const i = y * w + x;
+      if (px[i * 4 + 1] > 127 || px[i * 4 + 2] > 127 || (cota(i) > tope && base !== Infinity && !(x === cx && y === cy))) continue;
+      if (z.nivel > nivel[i]) nivel[i] = z.nivel;
+    }
+  }
+  const cv = document.createElement("canvas"); cv.width = w * E; cv.height = h * E;
+  const g = cv.getContext("2d");
+  for (let i = 0; i < w * h; i++) if (nivel[i]){ g.fillStyle = COL_DEN[nivel[i]]; g.fillRect((i % w) * E, Math.floor(i / w) * E, E, E); }
+  if (inund.denun){ inund.denun.setUrl(cv.toDataURL()); inund.denun.setBounds(L.latLngBounds(inund.datos.zona)); }
+  else inund.denun = L.imageOverlay(cv.toDataURL(), inund.datos.zona, {opacity:.85, className:"inund-denun"});
+}
+document.addEventListener("cde-vista", () => { if (inund.on) denunciadas(); });
 // Nivel de la zona denunciada en la que cae un punto (para la ficha de la denuncia).
 const zonaDenunciadaDe = r => (inund.zonas || []).find(z => z.rs.includes(r)) || zonasDenunciadas(allReports().filter(x => x.cat === "inundacion" && x.iaCheck !== "dudosa" && Date.now() - x.t < INUND_PLAZO)).find(z => z.rs.some(x => x.id === r.id));
 
@@ -455,6 +494,7 @@ async function setInund(on){
       const d = await cargarInundDatos();
       if (!inund.capas.muy_alta) for (const k of INUND_NIV) inund.capas[k] = L.imageOverlay(`inundacion/riesgo-${k}.png`, d.zona, {opacity:.85});
       if (!inund.cota) inund.cota = await leerPng("inundacion/cota.png");
+      if (!inund.relieve) inund.relieve = await leerPng("inundacion/relieve.png").catch(() => null);
     } catch(e){ toast("No se pudieron cargar las zonas inundables."); }
   }
   verInundEsc(inund.esc); crecida(); denunciadas();
