@@ -151,11 +151,11 @@ let pickMarker = null, pickMode = false, pickLatLng = null;
 
 const CAM = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 4h6l1.5 2H20a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.5z"/><circle cx="12" cy="13" r="3.6" fill="var(--panel)"/></svg>';
 function iconFor(r, sel){
-  const hot = r.votes >= 8 && r.status !== "resuelta";
+  const hot = r.status === "en_proceso";   // aro amarillo: la municipalidad ya está trabajando en ella
   return L.divIcon({className:"", iconSize:[26,26], iconAnchor:sel?[17,34]:[13,26],
     // Sobre el mapa de calles el marcador es simple (color y un punto); sobre el satélite, completo.
     html:vista === "calles"
-      ? `<div class="pinw"><div class="pin simple ${r.status==="resuelta"?"res":""} ${sel?"sel":""} ${r.mod==="falsa"?"fake":""} ${ocultas.has(r.id)?"oculta":""}" style="--c:${cvar(r.cat)}"><i></i></div></div>`
+      ? `<div class="pinw"><div class="pin simple ${r.status==="resuelta"?"res":""} ${hot?"hot":""} ${sel?"sel":""} ${r.mod==="falsa"?"fake":""} ${ocultas.has(r.id)?"oculta":""}" style="--c:${cvar(r.cat)}"><i></i></div></div>`
       : `<div class="pinw"><div class="pin ${r.status==="resuelta"?"res":""} ${hot?"hot":""} ${sel?"sel":""} ${r.mod==="falsa"?"fake":""} ${ocultas.has(r.id)?"oculta":""}" style="--c:${cvar(r.cat)}">${ICONS[r.cat]}</div>${hasPhoto(r) ? `<span class="cam" title="Con foto">${CAM}</span>` : ""}</div>`});
 }
 // Una denuncia resuelta sigue 10 minutos en el mapa, por si se marcó por error y hay que cancelarlo; después sale del mapa.
