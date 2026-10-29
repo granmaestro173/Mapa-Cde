@@ -420,13 +420,13 @@ function zonasDenunciadas(rs){
 }
 function denunciadas(){
   const rs = inund.on ? allReports().filter(r => r.cat === "inundacion" && r.iaCheck !== "dudosa" && Date.now() - r.t < INUND_PLAZO) : [];
-  const sat = vista !== "calles" && !!inund.cota;
+  const sat = vista === "satelite" && !!inund.cota;
   const clave = sat + rs.map(r => r.id + r.lat + r.lng + (r.iaNivel || "")).join();
   if (!rs.length){ if (inund.denun) map.removeLayer(inund.denun); inund.denunK = clave; inund.zonas = []; $("#inundDenunTxt").textContent = ""; return; }
   if (clave !== inund.denunK){
     inund.denunK = clave;
     const zonas = inund.zonas = zonasDenunciadas(rs).sort((a, b) => a.nivel - b.nivel);
-    if (sat){ pintarDenunciadasSat(zonas); inund.denun.addTo(map); textoDenunciadas(rs); return; }
+    if (sat){ pintarDenunciadasSat(zonas); inund.denun.addTo(map); inund.denun.getElement().classList.add("pixelada"); textoDenunciadas(rs); return; }
     const cos = Math.cos(-25.5 * Math.PI / 180), dLat = INUND_R / 111320 * 1.5, dLng = dLat / cos;
     const s = Math.min(...rs.map(r => r.lat)) - dLat, n = Math.max(...rs.map(r => r.lat)) + dLat;
     const o = Math.min(...rs.map(r => r.lng)) - dLng, e = Math.max(...rs.map(r => r.lng)) + dLng;
@@ -443,6 +443,7 @@ function denunciadas(){
     else inund.denun = L.imageOverlay(cv.toDataURL(), b, {opacity:.85, className:"inund-denun"});
   }
   inund.denun.addTo(map);
+  inund.denun.getElement().classList.toggle("pixelada", sat);
   textoDenunciadas(rs);
 }
 function textoDenunciadas(rs){
@@ -467,7 +468,7 @@ function pintarDenunciadasSat(zonas){
     return (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty;
   };
   const W = w * F, H = h * F, cos = Math.cos(-25.5 * Math.PI / 180), mx = (e - o) / W * 111320 * cos, my = (n - s) / H * 111320;
-  const nivel = new Uint8Array(W * H);
+  const nivel = new Uint8Array(W * H), hondo = new Float32Array(W * H);
   for (const z of zonas) for (const r of z.rs){
     const X = (r.lng - o) / (e - o) * w, Y = (n - r.lat) / (n - s) * h, cx = Math.floor(X), cy = Math.floor(Y);
     if (cx < 0 || cy < 0 || cx >= w || cy >= h) continue;
@@ -483,12 +484,15 @@ function pintarDenunciadasSat(zonas){
       if (px[c * 4 + 1] > 127 || px[c * 4 + 2] > 127) continue;
       if (base !== Infinity && dist2 > 900 && cotaEn((x + .5) / F, (y + .5) / F) > tope) continue;   // a menos de 30 m siempre se marca
       const i = y * W + x; if (z.nivel > nivel[i]) nivel[i] = z.nivel;
+      // Más hondo (más abajo del punto de la denuncia) = más opaco; así se ve la textura del terreno.
+      const p = base === Infinity ? .7 : Math.max(.45, Math.min(1, .45 + (tope - cotaEn((x + .5) / F, (y + .5) / F)) / (SAT_SOBRE * 2)));
+      if (p > hondo[i]) hondo[i] = p;
     }
   }
   const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
   const g = cv.getContext("2d"), img = g.createImageData(W, H);
   const rgb = COL_DEN.map(c => c ? [1, 3, 5].map(k => parseInt(c.slice(k, k + 2), 16)) : null);
-  for (let i = 0; i < W * H; i++) if (nivel[i]) img.data.set([...rgb[nivel[i]], 255], i * 4);
+  for (let i = 0; i < W * H; i++) if (nivel[i]) img.data.set([...rgb[nivel[i]], Math.round(hondo[i] * 255)], i * 4);
   g.putImageData(img, 0, 0);
   if (inund.denun){ inund.denun.setUrl(cv.toDataURL()); inund.denun.setBounds(L.latLngBounds(inund.datos.zona)); }
   else inund.denun = L.imageOverlay(cv.toDataURL(), inund.datos.zona, {opacity:.85, className:"inund-denun"});
