@@ -1589,18 +1589,41 @@ let avisosActivos = leerLS(AV.activos, true);
 const huella = r => [r.status, r.mod || "", r.iaCheck === "verificada" ? "ia" : ""].join("|");
 const esMia = r => !!mias[r.id] || r.mine || (!!r.autor && r.autor === Store.user?.id);
 function registrarMia(r){ mias[r.id] = huella(r); guardarLS(AV.mias, mias); abrirVentanaCancelar(r.id); }
+// Historial propio: las denuncias completadas o rechazadas por la IA se guardan también en este dispositivo
+// (las resueltas reales se borran de la base a los 14 días, 06-limpiar-resueltas.sql) y se limpian al mes de cerradas.
+const HIST_PLAZO = 30 * DAY;
+let archivo = leerLS("cde-historial", {});   // id -> {id, cat, barrio, desc, t, cierre, motivo, cerrada}
+const cierreDe = r => r.mod === "falsa" && r.iaAbuso ? "rechazada" : r.status === "resuelta" && r.mod !== "falsa" ? "completada" : "";
+const motivoCierre = r => cierreDe(r) === "rechazada" ? `La IA (Claude Haiku) la rechazó${r.iaWhy ? ": " + r.iaWhy : "."}`
+  : cierreDe(r) === "completada" ? "La municipalidad la marcó como resuelta." : "";
+function limpiarArchivo(){
+  let n = 0;
+  for (const [id, a] of Object.entries(archivo)) if (Date.now() - a.cerrada > HIST_PLAZO){ delete archivo[id]; n++; }
+  return n;
+}
+function archivar(r){
+  const cierre = cierreDe(r);
+  if (!cierre){ if (archivo[r.id]){ delete archivo[r.id]; return true; } return false; }
+  const a = archivo[r.id];
+  if (a && a.cierre === cierre && a.motivo === motivoCierre(r)) return false;
+  const cerrada = archivo[r.id]?.cierre === cierre ? archivo[r.id].cerrada : (cierre === "completada" ? r.resolvedAt : r.iaAt) || Date.now();
+  if (Date.now() - cerrada > HIST_PLAZO) return false;
+  archivo[r.id] = {id:r.id, cat:r.cat, barrio:r.barrio, desc:r.desc || "", t:r.t, cierre, motivo:motivoCierre(r), cerrada};
+  return true;
+}
 function textoAviso(r, antes){
   const [st, md, ia] = antes.split("|"), que = `Tu denuncia de ${CATS[r.cat].one.toLowerCase()} en ${r.barrio}`;
   if (r.status !== st) return r.status === "resuelta" ? `¡${que} fue resuelta!` : r.status === "en_proceso" ? `${que} está en proceso.` : `${que} volvió a "Recibida".`;
-  if (r.mod !== md) return r.mod === "verificada" ? `${que} fue verificada por la moderación.` : r.mod === "falsa" ? `${que} fue marcada como falsa.` : "";
+  if (r.mod !== md) return r.mod === "verificada" ? `${que} fue verificada por la moderación.` : r.mod === "falsa" ? (r.iaAbuso ? `${que} fue rechazada por la IA.` : `${que} fue marcada como falsa.`) : "";
   if (r.iaCheck === "verificada" && !ia) return `${que} fue verificada con IA.`;
   return "";
 }
 // Se llama cada vez que llegan datos nuevos (al cargar, en tiempo real o al volver la señal).
 function revisarAvisos(){
-  let cambios = false;
+  let cambios = false, arch = false;
   for (const r of live.values()){
     if (!esMia(r)) continue;
+    if (archivar(r)) arch = true;
     const antes = mias[r.id], ahora = huella(r);
     if (antes === ahora) continue;
     mias[r.id] = ahora; cambios = true;
@@ -1608,6 +1631,7 @@ function revisarAvisos(){
     if (texto && avisosActivos) avisar(r.id, texto);
   }
   if (cambios) guardarLS(AV.mias, mias);
+  if (arch) guardarLS("cde-historial", archivo);
 }
 function avisar(id, texto){
   avisos.unshift({id, t:Date.now(), texto, leido:false});
@@ -1624,8 +1648,13 @@ function renderCampana(){
   b.setAttribute("aria-label", n ? `Mis denuncias: ${n} aviso${n===1?"":"s"} nuevo${n===1?"":"s"}` : "Mis denuncias y avisos"); b.title = b.getAttribute("aria-label");
 }
 const ESTADO_CHIP = {recibida:["Recibida",""], en_proceso:["En proceso","warn"], resuelta:["Resuelta","ok"]};
+let pestanaMias = "abiertas";
+const CIERRE_CHIP = {completada:["Completada","ok"], rechazada:["Rechazada","bad"]};
 function openAvisos(){
-  const propias = [...live.values()].filter(esMia).sort((a,b) => b.t - a.t);
+  const todas = [...live.values()].filter(esMia);
+  const propias = todas.filter(r => !cierreDe(r) && r.status !== "resuelta" && r.mod !== "falsa").sort((a,b) => b.t - a.t);
+  todas.forEach(archivar); limpiarArchivo(); guardarLS("cde-historial", archivo);
+  const cerradas = Object.values(archivo).sort((a,b) => b.cerrada - a.cerrada);
   const nuevos = new Set(avisos.filter(a => !a.leido).map(a => a.t));
   avisos.forEach(a => a.leido = true); guardarLS(AV.avisos, avisos); renderCampana();
   const permiso = !("Notification" in window) ? "Este navegador no permite avisos del sistema; los vas a ver acá."
@@ -1639,8 +1668,13 @@ function openAvisos(){
       ${pendientes.length ? `<div class="warnbox"><b>${pendientes.length} denuncia${pendientes.length===1?"":"s"} sin enviar.</b> Se guardaron sin señal y se envían solas cuando vuelva internet.</div>` : ""}
       ${avisosActivos && avisos.length ? `<div><div class="eyebrow" style="margin-bottom:6px">Avisos</div><div class="avlist">${avisos.slice(0, 12).map(a => `<button type="button" class="av ${nuevos.has(a.t) ? "nuevo" : ""}" data-av="${esc(a.id)}"><span>${esc(a.texto)}</span><small>${ago(a.t)}</small></button>`).join("")}</div></div>` : ""}
       <div><div class="eyebrow" style="margin-bottom:6px">Tus denuncias</div>
-      ${propias.length ? `<div class="avlist">${propias.map(r => `<button type="button" class="av" data-av="${esc(r.id)}"><span><b>${CATS[r.cat].one}</b> · ${esc(r.barrio)}</span><small><span class="chip ${ESTADO_CHIP[r.status][1]}">${ESTADO_CHIP[r.status][0]}</span> ${ago(r.t)}</small></button>`).join("")}</div>`
-        : `<p class="note" style="margin:0">Todavía no hiciste denuncias desde este dispositivo.${Store.user && Store.user.anon ? " Si querés seguirlas desde otro celular, iniciá sesión antes de denunciar." : ""}</p>`}</div>
+      <div class="seg" id="misTabs" style="grid-template-columns:1fr 1fr;margin-bottom:8px"><button type="button" data-mt="abiertas" aria-pressed="${pestanaMias === "abiertas"}">Abiertas · ${propias.length}</button><button type="button" data-mt="historial" aria-pressed="${pestanaMias === "historial"}">Historial · ${cerradas.length}</button></div>
+      ${pestanaMias === "abiertas"
+        ? (propias.length ? `<div class="avlist">${propias.map(r => `<button type="button" class="av" data-av="${esc(r.id)}"><span><b>${CATS[r.cat].one}</b> · ${esc(r.barrio)}${r.iaCheck === "dudosa" ? `<small class="av-motivo">La IA la marcó como dudosa${r.iaWhy ? ": " + esc(r.iaWhy) : ""}. La revisa la moderación.</small>` : ""}</span><small><span class="chip ${ESTADO_CHIP[r.status][1]}">${ESTADO_CHIP[r.status][0]}</span> ${ago(r.t)}</small></button>`).join("")}</div>`
+          : `<p class="note" style="margin:0">${todas.length || cerradas.length ? "No tenés denuncias abiertas." : "Todavía no hiciste denuncias desde este dispositivo."}${Store.user && Store.user.anon ? " Si querés seguirlas desde otro celular, iniciá sesión antes de denunciar." : ""}</p>`)
+        : (cerradas.length ? `<div class="avlist">${cerradas.map(a => `<button type="button" class="av" data-av="${esc(a.id)}"><span><b>${CATS[a.cat]?.one || a.cat}</b> · ${esc(a.barrio)}<small class="av-motivo">${esc(a.motivo)}${a.desc ? ` «${esc(a.desc.slice(0, 90))}${a.desc.length > 90 ? "…" : ""}»` : ""}</small></span><small><span class="chip ${CIERRE_CHIP[a.cierre][1]}">${CIERRE_CHIP[a.cierre][0]}</span> ${ago(a.cerrada)}</small></button>`).join("")}</div>`
+          : `<p class="note" style="margin:0">Todavía no tenés denuncias cerradas.</p>`)
+        + `<p class="note" style="margin:6px 0 0">Acá aparecen las que se completaron y las que rechazó la IA, durante un mes desde que se cerraron.</p>`}</div>
     </div>`);
   $("#avActivos").addEventListener("change", e => {
     avisosActivos = e.target.checked; guardarLS(AV.activos, avisosActivos); renderCampana();
@@ -1648,6 +1682,7 @@ function openAvisos(){
     openAvisos();
   });
   $("#avPermiso")?.addEventListener("click", async () => { await Notification.requestPermission().catch(() => {}); openAvisos(); });
+  $("#misTabs").addEventListener("click", e => { const b = e.target.closest("[data-mt]"); if (b){ pestanaMias = b.dataset.mt; openAvisos(); } });
 }
 drawer.addEventListener("click", e => { const a = e.target.closest("[data-av]"); if (a && findReport(a.dataset.av)) openDetail(a.dataset.av); });
 $("#btnAvisos").addEventListener("click", openAvisos);

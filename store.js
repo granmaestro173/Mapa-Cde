@@ -10,7 +10,7 @@ const fromRow = d => ({
   id:d.id, cat:d.categoria, lat:+d.lat, lng:+d.lng, t:Date.parse(d.creada), desc:d.descripcion, barrio:d.barrio || "—",
   status:d.estado, sev:d.gravedad, ai:d.clasificacion || {}, mod:d.moderacion || "", hasPhoto:!!d.foto, photoOrig:!!d.foto_original,
   photoTaken:d.foto_tomada ? Date.parse(d.foto_tomada) : null, votes:d.votos || 0, flags:d.marcas || 0, demo:!!d.demo,
-  resolvedAt:d.resuelta_en ? Date.parse(d.resuelta_en) : null, iaCheck:d.ia_estado || "", iaWhy:d.ia_motivo || "", iaDesc:d.ia_resumen || "", iaAbuso:d.ia_abuso || "", iaNivel:d.ia_nivel || "", autor:d.autor || null, mine:false
+  resolvedAt:d.resuelta_en ? Date.parse(d.resuelta_en) : null, iaCheck:d.ia_estado || "", iaWhy:d.ia_motivo || "", iaDesc:d.ia_resumen || "", iaAbuso:d.ia_abuso || "", iaNivel:d.ia_nivel || "", iaAt:d.ia_revisada ? Date.parse(d.ia_revisada) : null, autor:d.autor || null, mine:false
 });
 const num = v => v == null || v === "" ? null : +v;
 const fromObra = o => ({
