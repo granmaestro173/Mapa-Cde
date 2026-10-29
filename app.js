@@ -930,7 +930,7 @@ function openForm(){
       <div class="field"><label for="fDesc">Descripción</label><textarea class="inp" id="fDesc" placeholder="Ej.: Pozo grande frente a la parada, ya reventó dos cubiertas" required></textarea></div>
       <div class="field"><span class="lab">Ubicación</span><div id="fLoc" class="note">Sin marcar todavía.</div><div class="rowbtns"><button class="btn small" id="btnFormGps" type="button">Usar mi ubicación</button><button class="btn small" id="btnPick" type="button">Marcar en el mapa</button></div></div>
       <div class="grid2">
-        <div class="field"><label for="fCat">Categoría</label><select class="inp" id="fCat"><option value="">Automática</option>${CAT_KEYS.map(k=>`<option value="${k}">${CATS[k].one}</option>`).join("")}</select></div>
+        <div class="field"><label for="fCat">Categoría</label><select class="inp" id="fCat" required><option value="">Elegí una…</option>${CAT_KEYS.map(k=>`<option value="${k}">${CATS[k].one}</option>`).join("")}</select></div>
         <div class="field"><label for="fSev">Gravedad</label><select class="inp" id="fSev"><option value="">Automática</option>${[1,2,3,4,5].map(n=>`<option>${n}</option>`).join("")}</select></div>
       </div>
       <button class="btn" type="button" id="btnAnalyze">Sugerir categoría</button>
@@ -953,6 +953,7 @@ function openForm(){
     Object.assign(formState, {photo:ph.dataUrl, photoBlob:ph.blob, photoFile:f, photoTaken:Math.min(f.lastModified || Date.now(), Date.now())});
     $("#fThumb").src = ph.dataUrl; $("#fPrev").hidden = false;
     $("#fPhotoInfo").textContent = `Lista para enviar · copia para el mapa ${ph.w}×${ph.h} px, ${ph.fmt} ${Math.round(ph.blob.size/1024)} KB · original ${Math.round(f.size/1024)} KB se guarda intacto`;
+    sugerirDesdeFoto();
   };
   // "Sacar foto" abre la cámara del celular; en computadora abre el selector de archivos.
   $("#fCam").addEventListener("change", onPhoto);
@@ -963,6 +964,7 @@ function openForm(){
     $("#fCam").value = ""; $("#fPhoto").value = "";
     $("#fThumb").removeAttribute("src"); $("#fPrev").hidden = true;
     $("#fPhotoInfo").textContent = "Foto descartada.";
+    sugIntento++; if (formState.ai?.src === "foto") { formState.ai = null; $("#aiOut").innerHTML = ""; }
   });
   $("#fCat").addEventListener("change", checkDuplicate);
   $("#reportForm").addEventListener("submit", submitReport);
@@ -1178,18 +1180,46 @@ function classify(desc){
   const sev = /arma|herid|peligro|profundo|casas|choque|niñ|escuela/i.test(desc) ? 5 : /grande|todo|hora pico|semana/i.test(desc) ? 4 : 3;
   return {categoria:best, gravedad:sev, area_m2: best==="bache" ? (sev>=4?2.4:1.2) : null, confianza: bs ? Math.min(.9, .55+bs*.15) : .4, src:"palabras"};
 }
-function analyze(){
+// La sugerencia (de la foto o de las palabras) no cambia nada sola: el vecino decide si la usa.
+function mostrarSugerencia(res){
+  formState.ai = res;
+  const out = $("#aiOut"); if (!out) return;
+  if (!CATS[res.categoria]){
+    out.innerHTML = `<div class="ai"><span class="ai-tag">Sugerencia de la IA</span><div>No reconozco un problema de la calle en la foto${res.resumen ? `: ${esc(res.resumen)}` : ""}.</div><div class="note">Elegí la categoría vos.</div></div>`;
+    return;
+  }
+  out.innerHTML = `<div class="ai"><span class="ai-tag${res.src === "foto" ? "" : " sim"}">${res.src === "foto" ? "Sugerencia de la IA" : "Sugerencia automática"}</span>
+    <div><b>${CATS[res.categoria].one}</b> · gravedad ${res.gravedad}/5</div>${res.resumen ? `<div>${esc(res.resumen)}</div>` : ""}
+    <div class="note">${res.src === "foto" ? "Según lo que se ve en tu foto." : "Según las palabras de tu descripción."} Vos elegís: usala o elegí otra arriba.</div>
+    <div class="rowbtns"><button class="btn small primary" type="button" id="btnUsarSug">Usar sugerencia</button></div></div>`;
+  $("#btnUsarSug").addEventListener("click", () => {
+    $("#fCat").value = res.categoria; $("#fSev").value = String(res.gravedad);
+    $("#btnUsarSug").replaceWith(Object.assign(document.createElement("span"), {className:"note", textContent:"Usada. Podés cambiarla arriba."}));
+    checkDuplicate();
+  });
+}
+let sugIntento = 0;
+async function sugerirDesdeFoto(){
+  if (!IA.enabled || Store.mode !== "supabase" || !formState.photo) return false;
+  const n = ++sugIntento, out = $("#aiOut");
+  out.innerHTML = `<div class="ai"><span class="ai-tag">Sugerencia de la IA</span><div class="note">Mirando la foto para sugerirte una categoría…</div></div>`;
+  try {
+    const sug = await IA.sugerir(formState.photo, $("#fDesc")?.value.trim() || "");
+    if (n === sugIntento && $("#aiOut")) mostrarSugerencia({...sug, src:"foto", confianza:null});
+  } catch(err){
+    if (n === sugIntento && $("#aiOut")) out.innerHTML = `<div class="note">No se pudo sugerir desde la foto (${esc(err.message)}). Elegí la categoría vos.</div>`;
+  }
+  return true;
+}
+async function analyze(){
+  if (await sugerirDesdeFoto()) return;
   const desc = $("#fDesc").value.trim();
-  if (!desc){ toast("Escribí una descripción para sugerir la categoría."); $("#fDesc").focus(); return; }
-  const res = classify(desc); formState.ai = res;
-  if (!$("#fCat").value) $("#fCat").value = res.categoria;
-  if (!$("#fSev").value) $("#fSev").value = String(res.gravedad);
-  $("#aiOut").innerHTML = `<div class="ai"><span class="ai-tag sim">Sugerencia automática</span><div><b>${CATS[res.categoria].one}</b> · gravedad ${res.gravedad}/5</div><div class="note">Sale de las palabras de tu descripción. Cambiala arriba si no corresponde.</div></div>`;
-  checkDuplicate();
+  if (!desc){ toast("Sacá una foto o escribí una descripción para sugerir la categoría."); $("#fDesc").focus(); return; }
+  mostrarSugerencia(classify(desc));
 }
 function checkDuplicate(){
   const out = $("#dupOut"); if (!out) return;
-  const cat = $("#fCat")?.value || formState.ai?.categoria;
+  const cat = $("#fCat")?.value;
   formState.dup = null;
   if (!cat || !pickLatLng || formState.ignoreDup){ out.innerHTML = ""; return; }
   const near = allReports().filter(r => r.cat===cat && r.status!=="resuelta" && Date.now()-r.t < 21*DAY)
@@ -1204,12 +1234,12 @@ async function submitReport(e){
   const desc = $("#fDesc").value.trim();
   if (desc.length < 3){ toast("Agregá una descripción breve."); $("#fDesc").focus(); return; }
   if (!pickLatLng){ toast("Marcá la ubicación en el mapa."); return; }
-  if (!$("#fCat").value && !formState.ai) analyze();
-  const cat = $("#fCat").value || formState.ai?.categoria || "bache";
+  const cat = $("#fCat").value;
+  if (!cat){ toast(CATS[formState.ai?.categoria] ? "Elegí la categoría: podés usar la sugerida." : "Elegí la categoría de la denuncia."); $("#fCat").focus(); return; }
   if (formState.dup && !formState.ignoreDup){
     const r = formState.dup; clearPick(); openDetail(r.id); if (!mine[r.id+":v"]) await vote(r.id, "confirma"); return;
   }
-  const ai = formState.ai || classify(desc);
+  const ai = formState.ai?.categoria === cat ? formState.ai : classify(desc);
   const rec = {cat, lat:+pickLatLng[0].toFixed(5), lng:+pickLatLng[1].toFixed(5), desc:desc.slice(0,500), barrio:nearestBarrio(pickLatLng),
     sev:+($("#fSev").value || ai.gravedad || 3), ai:{src:ai.src, conf:ai.confianza, area_m2:ai.area_m2||null}, photoTaken:formState.photo ? formState.photoTaken : null};
   const btn = $("#btnSend"); btn.disabled = true; btn.textContent = "Enviando…";
@@ -1747,6 +1777,13 @@ const IA = {
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.texto) throw new Error(j.error || "La IA no respondió.");
     return j.texto;
+  },
+  async sugerir(imagen, descripcion){
+    const token = await Store.accessToken();
+    const r = await fetch(CFG.iaUrl || "/api/ia", {method:"POST", headers:{"content-type":"application/json", ...(token ? {authorization:"Bearer " + token} : {})}, body:JSON.stringify({tipo:"foto", datos:{imagen, descripcion}})});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.sugerencia) throw new Error(j.error || "La IA no respondió.");
+    return j.sugerencia;
   }
 };
 
