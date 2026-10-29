@@ -38,7 +38,12 @@ export default async function handler(req, res){
   if (!process.env.ANTHROPIC_API_KEY || !process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY)
     return res.status(503).json({error:"Faltan variables de entorno en Vercel."});
 
-  const datos = await rpc("informe_datos", {p_clave:clave});
+  // Justo después de ejecutar el SQL, Supabase puede tardar unos segundos en ver las funciones nuevas: se reintenta una vez.
+  const datos = await rpc("informe_datos", {p_clave:clave}).catch(async err => {
+    if (!/PGRST202/.test(err.message)) throw err;
+    await new Promise(r => setTimeout(r, 5000));
+    return rpc("informe_datos", {p_clave:clave});
+  });
   const legible = {...datos, por_categoria: Object.fromEntries(Object.entries(datos.por_categoria || {}).map(([k, v]) => [CATEGORIAS[k] || k, v])),
     barrios_mas_afectados: (datos.barrios_mas_afectados || []).map(b => ({...b, problema_principal: CATEGORIAS[b.problema_principal] || b.problema_principal}))};
   try {

@@ -81,6 +81,7 @@ $cron$);
 
 -- ===== Parte 3: el primer reporte, ahora mismo =====
 -- Así no hay que esperar al lunes. Tarda unos segundos en aparecer en la página.
+notify pgrst, 'reload schema';
 select net.http_post(
   url := 'https://mapa-cde-zspd.vercel.app/api/semanal',
   headers := jsonb_build_object('content-type', 'application/json',
