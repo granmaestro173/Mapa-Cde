@@ -1533,6 +1533,7 @@ function openLogin(){
       : `<p class="note" style="margin:0">Estás en el <b>modo de prueba</b> (sin base de datos configurada). Elegí un rol para recorrer la página; nada se guarda.</p>
       <div class="rowbtns"><button class="btn primary" type="button" data-role="municipal">Entrar como municipalidad</button><button class="btn" type="button" data-role="moderador">Entrar como moderación</button>${state.staff ? `<button class="btn" type="button" id="lgOut">Cerrar sesión</button>` : ""}</div>`}
       <div class="note" id="lgMsg"></div>
+      <a class="note" href="terminos.html" target="_blank" rel="noopener">Términos de uso y datos personales</a>
     </div>`);
   $("#lgPass")?.addEventListener("input", e => { $("#lgSubmit").textContent = e.target.value ? "Entrar" : "Enviarme un enlace para entrar"; });
   $("#lgForm")?.addEventListener("submit", async e => {

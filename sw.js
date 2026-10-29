@@ -2,8 +2,8 @@
 // - La página abre aunque no haya internet, con lo último que se cargó (denuncias y fotos).
 //   Las imágenes satelitales de Esri no se guardan: sus condiciones de uso no lo permiten.
 // - Muestra los avisos del sistema y, al tocarlos, abre la denuncia.
-const PAGINA = "cde-pagina-v3", DATOS = "cde-datos-v3", IMAGENES = "cde-imagenes-v3";
-const BASE = ["./", "index.html", "config.js", "store.js", "app.js", "vendor/leaflet.js", "vendor/supabase.js", "datos-ejemplo.json"];
+const PAGINA = "cde-pagina-v4", DATOS = "cde-datos-v3", IMAGENES = "cde-imagenes-v3";
+const BASE = ["./", "index.html", "config.js", "store.js", "app.js", "vendor/leaflet.js", "vendor/supabase.js", "datos-ejemplo.json", "terminos.html"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(PAGINA).then(c => c.addAll(BASE)).then(() => self.skipWaiting()));
