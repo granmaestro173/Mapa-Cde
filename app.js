@@ -163,8 +163,9 @@ const RES_GRACIA = 10*60*1000;
 const resReciente = r => r.status === "resuelta" && !!r.resolvedAt && Date.now() - r.resolvedAt < RES_GRACIA;
 // "Mostrar resueltas" muestra las de las últimas 2 semanas; las más viejas se borran solas (06-limpiar-resueltas.sql).
 const enMapa = r => r.status !== "resuelta" || resReciente(r) || state.showRes && Date.now() - (r.resolvedAt || r.t) < 14*DAY;
+// Las sin resolver se ven siempre, sin importar el período (que solo filtra estadísticas, conteos y resueltas).
 function visibleReports(){
-  return allReports().filter(r => state.cats.has(r.cat) && inPeriod(r) && enMapa(r) && verOculta(r) && (!state.onlyPhoto || hasPhoto(r)) && nearOK(r));
+  return allReports().filter(r => state.cats.has(r.cat) && (r.status !== "resuelta" || inPeriod(r)) && enMapa(r) && verOculta(r) && (!state.onlyPhoto || hasPhoto(r)) && nearOK(r));
 }
 const nearActive = () => state.near.on && !!state.near.c;
 const nearOK = r => !nearActive() || distM(state.near.c, [r.lat, r.lng]) <= state.near.r;
