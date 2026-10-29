@@ -955,16 +955,16 @@ async function unvote(r, kind, k){
 }
 
 /* ---------- Cajón: nueva denuncia ---------- */
-const formState = {photo:null, photoBlob:null, photoFile:null, photoTaken:null, ai:null, dup:null, ignoreDup:false};
+const formState = {photo:null, photoBlob:null, photoFile:null, photoTaken:null, photoCanvas:null, caras:0, tapadas:[], ai:null, dup:null, ignoreDup:false};
 function openForm(){
   location.hash = "mapa";
   if (miSusp && (!miSusp.hasta || Date.parse(miSusp.hasta) > Date.now())) return avisoSuspension();
   state.sel = null; renderPins();
-  Object.assign(formState, {photo:null, photoBlob:null, photoFile:null, photoTaken:null, ai:null, dup:null, ignoreDup:false});
+  Object.assign(formState, {photo:null, photoBlob:null, photoFile:null, photoTaken:null, photoCanvas:null, caras:0, tapadas:[], ai:null, dup:null, ignoreDup:false});
   showDrawer(`
     <div class="drawer-head"><div><div class="eyebrow">Nueva denuncia</div><h2>¿Qué está pasando?</h2></div><button class="x" type="button" aria-label="Cerrar" data-close>×</button></div>
     <form class="drawer-body" id="reportForm" novalidate>
-      <div class="field"><span class="lab">Foto del problema (recomendada)</span><div class="ph-btns"><label class="inp ph-pick" for="fCam">Sacar foto</label><label class="inp ph-pick" for="fPhoto">Elegir de la galería</label></div><input type="file" id="fCam" accept="image/*" capture="environment" hidden><input type="file" id="fPhoto" accept="image/*" hidden><small>Los vecinos la ven al tocar el pin y ayuda a distinguir denuncias reales de falsas. Se envía una copia liviana para el mapa y el original queda guardado en calidad completa, visible solo para la moderación.</small><div class="ph-prev" id="fPrev" hidden><img class="thumb" id="fThumb" alt="Vista previa"><button class="ph-x" type="button" id="fPhotoX" aria-label="Descartar foto" title="Descartar foto">×</button></div><small id="fPhotoInfo"></small></div>
+      <div class="field"><span class="lab">Foto del problema (recomendada)</span><div class="ph-btns"><label class="inp ph-pick" for="fCam">Sacar foto</label><label class="inp ph-pick" for="fPhoto">Elegir de la galería</label></div><input type="file" id="fCam" accept="image/*" capture="environment" hidden><input type="file" id="fPhoto" accept="image/*" hidden><small>Los vecinos la ven al tocar el pin y ayuda a distinguir denuncias reales de falsas. Se envía una copia liviana para el mapa y el original queda guardado en calidad completa, visible solo para la moderación. Si sale alguien, su cara se pixela antes de publicarla.</small><div class="ph-prev" id="fPrev" hidden><img class="thumb" id="fThumb" alt="Vista previa"><button class="ph-x" type="button" id="fPhotoX" aria-label="Descartar foto" title="Descartar foto">×</button></div><small id="fPhotoInfo"></small></div>
       <div class="field"><label for="fDesc">Descripción</label><textarea class="inp" id="fDesc" placeholder="Ej.: Pozo grande frente a la parada, ya reventó dos cubiertas" required></textarea></div>
       <div class="field"><span class="lab">Ubicación</span><div id="fLoc" class="note">Sin marcar todavía.</div><div class="rowbtns"><button class="btn small" id="btnFormGps" type="button">Usar mi ubicación</button><button class="btn small" id="btnPick" type="button">Marcar en el mapa</button></div></div>
       <div class="grid2">
@@ -983,22 +983,51 @@ function openForm(){
   $("#sendNote").innerHTML = Store.mode === "supabase"
     ? `Se publica al instante para todos. No hace falta registrarse${Store.user && !Store.user.anon ? "" : `; si preferís, <button class="lnk" type="button" id="btnFormLogin">ingresá con tu email</button>`}.`
     : "Modo de prueba: la denuncia se ve en este navegador y se pierde al recargar.";
+  let fotoIntento = 0;
   const onPhoto = async e => {
     const f = e.target.files[0]; if (!f) return;
+    const n = ++fotoIntento;
     $("#fPhotoInfo").textContent = "Preparando foto…";
-    const ph = await compressPhoto(f);
-    if (!ph){ $("#fPhotoInfo").textContent = "No se pudo leer esa imagen. Probá con otra."; return; }
-    Object.assign(formState, {photo:ph.dataUrl, photoBlob:ph.blob, photoFile:f, photoTaken:Math.min(f.lastModified || Date.now(), Date.now())});
-    $("#fThumb").src = ph.dataUrl; $("#fPrev").hidden = false;
-    $("#fPhotoInfo").textContent = `Lista para enviar · copia para el mapa ${ph.w}×${ph.h} px, ${ph.fmt} ${Math.round(ph.blob.size/1024)} KB · original ${Math.round(f.size/1024)} KB se guarda intacto`;
+    const cv = await fotoACanvas(f);
+    if (n !== fotoIntento) return;
+    if (!cv){ $("#fPhotoInfo").textContent = "No se pudo leer esa imagen. Probá con otra."; return; }
+    $("#fPhotoInfo").textContent = "Buscando caras para taparlas…";
+    const caras = await taparCaras(cv);
+    if (n !== fotoIntento || !$("#fPhotoInfo")) return;
+    Object.assign(formState, {photoCanvas:cv, caras, tapadas:[], photoFile:f, photoTaken:Math.min(f.lastModified || Date.now(), Date.now())});
+    await mostrarFoto();
     sugerirDesdeFoto();
   };
+  // Comprime la foto ya con las caras tapadas y cuenta qué se hizo.
+  const mostrarFoto = async () => {
+    const ph = await compressPhoto(formState.photoCanvas), f = formState.photoFile, c = formState.caras, t = formState.tapadas.length;
+    Object.assign(formState, {photo:ph.dataUrl, photoBlob:ph.blob});
+    $("#fThumb").src = ph.dataUrl; $("#fPrev").hidden = false;
+    const caras = c > 0 ? `<b>Se ${c > 1 ? `taparon ${c} caras` : "tapó 1 cara"}</b> para cuidar la privacidad. ` : c < 0 ? `<b style="color:var(--warn)">No se pudo revisar si hay caras.</b> ` : "";
+    $("#fPhotoInfo").innerHTML = `${caras}Si se ve a alguien, tocá su cara en la vista previa para taparla.${t ? ` <button class="lnk" type="button" id="fDeshacer">Deshacer el último toque</button>` : ""}<br>Lista para enviar · copia para el mapa ${ph.w}×${ph.h} px, ${ph.fmt} ${Math.round(ph.blob.size/1024)} KB · original ${Math.round(f.size/1024)} KB, solo para la moderación`;
+  };
+  // Tocar la vista previa pixela ese lugar, por si el detector no vio a alguien (de espaldas, muy lejos, en un reflejo).
+  $("#fThumb").addEventListener("click", async e => {
+    const cv = formState.photoCanvas; if (!cv) return;
+    const r = e.target.getBoundingClientRect(), k = Math.min(r.width/cv.width, r.height/cv.height);
+    const x = (e.clientX - r.left - (r.width - cv.width*k)/2)/k, y = (e.clientY - r.top - (r.height - cv.height*k)/2)/k;
+    if (x < 0 || y < 0 || x > cv.width || y > cv.height) return;
+    const antes = document.createElement("canvas"); antes.width = cv.width; antes.height = cv.height; antes.getContext("2d").drawImage(cv, 0, 0);
+    const lado = Math.min(cv.width, cv.height)*.1;
+    formState.tapadas.push(antes); pixelar(cv, {x:x - lado/2, y:y - lado/2, w:lado, h:lado});
+    await mostrarFoto();
+  });
+  $("#fPhotoInfo").addEventListener("click", async e => {
+    if (e.target.id !== "fDeshacer" || !formState.tapadas.length) return;
+    formState.photoCanvas = formState.tapadas.pop(); await mostrarFoto();
+  });
   // "Sacar foto" abre la cámara del celular; en computadora abre el selector de archivos.
   $("#fCam").addEventListener("change", onPhoto);
   $("#fPhoto").addEventListener("change", onPhoto);
   // La X descarta la foto tomada para poder sacar otra o enviar sin foto.
   $("#fPhotoX").addEventListener("click", () => {
-    Object.assign(formState, {photo:null, photoBlob:null, photoFile:null, photoTaken:null});
+    fotoIntento++;
+    Object.assign(formState, {photo:null, photoBlob:null, photoFile:null, photoTaken:null, photoCanvas:null, tapadas:[]});
     $("#fCam").value = ""; $("#fPhoto").value = "";
     $("#fThumb").removeAttribute("src"); $("#fPrev").hidden = true;
     $("#fPhotoInfo").textContent = "Foto descartada.";
@@ -1182,20 +1211,77 @@ qres.addEventListener("click", e => {
 $("#btnPickDone").addEventListener("click", e => { e.stopPropagation(); pickMode = false; document.body.classList.remove("picking"); $("#pickBanner").hidden = true; });
 // Comprime la foto en el teléfono para el mapa: WebP (JPEG si el navegador no lo soporta) a 1280 px con calidad alta,
 // que en pantalla se ve igual al original. Solo baja de tamaño si pasa de ~190 KB, así el mapa carga rápido.
-// El archivo original, sin tocar, se sube aparte al almacén privado para la moderación.
+// Antes de comprimir se pixelan las caras que salgan (taparCaras). El original, sin tocar, se sube aparte al almacén privado para la moderación.
 const WEBP = (() => { try { const c = document.createElement("canvas"); c.width = c.height = 1; return c.toDataURL("image/webp").startsWith("data:image/webp"); } catch(e){ return false; } })();
-async function compressPhoto(file){
-  let bmp = null;
-  try { bmp = await createImageBitmap(file, {imageOrientation:"from-image"}); } catch(e) {}
-  if (!bmp) { const u = await downscale(file, 1080); if (!u) return null; const b = await (await fetch(u)).blob(); const i = new Image(); i.src = u; await i.decode().catch(()=>{}); return {dataUrl:u, blob:b, w:i.naturalWidth, h:i.naturalHeight, fmt:b.type === "image/webp" ? "WebP" : "JPEG"}; }
+async function fotoACanvas(file, max = 1280){
+  let src = null;
+  try { src = await createImageBitmap(file, {imageOrientation:"from-image"}); } catch(e) {}
+  if (!src){
+    const url = URL.createObjectURL(file); src = new Image(); src.src = url;
+    try { await src.decode(); } catch(e){ return null; } finally { URL.revokeObjectURL(url); }
+  }
+  const w = src.naturalWidth || src.width, h = src.naturalHeight || src.height, s = Math.min(1, max/Math.max(w, h));
+  const c = document.createElement("canvas"); c.width = Math.round(w*s); c.height = Math.round(h*s);
+  const g = c.getContext("2d"); g.imageSmoothingQuality = "high"; g.drawImage(src, 0, 0, c.width, c.height); src.close?.();
+  return c;
+}
+async function compressPhoto(base){
   const type = WEBP ? "image/webp" : "image/jpeg", steps = [[1280,.85],[1080,.8],[960,.75],[720,.7]];
   for (const [max, q] of steps){
-    const s = Math.min(1, max/Math.max(bmp.width, bmp.height)), c = document.createElement("canvas");
-    c.width = Math.round(bmp.width*s); c.height = Math.round(bmp.height*s);
-    const g = c.getContext("2d"); g.imageSmoothingQuality = "high"; g.drawImage(bmp, 0, 0, c.width, c.height);
+    let c = base;
+    if (Math.max(base.width, base.height) > max){
+      const s = max/Math.max(base.width, base.height); c = document.createElement("canvas");
+      c.width = Math.round(base.width*s); c.height = Math.round(base.height*s);
+      const g = c.getContext("2d"); g.imageSmoothingQuality = "high"; g.drawImage(base, 0, 0, c.width, c.height);
+    }
     const dataUrl = c.toDataURL(type, q);
-    if (dataUrl.length < 190000 || max === 720){ const blob = await (await fetch(dataUrl)).blob(); bmp.close?.(); return {dataUrl, blob, w:c.width, h:c.height, fmt:WEBP ? "WebP" : "JPEG"}; }
+    if (dataUrl.length < 190000 || max === 720){ const blob = await (await fetch(dataUrl)).blob(); return {dataUrl, blob, w:c.width, h:c.height, fmt:WEBP ? "WebP" : "JPEG"}; }
   }
+}
+// Caras: si en la foto de un bache sale alguien que pasaba, se pixela en el teléfono antes de enviarla,
+// así la copia pública del mapa nunca lleva caras reconocibles. El detector (face-api, ~1,5 MB) se descarga
+// recién con la primera foto. Mira la foto entera con un umbral bajo (así no se escapan las caras de perfil)
+// y además en 4 partes, porque la gente al fondo sale chica; ahí el umbral es más alto para no tapar el bache.
+let carasListo = null;
+function cargarCaras(){
+  return carasListo ||= new Promise((ok, mal) => {
+    const s = document.createElement("script"); s.src = "vendor/face-api.js"; s.onload = ok; s.onerror = () => mal(new Error("No se pudo cargar el detector de caras."));
+    document.head.appendChild(s);
+  }).then(() => faceapi.nets.tinyFaceDetector.loadFromUri("vendor/caras")).catch(e => { carasListo = null; throw e; });
+}
+async function buscarCaras(cv){
+  await cargarCaras();
+  const W = cv.width, H = cv.height, cajas = [];
+  const mirar = async (x, y, w, h, umbral) => {
+    const opc = new faceapi.TinyFaceDetectorOptions({inputSize:608, scoreThreshold:umbral});
+    let src = cv;
+    if (w !== W || h !== H){ src = document.createElement("canvas"); src.width = w; src.height = h; src.getContext("2d").drawImage(cv, x, y, w, h, 0, 0, w, h); }
+    for (const d of await faceapi.detectAllFaces(src, opc)) cajas.push({x:x + d.box.x, y:y + d.box.y, w:d.box.width, h:d.box.height});
+  };
+  await mirar(0, 0, W, H, .25);
+  const tw = Math.round(W*.6), th = Math.round(H*.6);
+  for (const [x, y] of [[0, 0], [W - tw, 0], [0, H - th], [W - tw, H - th]]) await mirar(x, y, tw, th, .4);
+  // La misma cara vista en varias pasadas cuenta una sola vez (se pixelan todas igual).
+  const unicas = [];
+  for (const c of cajas.sort((a, b) => b.w*b.h - a.w*a.h)){
+    const cx = c.x + c.w/2, cy = c.y + c.h/2;
+    if (!unicas.some(u => cx > u.x && cx < u.x + u.w && cy > u.y && cy < u.y + u.h)) unicas.push(c);
+  }
+  return {cajas, n:unicas.length};
+}
+// Pixela un recuadro con margen (pelo, orejas) en bloques grandes: unos 7 por cara, ya no se reconoce a nadie.
+function pixelar(cv, {x, y, w, h}){
+  const m = .3; x = Math.max(0, x - w*m); y = Math.max(0, y - h*m*1.2);
+  w = Math.min(cv.width - x, w*(1 + 2*m)); h = Math.min(cv.height - y, h*(1 + 2*m*1.2));
+  if (w < 2 || h < 2) return;
+  const b = Math.max(4, Math.max(w, h)/7), chico = document.createElement("canvas");
+  chico.width = Math.max(1, Math.round(w/b)); chico.height = Math.max(1, Math.round(h/b));
+  chico.getContext("2d").drawImage(cv, x, y, w, h, 0, 0, chico.width, chico.height);
+  const g = cv.getContext("2d"); g.save(); g.imageSmoothingEnabled = false; g.drawImage(chico, 0, 0, chico.width, chico.height, x, y, w, h); g.restore();
+}
+async function taparCaras(cv){
+  try { const {cajas, n} = await buscarCaras(cv); cajas.forEach(c => pixelar(cv, c)); return n; }
+  catch(e){ console.warn("Caras:", e); return -1; }
 }
 function downscale(file, max){
   return new Promise(res => {
