@@ -139,7 +139,7 @@ grant execute on function public.ia_guardar(text, text, text, text, text, text, 
 -- La revisión cada 5 minutos ahora también corre si hay denuncias recientes sin foto por revisar.
 select cron.schedule('verificar-con-ia', '*/5 * * * *', $cron$
   select net.http_post(
-    url := 'https://mapa-cde-zspd.vercel.app/api/verificar',
+    url := 'https://jahechacde.vercel.app/api/verificar',
     headers := jsonb_build_object('content-type', 'application/json',
                                   'x-clave', (select valor from privado.ajustes where clave = 'ia_clave')),
     body := '{}'::jsonb,

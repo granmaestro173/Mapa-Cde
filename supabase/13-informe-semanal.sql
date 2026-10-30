@@ -2,7 +2,7 @@
 -- Ejecutalo una vez en Supabase > SQL Editor (se puede repetir sin problema). Necesita 05-verificacion-ia.sql.
 -- Cada lunes a las 7:00 (hora de Paraguay) Supabase le pide a la función de Vercel /api/semanal que lo escriba
 -- con los números de los últimos 7 días; el reporte queda guardado y todos lo ven al fondo del panel "Explorar".
--- Si tu página no es https://mapa-cde-zspd.vercel.app, cambiá la dirección de la parte 2.
+-- Si tu página no es https://jahechacde.vercel.app, cambiá la dirección de la parte 2.
 
 -- ===== Parte 1: tabla y funciones =====
 create table if not exists public.informes (
@@ -72,7 +72,7 @@ create extension if not exists pg_net with schema extensions;
 
 select cron.schedule('informe-semanal', '0 10 * * 1', $cron$
   select net.http_post(
-    url := 'https://mapa-cde-zspd.vercel.app/api/semanal',
+    url := 'https://jahechacde.vercel.app/api/semanal',
     headers := jsonb_build_object('content-type', 'application/json',
                                   'x-clave', (select valor from privado.ajustes where clave = 'ia_clave')),
     body := '{}'::jsonb,
@@ -83,7 +83,7 @@ $cron$);
 -- Así no hay que esperar al lunes. Tarda unos segundos en aparecer en la página.
 notify pgrst, 'reload schema';
 select net.http_post(
-  url := 'https://mapa-cde-zspd.vercel.app/api/semanal',
+  url := 'https://jahechacde.vercel.app/api/semanal',
   headers := jsonb_build_object('content-type', 'application/json',
                                 'x-clave', (select valor from privado.ajustes where clave = 'ia_clave')),
   body := '{}'::jsonb,
