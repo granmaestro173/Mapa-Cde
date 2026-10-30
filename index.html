@@ -324,6 +324,12 @@ tbody tr:last-child td{border-bottom:0}
 .breakdown{width:100%;font-size:12.5px}
 .breakdown td{padding:5px 0;border-bottom:1px dashed var(--line);white-space:normal}
 .breakdown td:last-child{text-align:right;font-family:var(--f-mono)}
+.danios{display:flex;flex-direction:column;gap:8px}
+.danios-tot{display:flex;flex-direction:column;gap:2px}
+.danios-tot b{font-size:24px;font-weight:600}
+.hbar.danio{grid-template-columns:minmax(120px,auto) 1fr auto}
+.costo-linea{font-size:12.5px;color:var(--muted);margin-top:-4px}
+.costo-linea b{color:var(--ink);font-weight:600}
 .breakdown tr.tot td{font-weight:600;border-bottom:0;border-top:1px solid var(--ink);padding-top:7px}
 .params{display:grid;grid-template-columns:1fr 120px;gap:6px 10px;align-items:center;font-size:12.5px}
 .params input{text-align:right;padding:5px 8px}
@@ -871,6 +877,11 @@ body.viajando .toast{bottom:calc(130px + env(safe-area-inset-bottom,0px))}
             </table>
           </div>
           <div class="card" id="obraEditor" hidden></div>
+          <div class="card">
+            <h3>Costo estimado de reparación</h3>
+            <div class="sub">Lo que costaría arreglar los daños denunciados que siguen sin resolver (baches, semáforos, alumbrado, inundaciones y basura), con los precios de referencia de esta página. Si la denuncia ya tiene obra, usa sus datos; si no, un arreglo típico para ese daño.</div>
+            <div class="danios" id="danios"></div>
+          </div>
         </div>
         <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
           <div class="card">
