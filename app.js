@@ -1268,20 +1268,62 @@ function avisarBache(txt){
   try { navigator.vibrate?.([200, 100, 200]); } catch(e) {}
   try { const u = new SpeechSynthesisUtterance(txt); u.lang = "es-ES"; speechSynthesis.speak(u); } catch(e) {}
 }
+// La ventana de abajo se actualiza 4 veces por segundo: entre una lectura del GPS y la siguiente,
+// la distancia se estima con la velocidad del auto.
+const nav = {yo:null, t:0, v:0, prev:null, tick:null, lock:null};
+const fmtVel = v => `${Math.round(v*3.6)} km/h`;
 function viaje(on){
-  if (!on){ if (auto.watch != null) navigator.geolocation?.clearWatch(auto.watch); auto.watch = null; renderAuto(); return; }
+  if (!on){
+    if (auto.watch != null) navigator.geolocation?.clearWatch(auto.watch); auto.watch = null;
+    clearInterval(nav.tick); nav.tick = null; nav.yo = nav.prev = null; nav.v = 0;
+    try { nav.lock?.release(); } catch(e) {} nav.lock = null;
+    $("#navBox").hidden = true; document.body.classList.remove("viajando");
+    renderAuto(); return;
+  }
   if (!navigator.geolocation){ toast("Este navegador no comparte la ubicación, no podemos avisarte en el camino."); return; }
   auto.watch = navigator.geolocation.watchPosition(pos => {
     if (!auto.ruta) return;
-    const c = [pos.coords.latitude, pos.coords.longitude], yo = sobreRuta(c, auto.ruta);
-    auto.origen = c; auto.origenSrc = "gps"; dibujarAuto(); map.panTo(c, {animate:true});
-    if (yo.d > 120) return;   // fuera del camino: no avisa de baches que no va a pisar
-    const prox = bachesEnRuta().find(r => !auto.avisados.has(r.id) && r._ruta.a > yo.a - 20 && r._ruta.a - yo.a <= AVISO_DIST);
-    if (prox){ auto.avisados.add(prox.id); avisarBache(`Bache a ${Math.max(10, Math.round((prox._ruta.a - yo.a)/10)*10)} metros`); }
+    const c = [pos.coords.latitude, pos.coords.longitude], t = pos.timestamp || Date.now();
+    // Velocidad: la del GPS si la da; si no, la que sale de las dos últimas ubicaciones.
+    let v = pos.coords.speed;
+    if (v == null || isNaN(v)) v = nav.prev && t > nav.prev.t ? distM(nav.prev.c, c) / ((t - nav.prev.t) / 1000) : 0;
+    nav.v = v > 70 ? nav.v : v; nav.prev = {c, t};
+    nav.yo = sobreRuta(c, auto.ruta); nav.t = Date.now();
+    auto.origen = c; auto.origenSrc = "gps"; dibujarAuto();
+    map.getZoom() < 16 ? map.setView(c, 16.5) : map.panTo(c, {animate:true});
+    pintarNav(true);
   }, err => { if (err.code === 1){ viaje(false); toast("No se dio permiso para usar la ubicación."); } },   // sin señal un rato: sigue esperando
-  {enableHighAccuracy:true, maximumAge:5000, timeout:20000});
-  renderAuto(); toast("Te avisamos cuando estés cerca de un bache. Mirá el camino, no el teléfono.");
+  {enableHighAccuracy:true, maximumAge:1000, timeout:20000});
+  // Mantiene la pantalla prendida durante el viaje (si el navegador lo permite).
+  navigator.wakeLock?.request("screen").then(l => nav.lock = l).catch(() => {});
+  cerrarAuto(); document.body.classList.add("viajando");
+  $("#navBox").hidden = false; $("#navDist").textContent = "Buscando tu ubicación…"; $("#navSub").textContent = "";
+  nav.tick = setInterval(() => pintarNav(false), 250);
+  toast("Te avisamos cuando estés cerca de un bache. Mirá el camino, no el teléfono.");
 }
+function pintarNav(lecturaNueva){
+  if (!nav.yo || !auto.ruta) return;
+  const box = $("#navBox");
+  if (nav.yo.d > 120){
+    box.className = "navbox fuera"; $("#navDist").textContent = "Estás fuera del camino marcado";
+    $("#navSub").textContent = nav.v > 1 ? fmtVel(nav.v) : ""; return;
+  }
+  // Recorrido estimado ahora: lo que dio el GPS más lo que el auto avanzó desde entonces (hasta 5 s).
+  const a = nav.yo.a + nav.v * Math.min(5, (Date.now() - nav.t) / 1000);
+  const delante = bachesEnRuta().filter(r => r._ruta.a > a - 15);
+  const prox = delante[0];
+  if (!prox){ box.className = "navbox libre"; $("#navDist").textContent = "No hay más baches en el camino"; $("#navSub").textContent = nav.v > 1 ? fmtVel(nav.v) : ""; return; }
+  const d = Math.max(0, prox._ruta.a - a), seg = nav.v > 1 ? d / nav.v : null;
+  box.className = "navbox" + (d < 100 || seg != null && seg < 8 ? " cerca" : "");
+  $("#navDist").textContent = d < 15 ? "Bache ahora" : `Bache aproximadamente a ${d < 1000 ? Math.round(d/10)*10 + " m" : fmtDist(d)}`;
+  $("#navSub").textContent = [seg != null && d >= 15 ? `en unos ${Math.round(seg)} s` : "", nav.v > 1 ? fmtVel(nav.v) : "", prox.sev >= 4 ? "grave" : "",
+    delante.length > 1 ? `${delante.length - 1} más después` : ""].filter(Boolean).join(" · ");
+  // Aviso con voz: a 150 m, o antes si a esa velocidad faltan menos de 10 segundos.
+  if (lecturaNueva && !auto.avisados.has(prox.id) && d <= Math.max(AVISO_DIST, nav.v * 10)){
+    auto.avisados.add(prox.id); avisarBache(`Bache a ${Math.max(10, Math.round(d/10)*10)} metros`);
+  }
+}
+$("#navStop").addEventListener("click", () => { viaje(false); abrirAuto(); });
 autoPanel.addEventListener("click", e => {
   const id = e.target.closest("[data-aid]")?.dataset.aid;
   if (id){

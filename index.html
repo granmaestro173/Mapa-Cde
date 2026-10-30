@@ -628,6 +628,17 @@ main{height:100%;display:block}
 .auto-dest{width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--bad);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:grid;place-items:center}
 .auto-dest svg{width:16px;height:16px;color:#fff;transform:rotate(45deg)}
 #view-mapa.with-drawer .auto{visibility:hidden}
+/* Viaje en curso: ventana de abajo con la distancia al próximo bache */
+.navbox{position:absolute;z-index:1200;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));width:min(440px,calc(100% - 24px));
+  display:flex;align-items:center;gap:12px;padding:12px 12px 12px 18px;border-radius:14px;background:#323232;color:#fff;box-shadow:var(--shadow)}
+.navtxt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.navtxt b{font-size:19px;font-weight:600;font-variant-numeric:tabular-nums}
+.navtxt small{font-size:13px;opacity:.85;font-variant-numeric:tabular-nums}
+.navbox.cerca{background:var(--bad)}
+.navbox.libre{background:var(--ok)}
+.navbox .btn{background:transparent;border:1px solid rgba(255,255,255,.6);color:#fff}
+body.viajando .fab-ext,body.viajando .legend{display:none}
+body.viajando .toast{bottom:calc(130px + env(safe-area-inset-bottom,0px))}
 #view-mapa.with-auto .side,#view-mapa.with-auto .side-toggle{visibility:hidden}
 /* Con un trayecto en el mapa solo se ven sus baches: los chips de categoría no aplican */
 #view-mapa.con-ruta #cats{display:none}
@@ -667,6 +678,7 @@ main{height:100%;display:block}
     <div class="mapwrap">
       <div id="map" aria-label="Mapa de Ciudad del Este"></div>
       <div class="banner" id="nearBanner" hidden><span>Tocá el mapa donde estás</span><button class="btn small" id="nearBannerX" type="button">CANCELAR</button></div>
+      <div class="navbox" id="navBox" hidden role="status" aria-live="polite"><div class="navtxt"><b id="navDist"></b><small id="navSub"></small></div><button class="btn small" id="navStop" type="button">TERMINAR</button></div>
       <div class="banner" id="autoBanner" hidden><span id="autoBannerTxt">Tocá el mapa a dónde vas</span><button class="btn small" id="autoBannerX" type="button">CANCELAR</button></div>
       <div class="banner" id="pickBanner" hidden><span>Tocá el mapa donde está el problema</span><button class="btn small" id="btnPickDone" type="button">LISTO</button></div>
       <div class="banner lluvia" id="lluviaBanner" role="status" hidden><span id="lluviaTxt"></span><button class="btn small" id="lluviaVer" type="button">VER ZONAS</button><button class="btn small" id="lluviaX" type="button" aria-label="Cerrar aviso">✕</button></div>
