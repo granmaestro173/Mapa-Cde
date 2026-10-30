@@ -62,7 +62,7 @@ const PERIODS = {dia:{n:"Día", label:"últimas 24 h", ms:DAY}, semana:{n:"Seman
 const state = {period:"mes", cats:new Set(CAT_KEYS), showRes:false, showHidden:false, showDemo:true, onlyPhoto:false, near:{on:false, c:null, r:1000, src:null}, heat:false, heatSlot:"", sel:null, muni:false, staff:false};
 try { const p = localStorage.getItem("cde-period"); if (p && PERIODS[p]) state.period = p; } catch(e) {}
 // Modo auto: trayecto calculado y baches que quedan sobre él.
-const auto = {origen:null, origenSrc:null, destino:null, destinoTxt:"", ruta:null, km:0, min:0, ids:new Set(), picking:null, watch:null, avisados:new Set(), capa:null, buscando:false, msg:"", cls:""};
+const auto = {origen:null, origenSrc:null, destino:null, destinoTxt:"", ruta:null, km:0, min:0, ids:new Set(), pasos:[], dichos:new Set(), picking:null, watch:null, avisados:new Set(), capa:null, buscando:false, msg:"", cls:""};
 const live = new Map();      // denuncias de la base (Supabase) o del modo de prueba
 const obrasLive = new Map();
 let auditLive = [];
@@ -1199,20 +1199,38 @@ function setAutoPunto(cual, c, src, nombre){
   dibujarAuto();
   if (auto.origen && auto.destino) calcularRuta(); else renderAuto();
 }
+// Indicaciones de giro de OSRM, en castellano. Los pasos que solo cambian el nombre de la calle no se dicen.
+const GIROS = {left:"girá a la izquierda", right:"girá a la derecha", "slight left":"doblá levemente a la izquierda", "slight right":"doblá levemente a la derecha",
+  "sharp left":"girá cerrado a la izquierda", "sharp right":"girá cerrado a la derecha", uturn:"pegá la vuelta", straight:"seguí derecho"};
+const GIRO_ANG = {left:-90, right:90, "slight left":-45, "slight right":45, "sharp left":-135, "sharp right":135, uturn:180, straight:0};
+function textoGiro(st){
+  const m = st.maneuver || {}, mod = m.modifier || "straight", calle = st.name ? ` por ${st.name}` : "";
+  if (m.type === "arrive") return "llegás a destino";
+  if (m.type === "roundabout" || m.type === "rotary") return `en la rotonda, tomá la ${m.exit || 1}ª salida${calle}`;
+  if (m.type === "fork") return `mantenete a la ${/left/.test(mod) ? "izquierda" : "derecha"}${calle}`;
+  if (m.type === "end of road") return `al final de la calle, ${GIROS[mod] || "girá"}${calle}`;
+  return (GIROS[mod] || "seguí") + calle;
+}
 let autoPedido = 0;
+async function pedirRuta(o, d){
+  const ctl = new AbortController(), tope = setTimeout(() => ctl.abort(), 12000);
+  const res = await fetch(`${RUTAS_URL}${o[1]},${o[0]};${d[1]},${d[0]}?overview=full&geometries=geojson&steps=true`, {signal:ctl.signal});
+  clearTimeout(tope);
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok || j.code !== "Ok" || !j.routes?.length) throw Object.assign(new Error(j.code === "NoRoute" ? "No encontramos un camino en auto entre esos dos puntos." : "El servicio de caminos no respondió bien. Intentá de nuevo en un rato."), {propio:true});
+  const r = j.routes[0], ruta = r.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+  const pasos = (r.legs?.[0]?.steps || []).filter(st => st.maneuver && st.maneuver.type !== "depart" && !(["new name", "continue"].includes(st.maneuver.type) && (st.maneuver.modifier || "straight") === "straight"))
+    .map(st => ({a:sobreRuta([st.maneuver.location[1], st.maneuver.location[0]], ruta).a, txt:textoGiro(st), llegada:st.maneuver.type === "arrive",
+      ang:st.maneuver.type === "arrive" ? null : GIRO_ANG[st.maneuver.modifier || "straight"] ?? 0}));
+  return {ruta, pasos, km:r.distance / 1000, min:Math.max(1, Math.round(r.duration / 60))};
+}
 async function calcularRuta(){
   const pedido = ++autoPedido, [o, d] = [auto.origen, auto.destino];
   auto.ruta = null; auto.buscando = true; autoMsg("Calculando el camino…"); renderAuto();
   try {
-    const ctl = new AbortController(), tope = setTimeout(() => ctl.abort(), 12000);
-    const res = await fetch(`${RUTAS_URL}${o[1]},${o[0]};${d[1]},${d[0]}?overview=full&geometries=geojson`, {signal:ctl.signal});
-    clearTimeout(tope);
-    const j = await res.json().catch(() => ({}));
+    const r = await pedirRuta(o, d);
     if (pedido !== autoPedido) return;
-    if (!res.ok || j.code !== "Ok" || !j.routes?.length) throw Object.assign(new Error(j.code === "NoRoute" ? "No encontramos un camino en auto entre esos dos puntos." : "El servicio de caminos no respondió bien. Intentá de nuevo en un rato."), {propio:true});
-    const r = j.routes[0];
-    auto.ruta = r.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
-    auto.km = r.distance / 1000; auto.min = Math.max(1, Math.round(r.duration / 60)); auto.avisados = new Set();
+    Object.assign(auto, r); auto.avisados = new Set(); auto.dichos = new Set();
     autoMsg("");
   } catch(err){
     if (pedido !== autoPedido) return;
@@ -1226,13 +1244,15 @@ function dibujarAuto(){
   if (auto.capa) map.removeLayer(auto.capa);
   const capas = [];
   if (auto.ruta) capas.push(L.polyline(auto.ruta, {color:"#fff", weight:9, opacity:.9, interactive:false}), L.polyline(auto.ruta, {color:"#1a73e8", weight:5, interactive:false}));
-  if (auto.origen) capas.push(L.marker(auto.origen, {keyboard:false, interactive:false, zIndexOffset:900, icon:AUTO_DOT()}));
+  if (auto.origen) capas.push(L.marker(auto.origen, {keyboard:false, interactive:false, zIndexOffset:900, icon:auto.watch != null && nav.rumbo != null
+    ? L.divIcon({className:"", iconSize:[30,30], iconAnchor:[15,15], html:`<div class="me-flecha" style="transform:rotate(${Math.round(nav.rumbo)}deg)"><svg viewBox="0 0 24 24"><path d="M12 2l7 19-7-4-7 4z"/></svg></div>`})
+    : AUTO_DOT()}));
   if (auto.destino) capas.push(L.marker(auto.destino, {keyboard:false, interactive:false, zIndexOffset:950, icon:AUTO_DEST()}));
   auto.capa = L.layerGroup(capas).addTo(map);
 }
 function limpiarAuto(){
   viaje(false); autoPedido++;
-  Object.assign(auto, {ruta:null, destino:null, destinoTxt:"", ids:new Set(), buscando:false});
+  Object.assign(auto, {ruta:null, pasos:[], destino:null, destinoTxt:"", ids:new Set(), buscando:false});
   autoMsg(""); dibujarAuto(); renderAuto(); refresh();
 }
 function renderAuto(){
@@ -1268,16 +1288,30 @@ function renderAuto(){
 function avisarBache(txt){
   toast("⚠ " + txt);
   try { navigator.vibrate?.([200, 100, 200]); } catch(e) {}
-  try { const u = new SpeechSynthesisUtterance(txt); u.lang = "es-ES"; speechSynthesis.speak(u); } catch(e) {}
+  hablar(txt);
 }
 // La ventana de abajo se actualiza 4 veces por segundo: entre una lectura del GPS y la siguiente,
 // la distancia se estima con la velocidad del auto.
-const nav = {yo:null, t:0, v:0, prev:null, tick:null, lock:null};
+const nav = {yo:null, t:0, v:0, prev:null, tick:null, lock:null, rumbo:null, fuera:0, recalculando:false, ultRecalculo:0};
+const rumboEntre = (a, b) => { const r = Math.PI/180, y = Math.sin((b[1]-a[1])*r)*Math.cos(b[0]*r), x = Math.cos(a[0]*r)*Math.sin(b[0]*r) - Math.sin(a[0]*r)*Math.cos(b[0]*r)*Math.cos((b[1]-a[1])*r); return (Math.atan2(y, x)/r + 360) % 360; };
+function hablar(txt){ try { const u = new SpeechSynthesisUtterance(txt); u.lang = "es-ES"; speechSynthesis.speak(u); } catch(e) {} }
+// Si el auto se sale del camino, se pide uno nuevo desde donde está (como máximo cada 10 s).
+async function recalcular(c){
+  if (nav.recalculando || Date.now() - nav.ultRecalculo < 10000) return;
+  nav.recalculando = true; nav.ultRecalculo = Date.now(); hablar("Recalculando");
+  try {
+    const r = await pedirRuta(c, auto.destino);
+    if (auto.watch == null) return;
+    Object.assign(auto, r); auto.dichos = new Set(); nav.fuera = 0;
+    nav.yo = sobreRuta(nav.prev?.c || c, auto.ruta); nav.t = Date.now();
+    dibujarAuto(); renderAuto(); refresh();
+  } catch(e) {} finally { nav.recalculando = false; }
+}
 const fmtVel = v => `${Math.round(v*3.6)} km/h`;
 function viaje(on){
   if (!on){
     if (auto.watch != null) navigator.geolocation?.clearWatch(auto.watch); auto.watch = null;
-    clearInterval(nav.tick); nav.tick = null; nav.yo = nav.prev = null; nav.v = 0;
+    clearInterval(nav.tick); nav.tick = null; nav.yo = nav.prev = nav.rumbo = null; nav.v = 0; nav.fuera = 0;
     try { nav.lock?.release(); } catch(e) {} nav.lock = null;
     $("#navBox").hidden = true; document.body.classList.remove("viajando");
     renderAuto(); return;
@@ -1289,8 +1323,14 @@ function viaje(on){
     // Velocidad: la del GPS si la da; si no, la que sale de las dos últimas ubicaciones.
     let v = pos.coords.speed;
     if (v == null || isNaN(v)) v = nav.prev && t > nav.prev.t ? distM(nav.prev.c, c) / ((t - nav.prev.t) / 1000) : 0;
-    nav.v = v > 70 ? nav.v : v; nav.prev = {c, t};
+    nav.v = v > 70 ? nav.v : v;
+    // Rumbo: el del GPS si lo da y el auto se mueve; si no, el de la última ubicación a esta.
+    const h = pos.coords.heading;
+    if (h != null && !isNaN(h) && nav.v > 1) nav.rumbo = h; else if (nav.prev && distM(nav.prev.c, c) > 4) nav.rumbo = rumboEntre(nav.prev.c, c);
+    nav.prev = {c, t};
     nav.yo = sobreRuta(c, auto.ruta); nav.t = Date.now();
+    nav.fuera = nav.yo.d > 45 ? nav.fuera + 1 : 0;
+    if (nav.fuera >= 2 && auto.destino) recalcular(c);
     auto.origen = c; auto.origenSrc = "gps"; dibujarAuto();
     map.getZoom() < 16 ? map.setView(c, 16.5) : map.panTo(c, {animate:true});
     pintarNav(true);
@@ -1299,19 +1339,35 @@ function viaje(on){
   // Mantiene la pantalla prendida durante el viaje (si el navegador lo permite).
   navigator.wakeLock?.request("screen").then(l => nav.lock = l).catch(() => {});
   cerrarAuto(); document.body.classList.add("viajando");
-  $("#navBox").hidden = false; $("#navDist").textContent = "Buscando tu ubicación…"; $("#navSub").textContent = "";
+  $("#navBox").hidden = false; $("#navDist").textContent = "Buscando tu ubicación…"; $("#navSub").textContent = ""; $("#navGiro").hidden = true;
   nav.tick = setInterval(() => pintarNav(false), 250);
-  toast("Te avisamos cuando estés cerca de un bache. Mirá el camino, no el teléfono.");
+  toast("Te guiamos con voz y te avisamos de los baches. Mirá el camino, no el teléfono.");
+}
+function pintarGiro(a, lecturaNueva){
+  const i = (auto.pasos || []).findIndex(p => p.a > a - 10), p = auto.pasos?.[i], el = $("#navGiro");
+  el.hidden = !p; if (!p) return;
+  const d = Math.max(0, p.a - a), dTxt = d < 1000 ? `${Math.round(d/10)*10} m` : fmtDist(d);
+  const txt = p.txt.charAt(0).toUpperCase() + p.txt.slice(1);
+  $("#navFlecha").innerHTML = p.llegada ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4"/><path d="M6 4h11l-2.5 4L17 12H6"/></svg>'
+    : `<svg viewBox="0 0 24 24" style="transform:rotate(${p.ang}deg)" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V4"/><path d="M5 11l7-7 7 7"/></svg>`;
+  $("#navGiroTxt").textContent = d < 25 ? txt : `En ${dTxt}`;
+  $("#navGiroCalle").textContent = d < 25 ? "" : p.txt;
+  // Voz: una vez con anticipación (200 m o 12 s) y otra justo antes (30 m o 4 s).
+  if (!lecturaNueva) return;
+  if (d <= Math.max(30, nav.v * 4) && !auto.dichos.has(i + ":ya")){ auto.dichos.add(i + ":ya"); auto.dichos.add(i + ":antes"); hablar(txt); }
+  else if (d <= Math.max(200, nav.v * 12) && d > 60 && !auto.dichos.has(i + ":antes")){ auto.dichos.add(i + ":antes"); hablar(`En ${Math.round(d/10)*10} metros, ${p.txt}`); }
 }
 function pintarNav(lecturaNueva){
   if (!nav.yo || !auto.ruta) return;
-  const box = $("#navBox");
-  if (nav.yo.d > 120){
-    box.className = "navbox fuera"; $("#navDist").textContent = "Estás fuera del camino marcado";
+  const box = $("#navBache");
+  if (nav.yo.d > 45){
+    box.className = "navbox fuera"; $("#navGiro").hidden = true;
+    $("#navDist").textContent = nav.recalculando ? "Recalculando el camino…" : "Estás fuera del camino marcado";
     $("#navSub").textContent = nav.v > 1 ? fmtVel(nav.v) : ""; return;
   }
   // Recorrido estimado ahora: lo que dio el GPS más lo que el auto avanzó desde entonces (hasta 5 s).
   const a = nav.yo.a + nav.v * Math.min(5, (Date.now() - nav.t) / 1000);
+  pintarGiro(a, lecturaNueva);
   const delante = bachesEnRuta().filter(r => r._ruta.a > a - 15);
   const prox = delante[0];
   if (!prox){ box.className = "navbox libre"; $("#navDist").textContent = "No hay más baches en el camino"; $("#navSub").textContent = nav.v > 1 ? fmtVel(nav.v) : ""; return; }
