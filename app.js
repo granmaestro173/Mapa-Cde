@@ -638,13 +638,17 @@ function openDetail(id){
       ${flagHtml(dev)}
       <button class="btn small" type="button" data-goto-obra="${esc(id)}">Ver detalle en el panel municipal</button>
     </div>`;
-  } else if (["bache","semaforo","alumbrado","inundacion","basura"].includes(r.cat)) {
-    obraHtml = `<div class="note">Todavía no hay obra municipal asignada.</div>`;
+  } else if (REPARABLES.includes(r.cat)) {
+    obraHtml = `<details class="card costo" style="padding:12px;gap:8px">
+      <summary><span class="eyebrow">${r.status==="resuelta" ? "Costo estimado del arreglo" : "Costo estimado de reparación"}</span><b class="mono">${fmtGs(costoReparacion(r).total)}</b></summary>
+      ${costoTabla(costoReparacion(r))}
+      <div class="note">Calculado con los precios de referencia de la pestaña Municipalidad para un arreglo típico de este daño. Todavía no hay obra municipal asignada: al asignarla se carga la medida real.</div>
+    </details>`;
   }
   const muniBtns = state.staff ? `<div class="card" style="padding:12px;gap:8px"><div class="eyebrow">${state.muni ? "Acciones municipales" : "Moderación"}</div>
       <div class="rowbtns">${r.mod!=="verificada"?`<button class="btn small" data-mod="verificada" type="button">✓ Verificar</button>`:""}${r.mod!=="falsa"?`<button class="btn small flag-btn" data-mod="falsa" type="button">✕ Marcar como falsa</button>`:""}${r.mod?`<button class="btn small" data-mod="" type="button">Quitar marca</button>`:""}</div>
       ${state.muni ? `<div class="rowbtns">${r.status!=="en_proceso"?`<button class="btn small" data-status="en_proceso" type="button">Marcar en proceso</button>`:""}${r.status!=="resuelta"?`<button class="btn small" data-status="resuelta" type="button">Marcar resuelta</button>`:""}${resReciente(r)?`<button class="btn small primary" data-undo-res type="button">↶ Cancelar "resuelta"</button>`:""}
-      ${!o && ["bache","semaforo","alumbrado","inundacion","basura"].includes(r.cat) ? `<button class="btn small primary" data-new-obra="${esc(id)}" type="button">Asignar obra</button>`:""}</div>` : ""}
+      ${!o && REPARABLES.includes(r.cat) ? `<button class="btn small primary" data-new-obra="${esc(id)}" type="button">Asignar obra</button>`:""}</div>` : ""}
       ${suspHtml(r)}</div>` : "";
   showDrawer(`
     <div class="rd-head">
@@ -1430,6 +1434,31 @@ function refCost(o, r){
   const sub = mat+mo+veh+fuel, gg = sub*P("gg")/100;
   return {mat, matLbl, mo, veh, km, fuel, gg, total: sub+gg};
 }
+// Daños que arregla la municipalidad. Cada denuncia de estos tipos lleva un costo estimado de reparación,
+// calculado con los mismos precios de referencia y una obra típica para ese daño (lo que propone el editor de obras).
+const REPARABLES = ["bache","semaforo","alumbrado","inundacion","basura"];
+const obraBase = r => ({m2: r.ai?.area_m2 || (r.sev>=4?2.2:1.2), prof:.07, personas: r.cat==="bache"?4:2, horas: r.cat==="bache"?5:3, horasVeh: r.cat==="bache"?2.5:1, viajes:1, unidades:1});
+const costoReparacion = r => refCost(getObra(r.id) || obraBase(r), r);
+const costoTabla = c => `<table class="breakdown">
+  <tr><td>Materiales · ${esc(c.matLbl)}</td><td>${fmtGs(c.mat)}</td></tr>
+  <tr><td>Mano de obra</td><td>${fmtGs(c.mo)}</td></tr>
+  <tr><td>Vehículos</td><td>${fmtGs(c.veh)}</td></tr>
+  <tr><td>Traslado · ${c.km.toFixed(1)} km desde el depósito</td><td>${fmtGs(c.fuel)}</td></tr>
+  <tr><td>Gastos generales (${params.gg.v}%)</td><td>${fmtGs(c.gg)}</td></tr>
+  <tr class="tot"><td>Costo estimado</td><td>${fmtGs(c.total)}</td></tr></table>`;
+function renderDanios(){
+  const rs = allReports().filter(r => REPARABLES.includes(r.cat) && r.status !== "resuelta").map(r => ({r, c:costoReparacion(r).total})).sort((a,b) => b.c - a.c);
+  const total = rs.reduce((a,x) => a + x.c, 0), sinObra = rs.filter(x => !getObra(x.r.id));
+  const por = REPARABLES.map(k => { const xs = rs.filter(x => x.r.cat===k); return [k, xs.length, xs.reduce((a,x) => a + x.c, 0)]; }).filter(x => x[1]);
+  const mx = Math.max(1, ...por.map(x => x[2]));
+  $("#danios").innerHTML = rs.length ? `
+    <div class="danios-tot"><b class="mono">${fmtGs(total)}</b><span class="note">para arreglar las ${fmtN(rs.length)} denuncias de daños sin resolver${sinObra.length ? ` · ${fmtN(sinObra.length)} todavía sin obra asignada (${fmtGs(sinObra.reduce((a,x) => a + x.c, 0))})` : ""}</span></div>
+    ${por.map(([k,n,c]) => `<div class="hbar danio"><span>${CATS[k].n} <small class="note">· ${n}</small></span><div class="tr"><div class="fl" style="width:${c/mx*100}%;--c:${cvar(k)}"></div></div><span class="n">${fmtGs(c)}</span></div>`).join("")}
+    <div class="eyebrow" style="margin-top:6px">Las más caras de arreglar</div>
+    <div class="modq">${rs.slice(0,6).map(({r,c}) => `<button type="button" data-open="${esc(r.id)}"><span><b>${CATS[r.cat].one}</b> · ${esc(r.barrio)} · ${ago(r.t)}</span><span class="mono">${fmtGs(c)}</span></button>`).join("")}</div>`
+    : `<div class="empty">No hay daños sin resolver.</div>`;
+}
+$("#danios").addEventListener("click", e => { const b = e.target.closest("[data-open]"); if (!b) return; const r = findReport(b.dataset.open); if (!r) return; location.hash = "mapa"; setTimeout(() => { map.setView([r.lat,r.lng], 16); openDetail(r.id); }, 60); });
 function flagHtml(dev){
   const pct = Math.round(dev*100);
   if (dev > .3) return `<div class="badbox"><b>Alerta de posible sobrefacturación.</b> El monto declarado supera en ${pct}% el costo de referencia calculado por la IA.</div>`;
@@ -1485,7 +1514,7 @@ $("#modsusp").addEventListener("click", e => { const a = e.target.closest("[data
 $("#modfake").addEventListener("click", e => { const b = e.target.closest("[data-open]"); if (!b) return; const r = findReport(b.dataset.open); if (!r) return; location.hash = "mapa"; setTimeout(() => { map.setView([r.lat,r.lng], 16); openDetail(r.id); }, 60); });
 $("#modq").addEventListener("click", e => { const b = e.target.closest("[data-open]"); if (!b) return; const r = findReport(b.dataset.open); if (!r) return; location.hash = "mapa"; setTimeout(() => { map.setView([r.lat,r.lng], 16); openDetail(r.id); }, 60); });
 function renderMuni(){
-  renderAccess(); renderParams(); renderAudit(); renderModq();
+  renderAccess(); renderParams(); renderAudit(); renderModq(); renderDanios();
   const os = allObras().map(o => { const r = findReport(o.reportId); const ref = refCost(o, r); return {o, r, ref, dev:(o.monto-ref.total)/ref.total}; }).sort((a,b)=>b.dev-a.dev);
   const active = os.filter(x => x.o.estado!=="Terminada").length;
   const inv = os.reduce((a,x)=>a+x.o.monto,0), alert = os.filter(x=>x.dev>.3), exceso = os.reduce((a,x)=>a+Math.max(0,x.o.monto-x.ref.total*1.15),0);
@@ -1503,8 +1532,7 @@ let editing = null;
 function openObraEditor(reportId, isNew){
   const r = findReport(reportId); if (!r) return;
   const ex = getObra(reportId);
-  editing = ex ? {...ex} : {reportId, tipo:r.cat, contratista:"", responsable:RESPONSABLES[0], fecha:new Date(Date.now()+7*DAY).toISOString().slice(0,10), estado:"Planificada",
-    m2: r.ai?.area_m2 || (r.sev>=4?2.2:1.2), prof:.07, personas: r.cat==="bache"?4:2, horas: r.cat==="bache"?5:3, horasVeh: r.cat==="bache"?2.5:1, viajes:1, unidades:1, monto:0};
+  editing = ex ? {...ex} : {reportId, tipo:r.cat, contratista:"", responsable:RESPONSABLES[0], fecha:new Date(Date.now()+7*DAY).toISOString().slice(0,10), estado:"Planificada", ...obraBase(r), monto:0};
   if (!ex) editing.monto = Math.round(refCost(editing, r).total/1000)*1000;
   const ro = !state.muni;
   const dis = ro ? "disabled" : "";
