@@ -6,6 +6,10 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const DAY = 864e5, HOUR = 36e5;
 const fmtGs = n => "Gs. " + Math.round(n || 0).toLocaleString("es-PY");
 const fmtN = n => Math.round(n).toLocaleString("es-PY");
+// Toda fecha y hora se muestra en hora de Paraguay, aunque el celular o la compu estén configurados en otra zona.
+const TZ = "America/Asuncion";
+const horaFmt = new Intl.DateTimeFormat("en-US", {hour:"numeric", hourCycle:"h23", timeZone:TZ}), diaFmt = new Intl.DateTimeFormat("en-US", {day:"numeric", timeZone:TZ});
+const horaPY = t => +horaFmt.format(t) % 24, diaPY = t => +diaFmt.format(t);
 
 /* ---------- Categorías ---------- */
 const ICONS = {
@@ -87,7 +91,7 @@ const inPeriod = (r, per=state.period, now=Date.now()) => r.t > now - PERIODS[pe
 
 /* ---------- Toast ---------- */
 let toastT; function toast(msg){ const el=$("#toast"); el.textContent=msg; el.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>el.hidden=true, 3400); }
-const ago = t => { const m = Math.round((Date.now()-t)/6e4); if (m<1) return "recién"; if (m<60) return `hace ${m} min`; const h=Math.round(m/60); if (h<24) return `hace ${h} h`; const d=Math.round(h/24); if (d<31) return `hace ${d} d`; return new Date(t).toLocaleDateString("es-PY",{day:"numeric",month:"short"}); };
+const ago = t => { const m = Math.round((Date.now()-t)/6e4); if (m<1) return "recién"; if (m<60) return `hace ${m} min`; const h=Math.round(m/60); if (h<24) return `hace ${h} h`; const d=Math.round(h/24); if (d<31) return `hace ${d} d`; return new Date(t).toLocaleDateString("es-PY",{day:"numeric",month:"short",timeZone:TZ}); };
 
 /* ---------- Mapa ---------- */
 // Imágenes satelitales de Esri (World Imagery) por el servicio oficial de ArcGIS Location Platform, con la clave
@@ -192,7 +196,7 @@ function renderPins(){
 // Zonas de riesgo: la ciudad se divide en celdas de ~200 m. Cada denuncia suma según su tipo, gravedad,
 // antigüedad, confirmaciones de vecinos y verificación municipal, y derrama un poco a las celdas vecinas.
 const HEAT_CELL = .002, SLOTS = {m:[6,12,"la mañana"], t:[12,18,"la tarde"], n:[18,24,"la noche"], d:[0,6,"la madrugada"]};
-const inSlot = (r, k) => { if (!k) return true; const h = new Date(r.t).getHours(); return h >= SLOTS[k][0] && h < SLOTS[k][1]; };
+const inSlot = (r, k) => { if (!k) return true; const h = horaPY(r.t); return h >= SLOTS[k][0] && h < SLOTS[k][1]; };
 function heatWeight(r, now){
   return CATS[r.cat].w * (.6 + (r.sev||3)*.16) * Math.exp(-(now - r.t)/(75*DAY)) * (1 + Math.log2(1 + (r.votes||0))*.25) * (r.mod==="verificada" ? 1.4 : 1);
 }
@@ -225,7 +229,7 @@ function renderHeat(){
 function zoneStats(gy, gx){
   const rs = []; for (let dx=-1;dx<=1;dx++) for (let dy=-1;dy<=1;dy++) rs.push(...(heatCells.get((gy+dy)+","+(gx+dx)) || []));
   const now = Date.now(), byCat = {}, hours = Array(24).fill(0);
-  rs.forEach(r => { byCat[r.cat] = (byCat[r.cat]||0) + 1; hours[new Date(r.t).getHours()]++; });
+  rs.forEach(r => { byCat[r.cat] = (byCat[r.cat]||0) + 1; hours[horaPY(r.t)]++; });
   const cats = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
   const peak = hours.indexOf(Math.max(...hours));
   return {rs, cats, hours, peak, recientes:rs.filter(r => now - r.t < 30*DAY).length, abiertas:rs.filter(r => r.status!=="resuelta").length,
@@ -321,10 +325,10 @@ document.addEventListener("click", e => {
   refresh();
 });
 function buckets(per, now=Date.now()){
-  if (per==="dia") return Array.from({length:24}, (_,i)=>{ const e=now-(23-i)*HOUR; return {s:e-HOUR, e, l:new Date(e).getHours()+"h"}; });
-  if (per==="semana") return Array.from({length:7}, (_,i)=>{ const e=now-(6-i)*DAY; return {s:e-DAY, e, l:new Date(e-1).toLocaleDateString("es-PY",{weekday:"short"})}; });
-  if (per==="mes") return Array.from({length:30}, (_,i)=>{ const e=now-(29-i)*DAY; return {s:e-DAY, e, l:new Date(e-1).getDate()+""}; });
-  return Array.from({length:12}, (_,i)=>{ const e=now-(11-i)*30.4*DAY; return {s:e-30.4*DAY, e, l:new Date(e-DAY).toLocaleDateString("es-PY",{month:"short"})}; });
+  if (per==="dia") return Array.from({length:24}, (_,i)=>{ const e=now-(23-i)*HOUR; return {s:e-HOUR, e, l:horaPY(e)+"h"}; });
+  if (per==="semana") return Array.from({length:7}, (_,i)=>{ const e=now-(6-i)*DAY; return {s:e-DAY, e, l:new Date(e-1).toLocaleDateString("es-PY",{weekday:"short", timeZone:TZ})}; });
+  if (per==="mes") return Array.from({length:30}, (_,i)=>{ const e=now-(29-i)*DAY; return {s:e-DAY, e, l:diaPY(e-1)+""}; });
+  return Array.from({length:12}, (_,i)=>{ const e=now-(11-i)*30.4*DAY; return {s:e-30.4*DAY, e, l:new Date(e-DAY).toLocaleDateString("es-PY",{month:"short", timeZone:TZ})}; });
 }
 function renderSide(){
   const now = Date.now(), per = PERIODS[state.period];
@@ -570,7 +574,7 @@ async function clima(){
     $("#clima").className = "clima n" + n;
     $("#climaT").textContent = n ? `${["", "Lluvia fuerte", "Lluvia muy fuerte", "Lluvia extrema"][n]}: ${Math.round(max)} mm el ${diaC(p.daily.time[iMax])}` : "Sin lluvias fuertes previstas";
     if (n && !inund.escManual) verInundEsc(n);
-    const tot = mm.reduce((a, b) => a + b, 0), hora = new Date().toLocaleTimeString("es-PY", {hour:"2-digit", minute:"2-digit", hourCycle:"h23"});
+    const tot = mm.reduce((a, b) => a + b, 0), hora = new Date().toLocaleTimeString("es-PY", {hour:"2-digit", minute:"2-digit", hourCycle:"h23", timeZone:TZ});
     $("#inundLluvia").innerHTML = `Lluvia estimada: <b>${Math.round(max)} mm</b> el ${diaC(p.daily.time[iMax])} (el día más lluvioso) · ${Math.round(tot)} mm en 7 días.`
       + `<small>${n ? `Escenario sugerido: "${["", "Fuerte", "Muy fuerte", "Extrema"][n]}".` : "No llega a lluvia fuerte: el escenario elegido muestra qué pasaría si llueve más."} Pronóstico Open-Meteo, actualizado a las ${hora}.</small>`;
     const txt = `${["", "Atención", "Alerta", "Alerta"][n]}: se esperan ${Math.round(max)} mm de lluvia el ${diaC(p.daily.time[iMax])}`;
@@ -586,7 +590,7 @@ async function clima(){
   try {
     const r = await fetch("https://flood-api.open-meteo.com/v1/flood?latitude=-25.53&longitude=-54.597&daily=river_discharge&past_days=3&forecast_days=10");
     if (!r.ok) throw 0;
-    const q = (await r.json()).daily, v = q.river_discharge, hoy = q.time.indexOf(new Date().toLocaleDateString("sv", {timeZone:"America/Asuncion"}));
+    const q = (await r.json()).daily, v = q.river_discharge, hoy = q.time.indexOf(new Date().toLocaleDateString("sv", {timeZone:TZ}));
     const iH = hoy >= 0 ? hoy : 3, futuro = v.slice(iH), maxF = Math.max(...futuro), iM = iH + futuro.indexOf(maxF);
     // Si el punto no cae sobre el Paraná el caudal sale chico: entonces no se muestra.
     if (!(v[iH] > 3000)) throw 0;
@@ -676,7 +680,7 @@ function openDetail(id){
       <button class="lnk note" type="button" data-hide="${esc(r.id)}" style="align-self:flex-start">${ocultas.has(r.id) ? "Volver a mostrar en mi mapa" : "Ocultar de mi mapa"}</button>
       ${ahorro && !state.staff ? "" : obraHtml}
       ${muniBtns}
-      <div class="note mono">${r.lat.toFixed(5)}, ${r.lng.toFixed(5)} · ${new Date(r.t).toLocaleString("es-PY")}</div>
+      <div class="note mono">${r.lat.toFixed(5)}, ${r.lng.toFixed(5)} · ${new Date(r.t).toLocaleString("es-PY", {timeZone:TZ})}</div>
     </div>`);
   // En las calles inundadas se agrega el riesgo del terreno según el modelo (si la denuncia sigue abierta).
   if (r.cat === "inundacion"){
@@ -723,7 +727,7 @@ async function cancelarDenuncia(b){
 /* ---------- Suspensión de usuarios (moderación) ---------- */
 // Un usuario suspendido no puede denunciar ni votar: lo bloquea la base (07-suspensiones.sql). Todo queda en el historial.
 let suspendidos = new Map();   // usuario -> suspensión vigente (solo se carga para la moderación)
-const fmtHasta = h => h ? "hasta el " + new Date(h).toLocaleDateString("es-PY", {day:"numeric", month:"long", year:"numeric"}) : "de forma permanente";
+const fmtHasta = h => h ? "hasta el " + new Date(h).toLocaleDateString("es-PY", {day:"numeric", month:"long", year:"numeric", timeZone:TZ}) : "de forma permanente";
 async function cargarSuspendidos(){
   if (!state.staff || !Store.suspendidos) return;
   try { suspendidos = new Map((await Store.suspendidos()).map(x => [x.usuario, x])); } catch(e) { suspendidos = new Map(); }
@@ -1734,7 +1738,7 @@ const flagChip = dev => dev > .3 ? `<span class="flag bad">▲ +${Math.round(dev
 /* Historial con huella encadenada: la calcula la base (SHA-256) y cualquiera puede verificar la cadena. */
 function renderAudit(){
   const rows = auditLive.filter(e => state.showDemo || !e.demo).slice().reverse();
-  $("#audit").innerHTML = rows.map(e => `<div><b>${esc(e.action)}</b><br>${esc(e.detail)}<br><span class="note">${new Date(e.t).toLocaleString("es-PY")} · ${esc(e.who)}</span><br><span class="h">huella ${esc(String(e.h).slice(0,12))} ← ${esc(String(e.prev).slice(0,12))}</span></div>`).join("") || `<div class="empty">Sin cambios registrados.</div>`;
+  $("#audit").innerHTML = rows.map(e => `<div><b>${esc(e.action)}</b><br>${esc(e.detail)}<br><span class="note">${new Date(e.t).toLocaleString("es-PY", {timeZone:TZ})} · ${esc(e.who)}</span><br><span class="h">huella ${esc(String(e.h).slice(0,12))} ← ${esc(String(e.prev).slice(0,12))}</span></div>`).join("") || `<div class="empty">Sin cambios registrados.</div>`;
 }
 $("#btnVerify").addEventListener("click", async () => {
   const out = $("#verifyOut"); out.textContent = "Verificando…"; out.className = "note";
@@ -1889,7 +1893,7 @@ function renderStats(){
   const bk = buckets(state.period, now), vals = bk.map(b => as.filter(r => r.t>b.s && r.t<=b.e).length);
   $("#asaltoChartSub").textContent = `${per.label} · ${fmtN(vals.reduce((a,b)=>a+b,0))} en total`;
   barChart($("#asaltoChart"), vals, bk.map(b=>b.l), "var(--c-asalto)");
-  const hours = Array(24).fill(0); as.filter(r => inPeriod(r, state.period, now)).forEach(r => hours[new Date(r.t).getHours()]++);
+  const hours = Array(24).fill(0); as.filter(r => inPeriod(r, state.period, now)).forEach(r => hours[horaPY(r.t)]++);
   barChart($("#hourChart"), hours, hours.map((_,i)=>i+"h"), "var(--c-inseguro)", true);
 
   const counts = CAT_KEYS.map(k => [k, inP.filter(r=>r.cat===k).length]).sort((a,b)=>b[1]-a[1]), mx = Math.max(1, ...counts.map(c=>c[1]));
@@ -1920,7 +1924,7 @@ $("#btnAiReport").addEventListener("click", async () => {
   const now = Date.now(), inP = allReports().filter(r => inPeriod(r, state.period, now));
   const byCat = Object.fromEntries(CAT_KEYS.map(k => [CATS[k].n, inP.filter(r=>r.cat===k).length]));
   const byBarrio = {}; inP.forEach(r => { byBarrio[r.barrio] = byBarrio[r.barrio]||{}; byBarrio[r.barrio][r.cat] = (byBarrio[r.barrio][r.cat]||0)+1; });
-  const hours = Array(24).fill(0); inP.filter(r=>r.cat==="asalto").forEach(r => hours[new Date(r.t).getHours()]++);
+  const hours = Array(24).fill(0); inP.filter(r=>r.cat==="asalto").forEach(r => hours[horaPY(r.t)]++);
   const pend = inP.filter(r => r.status!=="resuelta").length;
   const alerts = allObras().map(o => { const r = findReport(o.reportId); const ref = refCost(o, r); return {id:o.reportId, contratista:o.contratista, desvio_pct:Math.round((o.monto-ref.total)/ref.total*100)}; }).filter(x => x.desvio_pct > 30);
   const data = {ciudad:"Ciudad del Este", periodo:PERIODS[state.period].label, total:inP.length, pendientes:pend, por_categoria:byCat, por_barrio:byBarrio, asaltos_por_hora:hours, obras_con_alerta_sobrefacturacion:alerts};
@@ -2297,7 +2301,7 @@ renderPeriodSegs(); renderSide(); renderPins(); route();
 Store.start();
 IA.listo = IA.check();
 // Reporte de esta semana: lo escribe Haiku cada lunes (api/semanal.js) y queda al fondo del panel Explorar.
-const fechaCorta = t => new Date(t).toLocaleDateString("es-PY", {weekday:"short", day:"numeric", month:"short"});
+const fechaCorta = t => new Date(t).toLocaleDateString("es-PY", {weekday:"short", day:"numeric", month:"short", timeZone:TZ});
 function renderInforme(inf){
   const el = $("#informe");
   if (!inf){ el.hidden = true; return; }
