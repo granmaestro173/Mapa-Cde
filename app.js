@@ -92,6 +92,16 @@ const inPeriod = (r, per=state.period, now=Date.now()) => r.t > now - PERIODS[pe
 /* ---------- Toast ---------- */
 let toastT; function toast(msg){ const el=$("#toast"); el.textContent=msg; el.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>el.hidden=true, 3400); }
 const ago = t => { const m = Math.round((Date.now()-t)/6e4); if (m<1) return "recién"; if (m<60) return `hace ${m} min`; const h=Math.round(m/60); if (h<24) return `hace ${h} h`; const d=Math.round(h/24); if (d<31) return `hace ${d} d`; return new Date(t).toLocaleDateString("es-PY",{day:"numeric",month:"short",timeZone:TZ}); };
+// Cuánto lleva una denuncia: sin resolver se pone naranja a la semana y roja al mes; resuelta dice en cuánto se resolvió.
+const diasTxt = d => d === 1 ? "1 día" : `${d} días`;
+const edadChip = r => {
+  const cuando = new Date(r.t).toLocaleString("es-PY", {day:"numeric", month:"long", year:"numeric", hour:"2-digit", minute:"2-digit", timeZone:TZ});
+  if (r.status === "resuelta" && r.resolvedAt) return `<span class="chip ok" title="Denunciada el ${cuando}">Resuelta en ${r.resolvedAt - r.t < DAY ? "menos de 1 día" : diasTxt(Math.floor((r.resolvedAt - r.t)/DAY))}</span>`;
+  if (r.status === "resuelta") return `<span class="chip" title="Denunciada el ${cuando}">${ago(r.t)}</span>`;
+  const d = Math.floor((Date.now() - r.t)/DAY);
+  if (d < 1) return `<span class="chip" title="Denunciada el ${cuando}">${ago(r.t)}</span>`;
+  return `<span class="chip ${d >= 30 ? "bad" : d >= 7 ? "warn" : ""}" title="Denunciada el ${cuando}">Sin resolver hace ${diasTxt(d)}</span>`;
+};
 
 /* ---------- Mapa ---------- */
 // Imágenes satelitales de Esri (World Imagery) por el servicio oficial de ArcGIS Location Platform, con la clave
@@ -661,7 +671,7 @@ function openDetail(id){
       <button class="x" type="button" aria-label="Cerrar" data-close>×</button>
     </div>
     <div class="drawer-body">
-      <div class="rowbtns" id="rdChips"><span class="chip c" style="--c:${cvar(r.cat)}">${esc(r.barrio)}</span><span class="chip">${ago(r.t)}</span>${state.near.c ? `<span class="chip">a ${fmtDist(distM(state.near.c,[r.lat,r.lng]))} de vos</span>` : ""}${src}${modChip(r)}${iaChip(r)}</div>
+      <div class="rowbtns" id="rdChips"><span class="chip c" style="--c:${cvar(r.cat)}">${esc(r.barrio)}</span>${edadChip(r)}${state.near.c ? `<span class="chip">a ${fmtDist(distM(state.near.c,[r.lat,r.lng]))} de vos</span>` : ""}${src}${modChip(r)}${iaChip(r)}</div>
       ${cancelarHtml(r)}
       ${iaNote(r)}
       ${resNote(r)}
