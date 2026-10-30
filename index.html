@@ -183,7 +183,7 @@ main{flex:1;min-height:0;display:flex;flex-direction:column}
 .clima .dia b{color:var(--ink);font-size:10.5px;font-weight:600}
 .banner.lluvia{background:var(--bad);color:#fff}
 .banner.lluvia .btn{color:#fff;background:transparent;border:0;font-weight:600}
-#nearBanner:not([hidden])~#lluviaBanner,#pickBanner:not([hidden])~#lluviaBanner{display:none}
+#nearBanner:not([hidden])~#lluviaBanner,#pickBanner:not([hidden])~#lluviaBanner,#nearBanner:not([hidden])~#roboBanner,#pickBanner:not([hidden])~#roboBanner,#roboBanner:not([hidden])~#lluviaBanner{display:none}
 .chip.agua{background:color-mix(in srgb,#1e88e5 14%,transparent);color:#1565c0}
 .ahorro-tg{border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:4px}
 /* Selector de vista del mapa */
@@ -480,6 +480,7 @@ main{height:100%;display:block}
 .legend{left:auto;right:16px;bottom:24px;transform:translateY(-70px);border:0;border-radius:8px;box-shadow:var(--shadow);background:var(--panel)}
 .legend:has(#heatLegend[hidden]):has(#inundLegend[hidden]){display:none}
 @media (min-width:761px){.legend{right:72px}}
+@media (min-width:761px){#roboBanner{left:calc(50% + 202px);max-width:calc(100% - 540px);white-space:normal}}
 .banner{background:#323232;color:#fff;border-radius:8px;top:calc(76px + env(safe-area-inset-top,0px));padding:8px 8px 8px 16px;font-weight:400;font-size:14px}
 .banner .btn{background:transparent;border:0;color:#8ab4f8;font-weight:500}
 .toast{background:#323232;color:#fff;border-radius:6px}
@@ -604,7 +605,7 @@ main{height:100%;display:block}
   .side-toggle{display:grid;left:calc(max(8px,env(safe-area-inset-left,0px)) + min(340px,calc(100% - 64px)));top:calc(130px + env(safe-area-inset-top,0px))}
   #view-mapa.side-collapsed .side-toggle{left:max(8px,env(safe-area-inset-left,0px))}
   .fab-ext{bottom:calc(24px + env(safe-area-inset-bottom,0px))}
-  #lluviaBanner{bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+  #lluviaBanner,#roboBanner{bottom:calc(92px + env(safe-area-inset-bottom,0px))}
   .legend{bottom:calc(24px + env(safe-area-inset-bottom,0px))}
   .leaflet-bottom{bottom:0}
 }
@@ -635,6 +636,7 @@ main{height:100%;display:block}
       <div id="map" aria-label="Mapa de Ciudad del Este"></div>
       <div class="banner" id="nearBanner" hidden><span>Tocá el mapa donde estás</span><button class="btn small" id="nearBannerX" type="button">CANCELAR</button></div>
       <div class="banner" id="pickBanner" hidden><span>Tocá el mapa donde está el problema</span><button class="btn small" id="btnPickDone" type="button">LISTO</button></div>
+      <div class="banner lluvia" id="roboBanner" role="alert" hidden><span id="roboTxt"></span><button class="btn small" id="roboVer" type="button">VER</button><button class="btn small" id="roboX" type="button" aria-label="Cerrar aviso">✕</button></div>
       <div class="banner lluvia" id="lluviaBanner" role="status" hidden><span id="lluviaTxt"></span><button class="btn small" id="lluviaVer" type="button">VER ZONAS</button><button class="btn small" id="lluviaX" type="button" aria-label="Cerrar aviso">✕</button></div>
       <div class="legend" id="legend">
         <span hidden><b id="legendCount">0</b></span>
@@ -858,6 +860,6 @@ main{height:100%;display:block}
 <script src="vendor/supabase.js"></script>
 <script src="config.js?v=4"></script>
 <script src="store.js?v=11"></script>
-<script src="app.js?v=40"></script>
+<script src="app.js?v=41"></script>
 </body>
 </html>

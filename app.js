@@ -1797,13 +1797,37 @@ function revisarAvisos(){
   }
   if (cambios) guardarLS(AV.mias, mias);
   if (arch) guardarLS("cde-historial", archivo);
-  alertaBarrios();
+  alertaBarrios(); alertaRobos();
 }
-function avisar(id, texto){
+/* ---------- Robos recientes: aviso emergente cuando alguien denuncia un asalto en las últimas horas ---------- */
+// Si el vecino marcó su ubicación en "Cerca de mí", solo avisa de los que están cerca; si no, de toda la ciudad.
+// Cada denuncia se avisa una sola vez en este dispositivo; al abrir la página con varias, va un solo aviso.
+const ROBO = {ventana:3 * HOUR, radio:1500};
+let robosActivos = leerLS("cde-robos-activos", true);
+let robosVistos = leerLS("cde-robos-vistos", {});   // id -> cuándo se avisó
+function robosRecientes(){
+  const c = state.near.c, ahora = Date.now();
+  return allReports().filter(r => r.cat === "asalto" && ahora - r.t < ROBO.ventana && r.t <= ahora && r.iaCheck !== "dudosa"
+    && !esMia(r) && verOculta(r) && (!c || distM(c, [r.lat, r.lng]) <= ROBO.radio)).sort((a, b) => b.t - a.t);
+}
+function alertaRobos(){
+  for (const [id, t] of Object.entries(robosVistos)) if (Date.now() - t > ROBO.ventana + DAY) delete robosVistos[id];
+  if (!robosActivos) return;
+  const nuevos = robosRecientes().filter(r => !robosVistos[r.id]);
+  if (!nuevos.length) return;
+  nuevos.forEach(r => robosVistos[r.id] = Date.now()); guardarLS("cde-robos-vistos", robosVistos);
+  const r = nuevos[0], c = state.near.c, mas = nuevos.length - 1;
+  const texto = `Robo denunciado ${ago(r.t)} en ${r.barrio}${c ? `, a ${fmtDist(distM(c, [r.lat, r.lng]))} de tu ubicación` : ""}.${mas ? ` Hay ${mas} más en las últimas 3 horas.` : ""}`;
+  $("#roboTxt").textContent = texto; $("#roboBanner").dataset.id = r.id; $("#roboBanner").hidden = false;
+  avisar(r.id, texto, true);
+}
+$("#roboVer").addEventListener("click", () => { const id = $("#roboBanner").dataset.id; $("#roboBanner").hidden = true; if (findReport(id)) openDetail(id); });
+$("#roboX").addEventListener("click", () => { $("#roboBanner").hidden = true; });
+function avisar(id, texto, sinMensaje){
   avisos.unshift({id, t:Date.now(), texto, leido:false});
   avisos = avisos.slice(0, 40); guardarLS(AV.avisos, avisos); renderCampana();
-  // Con la página a la vista, un mensaje; si está en segundo plano, un aviso del sistema (si el vecino lo permitió).
-  if (!document.hidden || !("Notification" in window) || Notification.permission !== "granted") return toast(texto);
+  // Con la página a la vista, un mensaje (salvo que ya se muestre otro aviso, como el de robos); si está en segundo plano, un aviso del sistema (si el vecino lo permitió).
+  if (!document.hidden || !("Notification" in window) || Notification.permission !== "granted") return sinMensaje || toast(texto);
   const op = {body:texto, tag:"cde-" + id, data:{id}, lang:"es"};
   (navigator.serviceWorker?.ready || Promise.reject()).then(reg => reg.showNotification("Mapa Ciudadano CDE", op))
     .catch(() => { try { new Notification("Mapa Ciudadano CDE", op).onclick = () => { window.focus(); openDetail(id); }; } catch(e) {} });
@@ -1831,6 +1855,7 @@ function openAvisos(){
     <div class="drawer-head"><div><div class="eyebrow">Seguimiento</div><h2>Mis denuncias</h2></div><button class="x" type="button" aria-label="Cerrar" data-close>×</button></div>
     <div class="drawer-body">
       <label class="tg"><span>Avisarme cuando cambien<small>${avisosActivos ? permiso : "Avisos desactivados"}</small></span><input type="checkbox" class="switch" id="avActivos" ${avisosActivos ? "checked" : ""}></label>
+      <label class="tg"><span>Avisarme de robos recientes<small>${robosActivos ? (state.near.c ? `Asaltos denunciados en las últimas 3 horas a menos de ${fmtDist(ROBO.radio)} del punto que marcaste en "Cerca de mí".` : `Asaltos denunciados en las últimas 3 horas en toda la ciudad. Marcá tu ubicación en "Cerca de mí" para recibir solo los cercanos.`) : "Desactivado"}</small></span><input type="checkbox" class="switch" id="avRobos" ${robosActivos ? "checked" : ""}></label>
       ${pendientes.length ? `<div class="warnbox"><b>${pendientes.length} denuncia${pendientes.length===1?"":"s"} sin enviar.</b> Se guardaron sin señal y se envían solas cuando vuelva internet.</div>` : ""}
       ${avisosActivos && avisos.length ? `<div><div class="eyebrow" style="margin-bottom:6px">Avisos</div><div class="avlist">${avisos.slice(0, 12).map(a => `<button type="button" class="av ${nuevos.has(a.t) ? "nuevo" : ""}" data-av="${esc(a.id)}"><span>${esc(a.texto)}</span><small>${ago(a.t)}</small></button>`).join("")}</div></div>` : ""}
       <div><div class="eyebrow" style="margin-bottom:6px">Tus denuncias</div>
@@ -1845,6 +1870,14 @@ function openAvisos(){
   $("#avActivos").addEventListener("change", e => {
     avisosActivos = e.target.checked; guardarLS(AV.activos, avisosActivos); renderCampana();
     toast(avisosActivos ? "Avisos activados." : "Avisos desactivados. Podés volver a activarlos acá cuando quieras.");
+    openAvisos();
+  });
+  $("#avRobos").addEventListener("change", e => {
+    robosActivos = e.target.checked; guardarLS("cde-robos-activos", robosActivos);
+    if (!robosActivos) $("#roboBanner").hidden = true;
+    // Al prenderlo no se avisa de golpe lo que ya pasó mientras estaba apagado: solo lo que llegue desde ahora.
+    else { robosRecientes().forEach(r => robosVistos[r.id] ||= Date.now()); guardarLS("cde-robos-vistos", robosVistos); }
+    toast(robosActivos ? "Te vamos a avisar de robos denunciados recientemente." : "Avisos de robos desactivados.");
     openAvisos();
   });
   $("#avPermiso")?.addEventListener("click", async () => { await Notification.requestPermission().catch(() => {}); openAvisos(); });
