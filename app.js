@@ -639,11 +639,7 @@ function openDetail(id){
       <button class="btn small" type="button" data-goto-obra="${esc(id)}">Ver detalle en el panel municipal</button>
     </div>`;
   } else if (REPARABLES.includes(r.cat)) {
-    obraHtml = `<details class="card costo" style="padding:12px;gap:8px">
-      <summary><span class="eyebrow">${r.status==="resuelta" ? "Costo estimado del arreglo" : "Costo estimado de reparación"}</span><b class="mono">${fmtGs(costoReparacion(r).total)}</b></summary>
-      ${costoTabla(costoReparacion(r))}
-      <div class="note">Calculado con los precios de referencia de la pestaña Municipalidad para un arreglo típico de este daño. Todavía no hay obra municipal asignada: al asignarla se carga la medida real.</div>
-    </details>`;
+    obraHtml = `<div class="note">Todavía no hay obra municipal asignada.</div>`;
   }
   const muniBtns = state.staff ? `<div class="card" style="padding:12px;gap:8px"><div class="eyebrow">${state.muni ? "Acciones municipales" : "Moderación"}</div>
       <div class="rowbtns">${r.mod!=="verificada"?`<button class="btn small" data-mod="verificada" type="button">✓ Verificar</button>`:""}${r.mod!=="falsa"?`<button class="btn small flag-btn" data-mod="falsa" type="button">✕ Marcar como falsa</button>`:""}${r.mod?`<button class="btn small" data-mod="" type="button">Quitar marca</button>`:""}</div>
@@ -662,6 +658,7 @@ function openDetail(id){
       ${iaNote(r)}
       ${resNote(r)}
       ${ahorro ? fotoAhorro(r) : photoBlock(r) + iaDesc(r)}
+      ${REPARABLES.includes(r.cat) ? `<div class="costo-linea" title="Calculado con los precios de referencia de la pestaña Municipalidad">Costo estimado: <b class="mono">${fmtGs(costoReparacion(r).total)}</b></div>` : ""}
       <p style="margin:0;font-size:15px">${esc(r.desc)}</p>
       <div class="steps">${["Recibida","En proceso","Resuelta"].map((s,i)=>`<span class="${i<=stIdx?"done":""}">${s}</span>`).join("")}</div>
       ${ahorro ? "" : `<div class="ai">
@@ -1439,13 +1436,6 @@ function refCost(o, r){
 const REPARABLES = ["bache","semaforo","alumbrado","inundacion","basura"];
 const obraBase = r => ({m2: r.ai?.area_m2 || (r.sev>=4?2.2:1.2), prof:.07, personas: r.cat==="bache"?4:2, horas: r.cat==="bache"?5:3, horasVeh: r.cat==="bache"?2.5:1, viajes:1, unidades:1});
 const costoReparacion = r => refCost(getObra(r.id) || obraBase(r), r);
-const costoTabla = c => `<table class="breakdown">
-  <tr><td>Materiales · ${esc(c.matLbl)}</td><td>${fmtGs(c.mat)}</td></tr>
-  <tr><td>Mano de obra</td><td>${fmtGs(c.mo)}</td></tr>
-  <tr><td>Vehículos</td><td>${fmtGs(c.veh)}</td></tr>
-  <tr><td>Traslado · ${c.km.toFixed(1)} km desde el depósito</td><td>${fmtGs(c.fuel)}</td></tr>
-  <tr><td>Gastos generales (${params.gg.v}%)</td><td>${fmtGs(c.gg)}</td></tr>
-  <tr class="tot"><td>Costo estimado</td><td>${fmtGs(c.total)}</td></tr></table>`;
 function renderDanios(){
   const rs = allReports().filter(r => REPARABLES.includes(r.cat) && r.status !== "resuelta").map(r => ({r, c:costoReparacion(r).total})).sort((a,b) => b.c - a.c);
   const total = rs.reduce((a,x) => a + x.c, 0), sinObra = rs.filter(x => !getObra(x.r.id));
