@@ -183,6 +183,13 @@ Supabase → **SQL Editor** → pegá todo `07-suspensiones.sql` → **Run**; de
 
 ---
 
+## Modo auto: baches en el camino
+
+El botón del auto (a la derecha del mapa, o en el menú) abre el **modo auto**: la salida es tu ubicación (o un punto que marcás) y el destino lo marcás en el mapa o lo elegís de la lista de barrios. La página calcula el camino en auto y deja en el mapa solo los **baches sin resolver que quedan sobre ese camino** (a menos de 35 m), en el orden en que te los vas a cruzar y a cuántos kilómetros de la salida está cada uno. Con **Avisarme en el camino** empieza el viaje: el teléfono sigue tu ubicación y una ventana abajo dice "Bache aproximadamente a X m", con los segundos que faltan según la velocidad del auto. Se actualiza todo el tiempo (entre lectura y lectura del GPS la distancia se estima con la velocidad), se pone roja cuando el bache está cerca y avisa con voz y vibración a 150 m, o antes si vas rápido (10 segundos antes). Mientras dura el viaje, la pantalla no se apaga. Además funciona como **GPS de navegación**: arriba de la ventana de baches aparece la próxima indicación ("En 200 m · girá a la derecha por Av. San Blas") con una flecha, y la voz la dice con anticipación y otra vez justo antes del giro. Tu posición se ve como una flecha que apunta hacia donde vas. Si te salís del camino, recalcula la ruta sola desde donde estás. El mapa no gira: queda siempre con el norte arriba.
+
+- El camino lo calcula **OSRM** con datos de OpenStreetMap, gratis y sin clave. El servidor público de OSRM es para uso moderado; si el sitio crece, se puede usar otro servidor compatible poniendo su dirección en `config.js`, por ejemplo `rutasUrl: "https://mi-servidor/route/v1/driving/"`.
+- Si no hay internet o OSRM no responde, el panel lo dice y se puede intentar de nuevo.
+
 ## Antes de usarlo de verdad
 
 - **Sacar los datos de ejemplo:** ejecutá `supabase/03-borrar-ejemplos.sql` en el SQL Editor. También podés ocultarlos sin borrarlos con *Capas → Datos de ejemplo*.

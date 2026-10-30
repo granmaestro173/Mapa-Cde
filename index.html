@@ -615,6 +615,57 @@ main{height:100%;display:block}
   .legend{bottom:calc(24px + env(safe-area-inset-bottom,0px))}
   .leaflet-bottom{bottom:0}
 }
+
+/* Modo auto: panel con salida, destino y los baches del trayecto */
+.auto{position:absolute;z-index:1010;left:max(12px,env(safe-area-inset-left,0px));top:calc(72px + env(safe-area-inset-top,0px));max-height:calc(100% - 84px - env(safe-area-inset-top,0px));width:392px;max-width:calc(100% - 24px);
+  background:var(--panel);border-radius:12px;box-shadow:var(--shadow);overflow:auto;overscroll-behavior:contain;display:flex;flex-direction:column}
+.auto .drawer-head{border-radius:12px 12px 0 0}
+.auto-body{display:flex;flex-direction:column;gap:10px;padding:12px 16px 16px}
+.auto-pt{display:grid;grid-template-columns:18px 1fr auto;gap:10px;align-items:center}
+.auto-pt-t{display:flex;flex-direction:column;min-width:0}
+.auto-pt-t small{color:var(--muted);font-size:12px}
+.auto-pt-t b{font-weight:500;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.auto-ic{width:14px;height:14px;border-radius:50%;justify-self:center}
+.auto-ic.o{background:#1a73e8;box-shadow:0 0 0 3px rgba(26,115,232,.25)}
+.auto-ic.d{background:var(--bad);border-radius:3px}
+.auto-res{background:var(--panel-2);border-radius:10px;padding:10px 12px}
+.auto-big{font-size:15px}
+.auto-big b{font-size:26px;font-weight:600;color:var(--c-bache);margin-right:2px}
+.auto .feed button.sel{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.auto-dest{width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--bad);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:grid;place-items:center}
+.auto-dest svg{width:16px;height:16px;color:#fff;transform:rotate(45deg)}
+#view-mapa.with-drawer .auto{visibility:hidden}
+/* Viaje en curso: ventana de abajo con la distancia al próximo bache */
+.navwrap{position:absolute;z-index:1200;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));width:min(440px,calc(100% - 24px));display:flex;flex-direction:column;gap:8px}
+.navgiro{display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:14px;background:#0b5c33;color:#fff;box-shadow:var(--shadow)}
+.navgiro .flecha{width:40px;height:40px;flex:none;display:grid;place-items:center}
+.navgiro .flecha svg{width:36px;height:36px}
+.navgiro .navtxt b{font-size:22px}
+.navgiro .navtxt small{font-size:14px;opacity:.95}
+.me-flecha{width:30px;height:30px;display:grid;place-items:center;filter:drop-shadow(0 1px 3px rgba(0,0,0,.45))}
+.me-flecha svg{width:28px;height:28px;fill:#1a73e8;stroke:#fff;stroke-width:2;stroke-linejoin:round}
+.navbox{
+  display:flex;align-items:center;gap:12px;padding:12px 12px 12px 18px;border-radius:14px;background:#323232;color:#fff;box-shadow:var(--shadow)}
+.navtxt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.navtxt b{font-size:19px;font-weight:600;font-variant-numeric:tabular-nums}
+.navtxt small{font-size:13px;opacity:.85;font-variant-numeric:tabular-nums}
+.navbox.cerca{background:var(--bad)}
+.navbox.libre{background:var(--ok)}
+.navbox .btn{background:transparent;border:1px solid rgba(255,255,255,.6);color:#fff}
+body.viajando .fab-ext,body.viajando .legend,body.viajando .side,body.viajando .side-toggle{display:none}
+body.viajando .toast{bottom:calc(210px + env(safe-area-inset-bottom,0px))}
+#view-mapa.with-auto .side,#view-mapa.with-auto .side-toggle{visibility:hidden}
+/* Con un trayecto en el mapa solo se ven sus baches: los chips de categoría no aplican */
+#view-mapa.con-ruta #cats{display:none}
+@media (max-width:1100px){ .auto{top:calc(118px + env(safe-area-inset-top,0px));max-height:calc(100% - 130px - env(safe-area-inset-top,0px))} }
+@media (max-width:760px){
+  .auto{top:auto;left:0;right:0;bottom:0;width:100%;max-width:none;max-height:52dvh;border-radius:16px 16px 0 0;box-shadow:0 -2px 12px rgba(60,64,67,.3);z-index:1290;padding-bottom:env(safe-area-inset-bottom,0px)}
+  .auto .drawer-head{border-radius:16px 16px 0 0;padding:10px 16px}
+  #view-mapa.with-drawer .auto{visibility:visible}
+  #view-mapa.with-auto .fab-ext,#view-mapa.with-auto .legend{display:none}
+  body.autopicking .auto,body.autopicking .chiprow{display:none}
+  #autoBanner{top:auto;bottom:calc(24px + env(safe-area-inset-bottom,0px))}
+}
 </style>
 </head>
 <body>
@@ -631,6 +682,7 @@ main{height:100%;display:block}
     <a href="#municipalidad" data-view="municipalidad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 10l9-6 9 6"/><path d="M5 10v9h14v-9M9 19v-5h6v5"/></svg>Municipalidad</a>
   </div>
   <button class="mi" id="btnNew" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z"/><path d="M12 6.5v5M9.5 9h5"/></svg>Nueva denuncia</button>
+  <button class="mi" id="btnAutoMenu" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v-3.5L6.2 7h11.6L20 12.5V16z"/><path d="M4 12.5h16"/><circle cx="7.5" cy="16.5" r="1.8"/><circle cx="16.5" cy="16.5" r="1.8"/></svg>Modo auto: baches en el camino</button>
   <button class="mi" id="btnMisDenuncias" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></svg>Mis denuncias y avisos</button>
   <button class="mi" id="btnAccount" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Ingresar</button>
   <div class="note">Imágenes satelitales © Esri, Maxar, Earthstar Geographics.</div>
@@ -641,6 +693,8 @@ main{height:100%;display:block}
     <div class="mapwrap">
       <div id="map" aria-label="Mapa de Ciudad del Este"></div>
       <div class="banner" id="nearBanner" hidden><span>Tocá el mapa donde estás</span><button class="btn small" id="nearBannerX" type="button">CANCELAR</button></div>
+      <div class="navwrap" id="navBox" hidden><div class="navgiro" id="navGiro" hidden><span class="flecha" id="navFlecha" aria-hidden="true"></span><span class="navtxt"><b id="navGiroTxt"></b><small id="navGiroCalle"></small></span></div><div class="navbox" id="navBache" role="status" aria-live="polite"><div class="navtxt"><b id="navDist"></b><small id="navSub"></small></div><button class="btn small" id="navStop" type="button">TERMINAR</button></div></div>
+      <div class="banner" id="autoBanner" hidden><span id="autoBannerTxt">Tocá el mapa a dónde vas</span><button class="btn small" id="autoBannerX" type="button">CANCELAR</button></div>
       <div class="banner" id="pickBanner" hidden><span>Tocá el mapa donde está el problema</span><button class="btn small" id="btnPickDone" type="button">LISTO</button></div>
       <div class="banner lluvia" id="roboBanner" role="alert" hidden><span id="roboTxt"></span><button class="btn small" id="roboUbic" type="button" hidden>¿CERCA?</button><button class="btn small" id="roboVer" type="button">VER</button><button class="btn small" id="roboX" type="button" aria-label="Cerrar aviso">✕</button></div>
       <div class="banner lluvia" id="lluviaBanner" role="status" hidden><span id="lluviaTxt"></span><button class="btn small" id="lluviaVer" type="button">VER ZONAS</button><button class="btn small" id="lluviaX" type="button" aria-label="Cerrar aviso">✕</button></div>
@@ -663,6 +717,7 @@ main{height:100%;display:block}
     <div class="chiprow">
       <button class="cat fchip" id="btnFilters" type="button" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>Filtros<span class="badge" id="fBadge" hidden>0</span></button>
       <button class="cat nchip" id="nearChip" type="button" hidden></button>
+      <button class="cat nchip" id="autoChip" type="button" hidden></button>
       <div class="cats" id="cats" aria-label="Categorías"></div>
     </div>
     <aside class="fpanel" id="fpanel" hidden aria-label="Filtrar denuncias">
@@ -696,6 +751,7 @@ main{height:100%;display:block}
     </aside>
 
     <div class="fabs">
+      <button class="fab-sm" id="btnAuto" type="button" aria-label="Modo auto: baches en el camino" title="Modo auto: baches en el camino" aria-expanded="false" aria-controls="autoPanel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v-3.5L6.2 7h11.6L20 12.5V16z"/><path d="M4 12.5h16"/><circle cx="7.5" cy="16.5" r="1.8"/><circle cx="16.5" cy="16.5" r="1.8"/></svg></button>
       <button class="fab-sm" id="btnLayers" type="button" aria-label="Capas y filtros" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></button>
       <button class="fab-sm" id="btnRecenter" type="button" aria-label="Ver toda la ciudad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
     </div>
@@ -763,6 +819,7 @@ main{height:100%;display:block}
     </aside>
 
     <aside class="drawer" id="drawer" hidden></aside>
+    <aside class="auto" id="autoPanel" hidden aria-label="Modo auto: baches en el camino"></aside>
   </section>
 
   <section class="view page" id="view-estadisticas" hidden>
@@ -871,6 +928,6 @@ main{height:100%;display:block}
 <script src="vendor/supabase.js"></script>
 <script src="config.js?v=4"></script>
 <script src="store.js?v=11"></script>
-<script src="app.js?v=43"></script>
+<script src="app.js?v=44"></script>
 </body>
 </html>

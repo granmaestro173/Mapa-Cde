@@ -61,6 +61,8 @@ const nearestBarrio = p => BARRIOS.reduce((best,b)=>{const d=distM(p,b.c);return
 const PERIODS = {dia:{n:"Día", label:"últimas 24 h", ms:DAY}, semana:{n:"Semana", label:"últimos 7 días", ms:7*DAY}, mes:{n:"Mes", label:"últimos 30 días", ms:30*DAY}, anio:{n:"Año", label:"últimos 12 meses", ms:365*DAY}};
 const state = {period:"mes", cats:new Set(CAT_KEYS), showRes:false, showHidden:false, showDemo:true, onlyPhoto:false, near:{on:false, c:null, r:1000, src:null}, heat:false, heatSlot:"", sel:null, muni:false, staff:false};
 try { const p = localStorage.getItem("cde-period"); if (p && PERIODS[p]) state.period = p; } catch(e) {}
+// Modo auto: trayecto calculado y baches que quedan sobre él.
+const auto = {origen:null, origenSrc:null, destino:null, destinoTxt:"", ruta:null, km:0, min:0, ids:new Set(), pasos:[], dichos:new Set(), picking:null, watch:null, avisados:new Set(), capa:null, buscando:false, msg:"", cls:""};
 const live = new Map();      // denuncias de la base (Supabase) o del modo de prueba
 const obrasLive = new Map();
 let auditLive = [];
@@ -165,6 +167,7 @@ const resReciente = r => r.status === "resuelta" && !!r.resolvedAt && Date.now()
 const enMapa = r => r.status !== "resuelta" || resReciente(r) || state.showRes && Date.now() - (r.resolvedAt || r.t) < 14*DAY;
 // Las sin resolver se ven siempre, sin importar el período (que solo filtra estadísticas, conteos y resueltas).
 function visibleReports(){
+  if (auto.ruta) return bachesEnRuta().filter(verOculta);
   return allReports().filter(r => state.cats.has(r.cat) && (r.status !== "resuelta" || inPeriod(r)) && enMapa(r) && verOculta(r) && (!state.onlyPhoto || hasPhoto(r)) && nearOK(r));
 }
 const nearActive = () => state.near.on && !!state.near.c;
@@ -179,7 +182,7 @@ function renderPins(){
     let m = markers.get(r.id);
     if (!m){
       m = L.marker([r.lat, r.lng], {icon:iconFor(r, state.sel===r.id), title:CATS[r.cat].one + " · " + r.barrio, riseOnHover:true});
-      m._k = key; m.on("click", () => pickMode ? setPick([r.lat, r.lng]) : openDetail(r.id)); m.addTo(pinLayer); markers.set(r.id, m);
+      m._k = key; m.on("click", () => auto.picking ? setAutoPunto(auto.picking, [r.lat, r.lng], "mapa") : pickMode ? setPick([r.lat, r.lng]) : openDetail(r.id)); m.addTo(pinLayer); markers.set(r.id, m);
     } else if (m._k !== key){ m.setIcon(iconFor(r, state.sel===r.id)); m._k = key; m.setLatLng([r.lat,r.lng]); }
     if (state.sel===r.id) m.setZIndexOffset(1000); else m.setZIndexOffset(0);
   }
@@ -215,7 +218,7 @@ function renderHeat(){
     if (!onLand(p)) continue;
     const col = n > .7 ? "#d1263b" : n > .42 ? "#f08a24" : "#ffd34d";
     const c = L.circle(p, {radius:150, stroke:false, fillColor:col, fillOpacity:.12 + n*.38, interactive:n > .42, bubblingMouseEvents:false}).addTo(heatLayer);
-    if (n > .42) c.on("click", e => { L.DomEvent.stop(e); if (pickMode || nearPicking) return; openZone(gy, gx, n, p); });
+    if (n > .42) c.on("click", e => { L.DomEvent.stop(e); if (pickMode || nearPicking || auto.picking) return; openZone(gy, gx, n, p); });
   }
 }
 // Resumen de una zona (la celda tocada y sus vecinas). Siempre se calcula en la página; si la IA está configurada, Claude lo puede explicar a pedido.
@@ -270,6 +273,7 @@ function openZone(gy, gx, n, p){
 }
 
 map.on("click", e => {
+  if (auto.picking) { setAutoPunto(auto.picking, [e.latlng.lat, e.latlng.lng], "mapa"); return; }
   if (nearPicking) { setNearCenter([e.latlng.lat, e.latlng.lng], "mapa"); return; }
   if (MOBILE.matches && !$("#view-mapa").classList.contains("side-collapsed")) { setSide(false); return; }
   if (!pickMode) return;
@@ -1134,6 +1138,275 @@ $("#nearBannerX").addEventListener("click", e => { e.stopPropagation(); nearPick
 $("#nearR").addEventListener("click", e => { const b = e.target.closest("[data-r]"); if (!b) return; state.near.r = +b.dataset.r; if (state.near.c) state.near.on = true; drawNear(); refresh(); if (nearActive()) fitNear(); });
 $("#nearChip").addEventListener("click", () => setNearOn(false));
 
+/* ---------- Modo auto: baches en el trayecto ---------- */
+// El vecino marca a dónde va; el camino en auto lo calcula OSRM (servicio gratuito sobre OpenStreetMap)
+// y el mapa muestra solo los baches sin resolver que quedan sobre ese camino, en el orden en que aparecen.
+const RUTAS_URL = (window.CDE_CONFIG || {}).rutasUrl || "https://router.project-osrm.org/route/v1/driving/";
+const RUTA_ANCHO = 35;    // metros a cada lado del camino: el ancho de la calle más el margen del GPS de quien denunció
+const AVISO_DIST = 150;   // en el viaje, avisa cuando el próximo bache está a esta distancia
+const autoPanel = $("#autoPanel");
+const AUTO_DOT = () => L.divIcon({className:"", html:'<div class="me-dot"></div>', iconSize:[18,18], iconAnchor:[9,9]});
+const AUTO_DEST = () => L.divIcon({className:"", iconSize:[30,34], iconAnchor:[15,34], html:'<div class="auto-dest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4"/><path d="M6 4h11l-2.5 4L17 12H6"/></svg></div>'});
+// Distancia de un punto al camino y cuántos metros de recorrido hay hasta ahí (proyección plana: alcanza para una ciudad).
+function sobreRuta(p, ruta){
+  const kx = Math.cos(p[0]*Math.PI/180)*111320, ky = 110540, xy = q => [(q[1]-p[1])*kx, (q[0]-p[0])*ky];
+  let best = {d:Infinity, a:0}, acum = 0;
+  for (let i=0;i<ruta.length-1;i++){
+    const [ax,ay] = xy(ruta[i]), [bx,by] = xy(ruta[i+1]), dx = bx-ax, dy = by-ay, l2 = dx*dx+dy*dy, len = Math.sqrt(l2);
+    const t = l2 ? Math.max(0, Math.min(1, -(ax*dx+ay*dy)/l2)) : 0, d = Math.hypot(ax+t*dx, ay+t*dy);
+    if (d < best.d) best = {d, a:acum + t*len};
+    acum += len;
+  }
+  return best;
+}
+function bachesEnRuta(){
+  if (!auto.ruta) return [];
+  const rs = allReports().filter(r => r.cat === "bache" && r.status !== "resuelta")
+    .map(r => (r._ruta = sobreRuta([r.lat, r.lng], auto.ruta), r)).filter(r => r._ruta.d <= RUTA_ANCHO)
+    .sort((a,b) => a._ruta.a - b._ruta.a);
+  auto.ids = new Set(rs.map(r => r.id));
+  return rs;
+}
+function autoMsg(t, cls=""){ auto.msg = t; auto.cls = cls; const el = $("#autoEstado"); if (el){ el.textContent = t; el.className = "near-status " + cls; el.hidden = !t; } }
+const autoPadding = () => MOBILE.matches ? {paddingTopLeft:[24,130], paddingBottomRight:[24, autoPanel.offsetHeight + 24]} : {paddingTopLeft:[430,90], paddingBottomRight:[70,40]};
+function abrirAuto(){
+  drawer.hidden || closeDrawer(); setFilters(false); setLayers(false); setSide(false);
+  autoPanel.hidden = false; $("#view-mapa").classList.add("with-auto"); $("#btnAuto").setAttribute("aria-expanded", true);
+  if (!auto.origen) autoUbicar();
+  renderAuto();
+}
+function cerrarAuto(){ autoPanel.hidden = true; $("#view-mapa").classList.remove("with-auto"); $("#btnAuto").setAttribute("aria-expanded", false); autoPick(null); }
+function autoPick(cual){
+  auto.picking = cual; $("#autoBanner").hidden = !cual; document.body.classList.toggle("autopicking", !!cual);
+  if (cual) $("#autoBannerTxt").textContent = cual === "origen" ? "Tocá el mapa desde donde salís" : "Tocá el mapa a dónde vas";
+}
+function autoUbicar(){
+  if (!navigator.geolocation){ autoMsg("Este navegador no comparte la ubicación. Marcá en el mapa desde dónde salís.", "bad"); return; }
+  autoMsg("Buscando tu ubicación…");
+  navigator.geolocation.getCurrentPosition(pos => {
+    const c = [pos.coords.latitude, pos.coords.longitude];
+    if (!L.latLngBounds(SAT_BOUNDS).contains(c)){ autoMsg("Parece que no estás en Ciudad del Este. Marcá en el mapa desde dónde salís.", "bad"); return; }
+    autoMsg(""); setAutoPunto("origen", c, "gps");
+  }, err => autoMsg(err.code === 1 ? "No se dio permiso para usar la ubicación. Marcá en el mapa desde dónde salís." : "No se pudo obtener la ubicación. Marcá en el mapa desde dónde salís.", "bad"),
+  {enableHighAccuracy:true, timeout:10000, maximumAge:60000});
+}
+function setAutoPunto(cual, c, src, nombre){
+  if (!onLand(c)){ toast("Ese punto cae en el agua. Elegí un lugar en la ciudad."); return; }
+  autoPick(null);
+  auto[cual] = c;
+  if (cual === "origen") auto.origenSrc = src; else auto.destinoTxt = nombre || nearestBarrio(c);
+  if (autoPanel.hidden) abrirAuto();
+  dibujarAuto();
+  if (auto.origen && auto.destino) calcularRuta(); else renderAuto();
+}
+// Indicaciones de giro de OSRM, en castellano. Los pasos que solo cambian el nombre de la calle no se dicen.
+const GIROS = {left:"girá a la izquierda", right:"girá a la derecha", "slight left":"doblá levemente a la izquierda", "slight right":"doblá levemente a la derecha",
+  "sharp left":"girá cerrado a la izquierda", "sharp right":"girá cerrado a la derecha", uturn:"pegá la vuelta", straight:"seguí derecho"};
+const GIRO_ANG = {left:-90, right:90, "slight left":-45, "slight right":45, "sharp left":-135, "sharp right":135, uturn:180, straight:0};
+function textoGiro(st){
+  const m = st.maneuver || {}, mod = m.modifier || "straight", calle = st.name ? ` por ${st.name}` : "";
+  if (m.type === "arrive") return "llegás a destino";
+  if (m.type === "roundabout" || m.type === "rotary") return `en la rotonda, tomá la ${m.exit || 1}ª salida${calle}`;
+  if (m.type === "fork") return `mantenete a la ${/left/.test(mod) ? "izquierda" : "derecha"}${calle}`;
+  if (m.type === "end of road") return `al final de la calle, ${GIROS[mod] || "girá"}${calle}`;
+  return (GIROS[mod] || "seguí") + calle;
+}
+let autoPedido = 0;
+async function pedirRuta(o, d){
+  const ctl = new AbortController(), tope = setTimeout(() => ctl.abort(), 12000);
+  const res = await fetch(`${RUTAS_URL}${o[1]},${o[0]};${d[1]},${d[0]}?overview=full&geometries=geojson&steps=true`, {signal:ctl.signal});
+  clearTimeout(tope);
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok || j.code !== "Ok" || !j.routes?.length) throw Object.assign(new Error(j.code === "NoRoute" ? "No encontramos un camino en auto entre esos dos puntos." : "El servicio de caminos no respondió bien. Intentá de nuevo en un rato."), {propio:true});
+  const r = j.routes[0], ruta = r.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+  const pasos = (r.legs?.[0]?.steps || []).filter(st => st.maneuver && st.maneuver.type !== "depart" && !(["new name", "continue"].includes(st.maneuver.type) && (st.maneuver.modifier || "straight") === "straight"))
+    .map(st => ({a:sobreRuta([st.maneuver.location[1], st.maneuver.location[0]], ruta).a, txt:textoGiro(st), llegada:st.maneuver.type === "arrive",
+      ang:st.maneuver.type === "arrive" ? null : GIRO_ANG[st.maneuver.modifier || "straight"] ?? 0}));
+  return {ruta, pasos, km:r.distance / 1000, min:Math.max(1, Math.round(r.duration / 60))};
+}
+async function calcularRuta(){
+  const pedido = ++autoPedido, [o, d] = [auto.origen, auto.destino];
+  auto.ruta = null; auto.buscando = true; autoMsg("Calculando el camino…"); renderAuto();
+  try {
+    const r = await pedirRuta(o, d);
+    if (pedido !== autoPedido) return;
+    Object.assign(auto, r); auto.avisados = new Set(); auto.dichos = new Set();
+    autoMsg("");
+  } catch(err){
+    if (pedido !== autoPedido) return;
+    autoMsg(err.propio ? err.message : "No se pudo calcular el camino. Revisá la conexión e intentá de nuevo.", "bad");
+  }
+  auto.buscando = false;
+  dibujarAuto(); renderAuto(); refresh();
+  if (auto.ruta) map.flyToBounds(L.latLngBounds(auto.ruta), {...autoPadding(), duration:.6});
+}
+function dibujarAuto(){
+  if (auto.capa) map.removeLayer(auto.capa);
+  const capas = [];
+  if (auto.ruta) capas.push(L.polyline(auto.ruta, {color:"#fff", weight:9, opacity:.9, interactive:false}), L.polyline(auto.ruta, {color:"#1a73e8", weight:5, interactive:false}));
+  if (auto.origen) capas.push(L.marker(auto.origen, {keyboard:false, interactive:false, zIndexOffset:900, icon:auto.watch != null && nav.rumbo != null
+    ? L.divIcon({className:"", iconSize:[30,30], iconAnchor:[15,15], html:`<div class="me-flecha" style="transform:rotate(${Math.round(nav.rumbo)}deg)"><svg viewBox="0 0 24 24"><path d="M12 2l7 19-7-4-7 4z"/></svg></div>`})
+    : AUTO_DOT()}));
+  if (auto.destino) capas.push(L.marker(auto.destino, {keyboard:false, interactive:false, zIndexOffset:950, icon:AUTO_DEST()}));
+  auto.capa = L.layerGroup(capas).addTo(map);
+}
+function limpiarAuto(){
+  viaje(false); autoPedido++;
+  Object.assign(auto, {ruta:null, pasos:[], destino:null, destinoTxt:"", ids:new Set(), buscando:false});
+  autoMsg(""); dibujarAuto(); renderAuto(); refresh();
+}
+function renderAuto(){
+  const rs = bachesEnRuta(), n = rs.length;
+  const chip = $("#autoChip"); chip.hidden = !auto.ruta; $("#view-mapa").classList.toggle("con-ruta", !!auto.ruta);
+  if (auto.ruta){ chip.innerHTML = `${n} ${n===1?"bache":"baches"} en el trayecto <span class="xx" aria-hidden="true">×</span>`; chip.setAttribute("aria-label", "Quitar el trayecto del mapa"); }
+  if (autoPanel.hidden) return;
+  const scroll = autoPanel.scrollTop;
+  const sale = !auto.origen ? "Todavía sin elegir" : auto.origenSrc === "gps" ? `Tu ubicación · ${esc(nearestBarrio(auto.origen))}` : `Punto marcado · ${esc(nearestBarrio(auto.origen))}`;
+  const km = auto.km.toFixed(1).replace(".", ",");
+  autoPanel.innerHTML = `
+    <div class="drawer-head"><div><div class="eyebrow">Modo auto</div><h2>Baches en el camino</h2></div><button class="x" type="button" aria-label="Cerrar" data-a="cerrar">×</button></div>
+    <div class="auto-body">
+      <div class="auto-pt"><span class="auto-ic o" aria-hidden="true"></span><span class="auto-pt-t"><small>Salida</small><b>${sale}</b></span>
+        <span class="rowbtns"><button class="btn small" type="button" data-a="gps">Mi ubicación</button><button class="btn small" type="button" data-a="pick-origen">Mapa</button></span></div>
+      <div class="auto-pt"><span class="auto-ic d" aria-hidden="true"></span><span class="auto-pt-t"><small>Destino</small><b>${auto.destino ? esc(auto.destinoTxt) : "Elegí a dónde vas"}</b></span>
+        <span class="rowbtns"><button class="btn small ${auto.destino ? "" : "primary"}" type="button" data-a="pick-destino">Marcar en el mapa</button></span></div>
+      <select class="inp" id="autoBarrio" aria-label="Elegir un barrio de destino"><option value="">…o elegí un barrio de destino</option>${BARRIOS.map(b => `<option${b.n===auto.destinoTxt?" selected":""}>${esc(b.n)}</option>`).join("")}</select>
+      <div class="near-status ${auto.cls||""}" id="autoEstado" ${auto.msg ? "" : "hidden"}>${esc(auto.msg||"")}</div>
+      ${!auto.ruta && !auto.buscando && auto.origen && auto.destino && auto.cls === "bad" ? `<div class="rowbtns"><button class="btn small primary" type="button" data-a="reintentar">Intentar de nuevo</button></div>` : ""}
+      ${auto.ruta ? `
+      <div class="auto-res"><div class="auto-big"><b>${n}</b> ${n===1?"bache denunciado":"baches denunciados"} en el trayecto</div>
+        <div class="note">${km} km · unos ${auto.min} min en auto · sin resolver, a menos de ${RUTA_ANCHO} m del camino</div></div>
+      ${n ? `<button class="btn ${auto.watch ? "" : "primary"}" type="button" data-a="viaje" aria-pressed="${!!auto.watch}">${auto.watch ? "Dejar de avisarme" : "Avisarme en el camino"}</button>
+      <div class="feed" id="autoFeed">${rs.map(r => `<button type="button" data-aid="${esc(r.id)}" class="${state.sel===r.id?"sel":""}"><span class="sw" style="--c:${cvar("bache")}"></span><span class="d"><b>${r.sev>=4?"Bache grave":"Bache"}</b> · ${esc(r.desc || r.barrio)}</span><span class="t"><span class="dist">a ${fmtDist(r._ruta.a)}</span> · ${ago(r.t)}</span></button>`).join("")}</div>`
+      : `<div class="empty">No hay baches denunciados sobre este camino. ¡Buen viaje!</div>`}
+      <div class="rowbtns"><button class="btn small" type="button" data-a="limpiar">Borrar trayecto</button></div>
+      <div class="note">Camino calculado con OSRM y OpenStreetMap. Las distancias son desde el punto de salida.</div>` : ""}
+    </div>`;
+  autoPanel.scrollTop = scroll;
+}
+// Viaje en curso: sigue la ubicación y avisa (con voz y vibración) al acercarse al próximo bache.
+function avisarBache(txt){
+  toast("⚠ " + txt);
+  try { navigator.vibrate?.([200, 100, 200]); } catch(e) {}
+  hablar(txt);
+}
+// La ventana de abajo se actualiza 4 veces por segundo: entre una lectura del GPS y la siguiente,
+// la distancia se estima con la velocidad del auto.
+const nav = {yo:null, t:0, v:0, prev:null, tick:null, lock:null, rumbo:null, fuera:0, recalculando:false, ultRecalculo:0};
+const rumboEntre = (a, b) => { const r = Math.PI/180, y = Math.sin((b[1]-a[1])*r)*Math.cos(b[0]*r), x = Math.cos(a[0]*r)*Math.sin(b[0]*r) - Math.sin(a[0]*r)*Math.cos(b[0]*r)*Math.cos((b[1]-a[1])*r); return (Math.atan2(y, x)/r + 360) % 360; };
+function hablar(txt){ try { const u = new SpeechSynthesisUtterance(txt); u.lang = "es-ES"; speechSynthesis.speak(u); } catch(e) {} }
+// Si el auto se sale del camino, se pide uno nuevo desde donde está (como máximo cada 10 s).
+async function recalcular(c){
+  if (nav.recalculando || Date.now() - nav.ultRecalculo < 10000) return;
+  nav.recalculando = true; nav.ultRecalculo = Date.now(); hablar("Recalculando");
+  try {
+    const r = await pedirRuta(c, auto.destino);
+    if (auto.watch == null) return;
+    Object.assign(auto, r); auto.dichos = new Set(); nav.fuera = 0;
+    nav.yo = sobreRuta(nav.prev?.c || c, auto.ruta); nav.t = Date.now();
+    dibujarAuto(); renderAuto(); refresh();
+  } catch(e) {} finally { nav.recalculando = false; }
+}
+const fmtVel = v => `${Math.round(v*3.6)} km/h`;
+function viaje(on){
+  if (!on){
+    if (auto.watch != null) navigator.geolocation?.clearWatch(auto.watch); auto.watch = null;
+    clearInterval(nav.tick); nav.tick = null; nav.yo = nav.prev = nav.rumbo = null; nav.v = 0; nav.fuera = 0;
+    try { nav.lock?.release(); } catch(e) {} nav.lock = null;
+    $("#navBox").hidden = true; document.body.classList.remove("viajando");
+    renderAuto(); return;
+  }
+  if (!navigator.geolocation){ toast("Este navegador no comparte la ubicación, no podemos avisarte en el camino."); return; }
+  auto.watch = navigator.geolocation.watchPosition(pos => {
+    if (!auto.ruta) return;
+    const c = [pos.coords.latitude, pos.coords.longitude], t = pos.timestamp || Date.now();
+    // Velocidad: la del GPS si la da; si no, la que sale de las dos últimas ubicaciones.
+    let v = pos.coords.speed;
+    if (v == null || isNaN(v)) v = nav.prev && t > nav.prev.t ? distM(nav.prev.c, c) / ((t - nav.prev.t) / 1000) : 0;
+    nav.v = v > 70 ? nav.v : v;
+    // Rumbo: el del GPS si lo da y el auto se mueve; si no, el de la última ubicación a esta.
+    const h = pos.coords.heading;
+    if (h != null && !isNaN(h) && nav.v > 1) nav.rumbo = h; else if (nav.prev && distM(nav.prev.c, c) > 4) nav.rumbo = rumboEntre(nav.prev.c, c);
+    nav.prev = {c, t};
+    nav.yo = sobreRuta(c, auto.ruta); nav.t = Date.now();
+    nav.fuera = nav.yo.d > 45 ? nav.fuera + 1 : 0;
+    if (nav.fuera >= 2 && auto.destino) recalcular(c);
+    auto.origen = c; auto.origenSrc = "gps"; dibujarAuto();
+    map.getZoom() < 16 ? map.setView(c, 16.5) : map.panTo(c, {animate:true});
+    pintarNav(true);
+  }, err => { if (err.code === 1){ viaje(false); toast("No se dio permiso para usar la ubicación."); } },   // sin señal un rato: sigue esperando
+  {enableHighAccuracy:true, maximumAge:1000, timeout:20000});
+  // Mantiene la pantalla prendida durante el viaje (si el navegador lo permite).
+  navigator.wakeLock?.request("screen").then(l => nav.lock = l).catch(() => {});
+  cerrarAuto(); document.body.classList.add("viajando");
+  $("#navBox").hidden = false; $("#navDist").textContent = "Buscando tu ubicación…"; $("#navSub").textContent = ""; $("#navGiro").hidden = true;
+  nav.tick = setInterval(() => pintarNav(false), 250);
+  toast("Te guiamos con voz y te avisamos de los baches. Mirá el camino, no el teléfono.");
+}
+function pintarGiro(a, lecturaNueva){
+  const i = (auto.pasos || []).findIndex(p => p.a > a - 10), p = auto.pasos?.[i], el = $("#navGiro");
+  el.hidden = !p; if (!p) return;
+  const d = Math.max(0, p.a - a), dTxt = d < 1000 ? `${Math.round(d/10)*10} m` : fmtDist(d);
+  const txt = p.txt.charAt(0).toUpperCase() + p.txt.slice(1);
+  $("#navFlecha").innerHTML = p.llegada ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4"/><path d="M6 4h11l-2.5 4L17 12H6"/></svg>'
+    : `<svg viewBox="0 0 24 24" style="transform:rotate(${p.ang}deg)" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V4"/><path d="M5 11l7-7 7 7"/></svg>`;
+  $("#navGiroTxt").textContent = d < 25 ? txt : `En ${dTxt}`;
+  $("#navGiroCalle").textContent = d < 25 ? "" : p.txt;
+  // Voz: una vez con anticipación (200 m o 12 s) y otra justo antes (30 m o 4 s).
+  if (!lecturaNueva) return;
+  if (d <= Math.max(30, nav.v * 4) && !auto.dichos.has(i + ":ya")){ auto.dichos.add(i + ":ya"); auto.dichos.add(i + ":antes"); hablar(txt); }
+  else if (d <= Math.max(200, nav.v * 12) && d > 60 && !auto.dichos.has(i + ":antes")){ auto.dichos.add(i + ":antes"); hablar(`En ${Math.round(d/10)*10} metros, ${p.txt}`); }
+}
+function pintarNav(lecturaNueva){
+  if (!nav.yo || !auto.ruta) return;
+  const box = $("#navBache");
+  if (nav.yo.d > 45){
+    box.className = "navbox fuera"; $("#navGiro").hidden = true;
+    $("#navDist").textContent = nav.recalculando ? "Recalculando el camino…" : "Estás fuera del camino marcado";
+    $("#navSub").textContent = nav.v > 1 ? fmtVel(nav.v) : ""; return;
+  }
+  // Recorrido estimado ahora: lo que dio el GPS más lo que el auto avanzó desde entonces (hasta 5 s).
+  const a = nav.yo.a + nav.v * Math.min(5, (Date.now() - nav.t) / 1000);
+  pintarGiro(a, lecturaNueva);
+  const delante = bachesEnRuta().filter(r => r._ruta.a > a - 15);
+  const prox = delante[0];
+  if (!prox){ box.className = "navbox libre"; $("#navDist").textContent = "No hay más baches en el camino"; $("#navSub").textContent = nav.v > 1 ? fmtVel(nav.v) : ""; return; }
+  const d = Math.max(0, prox._ruta.a - a), seg = nav.v > 1 ? d / nav.v : null;
+  box.className = "navbox" + (d < 100 || seg != null && seg < 8 ? " cerca" : "");
+  $("#navDist").textContent = d < 15 ? "Bache ahora" : `Bache aproximadamente a ${d < 1000 ? Math.round(d/10)*10 + " m" : fmtDist(d)}`;
+  $("#navSub").textContent = [seg != null && d >= 15 ? `en unos ${Math.round(seg)} s` : "", nav.v > 1 ? fmtVel(nav.v) : "", prox.sev >= 4 ? "grave" : "",
+    delante.length > 1 ? `${delante.length - 1} más después` : ""].filter(Boolean).join(" · ");
+  // Aviso con voz: a 150 m, o antes si a esa velocidad faltan menos de 10 segundos.
+  if (lecturaNueva && !auto.avisados.has(prox.id) && d <= Math.max(AVISO_DIST, nav.v * 10)){
+    auto.avisados.add(prox.id); avisarBache(`Bache a ${Math.max(10, Math.round(d/10)*10)} metros`);
+  }
+}
+$("#navStop").addEventListener("click", () => { viaje(false); abrirAuto(); });
+autoPanel.addEventListener("click", e => {
+  const id = e.target.closest("[data-aid]")?.dataset.aid;
+  if (id){
+    const r = findReport(id); if (!r) return;
+    state.sel = id; renderPins(); renderAuto();
+    map.flyToBounds(L.latLng(r.lat, r.lng).toBounds(160), {...autoPadding(), maxZoom:18, duration:.6});
+    return;
+  }
+  const a = e.target.closest("[data-a]")?.dataset.a;
+  if (a === "cerrar") cerrarAuto();
+  else if (a === "gps") autoUbicar();
+  else if (a === "pick-origen" || a === "pick-destino") autoPick(a.slice(5));
+  else if (a === "limpiar") limpiarAuto();
+  else if (a === "reintentar") calcularRuta();
+  else if (a === "viaje") viaje(auto.watch == null);
+});
+autoPanel.addEventListener("change", e => {
+  if (e.target.id !== "autoBarrio" || !e.target.value) return;
+  const b = BARRIOS.find(x => x.n === e.target.value); if (b) setAutoPunto("destino", b.c, "barrio", b.n);
+});
+$("#btnAuto").addEventListener("click", () => autoPanel.hidden ? abrirAuto() : cerrarAuto());
+$("#btnAutoMenu").addEventListener("click", abrirAuto);
+$("#autoChip").addEventListener("click", limpiarAuto);
+$("#autoBannerX").addEventListener("click", e => { e.stopPropagation(); autoPick(null); });
+
 /* ---------- Menú, capas y buscador (versión minimalista) ---------- */
 const menu = $("#menu"), scrim = $("#menuScrim");
 function setMenu(open){ menu.classList.toggle("open", open); scrim.hidden = !open; $("#btnMenu").setAttribute("aria-expanded", open); }
@@ -1682,7 +1955,7 @@ function refresh(){
   clearTimeout(rT);
   rT = setTimeout(() => {
     revisarAvisos(); abrirPendiente();
-    renderPeriodSegs(); renderSide(); renderPins(); denunciadas();
+    renderPeriodSegs(); renderSide(); renderPins(); denunciadas(); if (auto.ruta) renderAuto();
     if (!$("#view-estadisticas").hidden) renderStats();
     if (!$("#view-municipalidad").hidden) renderMuni();
   }, 16);
