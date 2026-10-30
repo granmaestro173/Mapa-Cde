@@ -295,7 +295,7 @@ function formLocate(btn){
     done();
     const c = [pos.coords.latitude, pos.coords.longitude];
     if (!L.latLngBounds(SAT_BOUNDS).contains(c)){ toast("Parece que no estás en Ciudad del Este. Marcá el punto en el mapa."); return; }
-    setPick(c); map.flyTo(c, Math.max(map.getZoom(), 17), {duration:.6});
+    guardarUbic(c); setPick(c); map.flyTo(c, Math.max(map.getZoom(), 17), {duration:.6});
     if (pickLatLng && pos.coords.accuracy > 60) toast(`Ubicación aproximada (±${Math.round(pos.coords.accuracy)} m). Podés arrastrar el pin para ajustarla.`);
   }, err => {
     done();
@@ -1101,6 +1101,7 @@ function fitNear(){ if (state.near.c) map.flyToBounds(L.latLng(state.near.c).toB
 function setNearCenter(c, src){
   nearPicking = false; $("#nearBanner").hidden = true; document.body.classList.remove("nearpicking");
   state.near.c = c; state.near.src = src; state.near.on = true;
+  if (src === "gps") guardarUbic(c);
   nearStatus(src === "gps" ? `Usando tu ubicación (${nearestBarrio(c)}).` : `Usando el punto que marcaste (${nearestBarrio(c)}).`, "ok");
   drawNear(); refresh(); fitNear();
   if (src === "mapa" && fpanel.hidden) toast(`Mostrando denuncias a menos de ${fmtDist(state.near.r)}.`);
@@ -1815,13 +1816,69 @@ function revisarAvisos(){
   }
   if (cambios) guardarLS(AV.mias, mias);
   if (arch) guardarLS("cde-historial", archivo);
-  alertaBarrios();
+  alertaBarrios(); alertaRobos();
 }
-function avisar(id, texto){
+/* ---------- Robos recientes: aviso emergente cuando alguien denuncia un asalto en las últimas horas ---------- */
+// Con la ubicación del vecino (GPS, o el punto que marcó en "Cerca de mí") solo avisa de los que están cerca y dice a qué
+// distancia; sin ubicación avisa de toda la ciudad y ofrece usarla. Si el vecino ya dio permiso de ubicación antes, se pide
+// sola al abrir la página. Cada denuncia se avisa una sola vez en este dispositivo; si hay varias, va un solo aviso.
+const ROBO = {ventana:3 * HOUR, radio:1500};
+let robosActivos = leerLS("cde-robos-activos", true);
+let robosVistos = leerLS("cde-robos-vistos", {});   // id -> cuándo se avisó
+let miUbic = null, ubicLista = false;               // última ubicación por GPS: {c, t}
+const miPos = () => state.near.c || (miUbic && Date.now() - miUbic.t < 2 * HOUR ? miUbic.c : null);
+function guardarUbic(c){ miUbic = {c, t:Date.now()}; }
+function pedirUbic(){
+  return new Promise(ok => {
+    if (!navigator.geolocation) return ok(null);
+    navigator.geolocation.getCurrentPosition(pos => {
+      const c = [pos.coords.latitude, pos.coords.longitude];
+      if (L.latLngBounds(SAT_BOUNDS).contains(c)) guardarUbic(c);
+      ok(miPos());
+    }, () => ok(null), {timeout:8000, maximumAge:5 * 6e4});
+  });
+}
+(navigator.permissions?.query({name:"geolocation"}) || Promise.reject())
+  .then(p => p.state === "granted" ? pedirUbic() : null).catch(() => null)
+  .then(() => { ubicLista = true; alertaRobos(); });
+function robosRecientes(){
+  const c = miPos(), ahora = Date.now();
+  return allReports().filter(r => r.cat === "asalto" && ahora - r.t < ROBO.ventana && r.t <= ahora && r.iaCheck !== "dudosa"
+    && !esMia(r) && verOculta(r) && (!c || distM(c, [r.lat, r.lng]) <= ROBO.radio)).sort((a, b) => b.t - a.t);
+}
+function textoRobo(r, mas){
+  const c = miPos(), d = c && distM(c, [r.lat, r.lng]);
+  const donde = !c ? `${ago(r.t)} en ${r.barrio}`
+    : d <= ROBO.radio ? `cerca de tu ubicación: a ${fmtDist(d)}, en ${r.barrio}, ${ago(r.t)}`
+    : `${ago(r.t)} en ${r.barrio}, a ${fmtDist(d)} de tu ubicación`;
+  return `Robo denunciado ${donde}.${mas ? ` Hay ${mas} más en las últimas 3 horas.` : ""}`;
+}
+function alertaRobos(){
+  for (const [id, t] of Object.entries(robosVistos)) if (Date.now() - t > ROBO.ventana + DAY) delete robosVistos[id];
+  if (!robosActivos || !ubicLista) return;
+  const nuevos = robosRecientes().filter(r => !robosVistos[r.id]);
+  if (!nuevos.length) return;
+  nuevos.forEach(r => robosVistos[r.id] = Date.now()); guardarLS("cde-robos-vistos", robosVistos);
+  const r = nuevos[0], texto = textoRobo(r, nuevos.length - 1), b = $("#roboBanner");
+  $("#roboTxt").textContent = texto; b.dataset.id = r.id; b.dataset.mas = nuevos.length - 1;
+  $("#roboUbic").hidden = !!miPos(); b.hidden = false;
+  avisar(r.id, texto, true);
+}
+$("#roboVer").addEventListener("click", () => { const id = $("#roboBanner").dataset.id; $("#roboBanner").hidden = true; if (findReport(id)) openDetail(id); });
+$("#roboX").addEventListener("click", () => { $("#roboBanner").hidden = true; });
+// Sin ubicación: "¿Cerca?" la pide y reescribe el aviso con la distancia.
+$("#roboUbic").addEventListener("click", async () => {
+  const btn = $("#roboUbic"), r = findReport($("#roboBanner").dataset.id);
+  btn.disabled = true; const c = await pedirUbic(); btn.disabled = false;
+  if (!c){ toast("No se pudo obtener tu ubicación."); return; }
+  btn.hidden = true;
+  if (r) $("#roboTxt").textContent = textoRobo(r, +$("#roboBanner").dataset.mas || 0);
+});
+function avisar(id, texto, sinMensaje){
   avisos.unshift({id, t:Date.now(), texto, leido:false});
   avisos = avisos.slice(0, 40); guardarLS(AV.avisos, avisos); renderCampana();
-  // Con la página a la vista, un mensaje; si está en segundo plano, un aviso del sistema (si el vecino lo permitió).
-  if (!document.hidden || !("Notification" in window) || Notification.permission !== "granted") return toast(texto);
+  // Con la página a la vista, un mensaje (salvo que ya se muestre otro aviso, como el de robos); si está en segundo plano, un aviso del sistema (si el vecino lo permitió).
+  if (!document.hidden || !("Notification" in window) || Notification.permission !== "granted") return sinMensaje || toast(texto);
   const op = {body:texto, tag:"cde-" + id, data:{id}, lang:"es"};
   (navigator.serviceWorker?.ready || Promise.reject()).then(reg => reg.showNotification("Mapa Ciudadano CDE", op))
     .catch(() => { try { new Notification("Mapa Ciudadano CDE", op).onclick = () => { window.focus(); openDetail(id); }; } catch(e) {} });
@@ -1849,6 +1906,7 @@ function openAvisos(){
     <div class="drawer-head"><div><div class="eyebrow">Seguimiento</div><h2>Mis denuncias</h2></div><button class="x" type="button" aria-label="Cerrar" data-close>×</button></div>
     <div class="drawer-body">
       <label class="tg"><span>Avisarme cuando cambien<small>${avisosActivos ? permiso : "Avisos desactivados"}</small></span><input type="checkbox" class="switch" id="avActivos" ${avisosActivos ? "checked" : ""}></label>
+      <label class="tg"><span>Avisarme de robos recientes<small>${robosActivos ? (miPos() ? `Asaltos denunciados en las últimas 3 horas a menos de ${fmtDist(ROBO.radio)} de tu ubicación.` : `Asaltos denunciados en las últimas 3 horas en toda la ciudad. Compartí tu ubicación (o marcala en "Cerca de mí") para recibir solo los cercanos.`) : "Desactivado"}</small></span><input type="checkbox" class="switch" id="avRobos" ${robosActivos ? "checked" : ""}></label>
       ${pendientes.length ? `<div class="warnbox"><b>${pendientes.length} denuncia${pendientes.length===1?"":"s"} sin enviar.</b> Se guardaron sin señal y se envían solas cuando vuelva internet.</div>` : ""}
       ${avisosActivos && avisos.length ? `<div><div class="eyebrow" style="margin-bottom:6px">Avisos</div><div class="avlist">${avisos.slice(0, 12).map(a => `<button type="button" class="av ${nuevos.has(a.t) ? "nuevo" : ""}" data-av="${esc(a.id)}"><span>${esc(a.texto)}</span><small>${ago(a.t)}</small></button>`).join("")}</div></div>` : ""}
       <div><div class="eyebrow" style="margin-bottom:6px">Tus denuncias</div>
@@ -1863,6 +1921,14 @@ function openAvisos(){
   $("#avActivos").addEventListener("change", e => {
     avisosActivos = e.target.checked; guardarLS(AV.activos, avisosActivos); renderCampana();
     toast(avisosActivos ? "Avisos activados." : "Avisos desactivados. Podés volver a activarlos acá cuando quieras.");
+    openAvisos();
+  });
+  $("#avRobos").addEventListener("change", e => {
+    robosActivos = e.target.checked; guardarLS("cde-robos-activos", robosActivos);
+    if (!robosActivos) $("#roboBanner").hidden = true;
+    // Al prenderlo no se avisa de golpe lo que ya pasó mientras estaba apagado: solo lo que llegue desde ahora.
+    else { robosRecientes().forEach(r => robosVistos[r.id] ||= Date.now()); guardarLS("cde-robos-vistos", robosVistos); }
+    toast(robosActivos ? "Te vamos a avisar de robos denunciados recientemente." : "Avisos de robos desactivados.");
     openAvisos();
   });
   $("#avPermiso")?.addEventListener("click", async () => { await Notification.requestPermission().catch(() => {}); openAvisos(); });
