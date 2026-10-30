@@ -149,7 +149,7 @@ En el mapa, activá *Mapa de riesgo*, tocá una zona naranja o roja y vas a ver 
 Cada 5 minutos, Claude Haiku revisa las denuncias nuevas con foto y mira si la foto coincide con lo denunciado. Si coincide, la denuncia muestra **"✦ Verificado con IA"**. Si no, queda como *dudosa*: eso solo lo ve la moderación, que la encuentra primera en la cola del panel municipal. Cada denuncia se revisa **una sola vez**, y solo se escanean las que tienen foto. Cuesta unos USD 0,0004 por denuncia con foto.
 
 1. Hacé primero el paso 4 (clave de Anthropic y variables `SUPABASE_URL` y `SUPABASE_ANON_KEY` en Vercel).
-2. Si tu página no es `https://mapa-cde-zspd.vercel.app`, abrí `supabase/05-verificacion-ia.sql` y cambiá esa dirección.
+2. Si tu página no es `https://jahechacde.vercel.app`, abrí `supabase/05-verificacion-ia.sql` y cambiá esa dirección.
 3. Supabase → **SQL Editor** → pegá todo `05-verificacion-ia.sql` → **Run**. Al final aparece una clave larga en la columna `copiar_en_vercel_como_IA_CLAVE`.
 4. Vercel → **Settings → Environment Variables** → agregá `IA_CLAVE` con esa clave → **Redeploy**.
 
@@ -160,7 +160,7 @@ Para ver que funciona: hacé una denuncia con foto y esperá unos minutos. En Su
 Una denuncia marcada como resuelta queda 10 minutos en el mapa, por si fue un error y hay que cancelarlo. Después sale del mapa; con el filtro "Mostrar resueltas" se ven las de las últimas 2 semanas. Todos los días a las 4:15 de la mañana se **borran** las resueltas hace más de 2 semanas, con sus votos y sus fotos. Se conservan las que tienen una obra municipal (para auditar el gasto) y los datos de ejemplo. El historial deja constancia de cuántas se borraron.
 
 1. Necesita `IA_CLAVE`, `SUPABASE_URL` y `SUPABASE_ANON_KEY` en Vercel (paso 5).
-2. Supabase → **SQL Editor** → pegá todo `06-limpiar-resueltas.sql` → **Run**. Si tu página no es `https://mapa-cde-zspd.vercel.app`, cambiá antes esa dirección.
+2. Supabase → **SQL Editor** → pegá todo `06-limpiar-resueltas.sql` → **Run**. Si tu página no es `https://jahechacde.vercel.app`, cambiá antes esa dirección.
 
 Para pausarla: `select cron.unschedule('limpiar-resueltas');`.
 
@@ -222,7 +222,7 @@ El botón del auto (a la derecha del mapa, o en el menú) abre el **modo auto**:
 4. Supabase → **SQL Editor**, para que la revisión con IA y la limpieza llamen a la dirección nueva (cambiá `NUEVA-DIRECCION`):
 
 ```sql
-select cron.alter_job(jobid, command := replace(command, 'https://mapa-cde-zspd.vercel.app', 'https://NUEVA-DIRECCION'))
+select cron.alter_job(jobid, command := replace(command, 'https://jahechacde.vercel.app', 'https://NUEVA-DIRECCION'))
   from cron.job where jobname in ('verificar-con-ia', 'limpiar-resueltas');
 ```
 

@@ -1,7 +1,7 @@
 -- Mapa Ciudadano CDE · Verificación automática con IA cada 5 minutos.
 -- Ejecutalo una vez en Supabase > SQL Editor (se puede repetir sin problema).
 -- Antes, cargá en Vercel ANTHROPIC_API_KEY, SUPABASE_URL y SUPABASE_ANON_KEY (README, paso 4).
--- Si tu página no es https://mapa-cde-zspd.vercel.app, cambiá la dirección de la parte 2.
+-- Si tu página no es https://jahechacde.vercel.app, cambiá la dirección de la parte 2.
 
 -- ===== Parte 1: columnas y funciones =====
 -- ---------- Verificación automática con IA ----------
@@ -83,7 +83,7 @@ create extension if not exists pg_net with schema extensions;
 
 select cron.schedule('verificar-con-ia', '*/5 * * * *', $cron$
   select net.http_post(
-    url := 'https://mapa-cde-zspd.vercel.app/api/verificar',
+    url := 'https://jahechacde.vercel.app/api/verificar',
     headers := jsonb_build_object('content-type', 'application/json',
                                   'x-clave', (select valor from privado.ajustes where clave = 'ia_clave')),
     body := '{}'::jsonb,

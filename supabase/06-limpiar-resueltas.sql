@@ -1,7 +1,7 @@
 -- Mapa Ciudadano CDE · Limpieza automática de denuncias resueltas.
 -- Ejecutalo una vez en Supabase > SQL Editor (se puede repetir sin problema), después de 05-verificacion-ia.sql.
 -- Todos los días a las 4 de la mañana se borran las denuncias resueltas hace más de 2 semanas, con sus votos y fotos.
--- Si tu página no es https://mapa-cde-zspd.vercel.app, cambiá la dirección de la parte 2.
+-- Si tu página no es https://jahechacde.vercel.app, cambiá la dirección de la parte 2.
 
 -- ===== Parte 1: funciones y permisos =====
 -- Se conservan las que tienen una obra municipal (para poder auditar el gasto) y los datos de ejemplo.
@@ -48,7 +48,7 @@ create extension if not exists pg_net with schema extensions;
 
 select cron.schedule('limpiar-resueltas', '15 7 * * *', $cron$
   select net.http_post(
-    url := 'https://mapa-cde-zspd.vercel.app/api/limpiar',
+    url := 'https://jahechacde.vercel.app/api/limpiar',
     headers := jsonb_build_object('content-type', 'application/json',
                                   'x-clave', (select valor from privado.ajustes where clave = 'ia_clave')),
     body := '{}'::jsonb,
